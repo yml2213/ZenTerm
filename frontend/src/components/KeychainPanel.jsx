@@ -169,11 +169,6 @@ export default function KeychainPanel({
 
       <div className={`keychain-workbench${activeDrawer ? ' drawer-open' : ''}`}>
         <div className="keychain-canvas">
-          <div className="keychain-canvas-head">
-            <h2>{section.label}</h2>
-            <span>{section.count} 项</span>
-          </div>
-
           <div className="keychain-empty-state">
             <div className="keychain-empty-icon">
               <SectionIcon size={28} />
@@ -184,44 +179,26 @@ export default function KeychainPanel({
             </div>
 
             <div className="keychain-empty-actions">
-              {activeSection === 'keys' ? (
-                <>
-                  <button type="button" className="ghost-button" onClick={() => openDrawer('importKey')}>
-                    <Upload size={15} />
-                    导入
-                  </button>
-                  <button type="button" className="primary-button" onClick={() => openDrawer('generateKey')}>
-                    <KeyRound size={15} />
-                    生成
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="ghost-button" disabled>
-                  <SectionIcon size={15} />
-                  {sectionCopy.primaryLabel}
+            {activeSection === 'keys' ? (
+              <>
+                <button type="button" className="ghost-button" onClick={() => openDrawer('importKey')}>
+                  <Upload size={15} />
+                  导入
                 </button>
-              )}
-            </div>
-          </div>
-
-          <div className="keychain-status-strip">
-            <div className="keychain-status-card">
-              <span>系统钥匙串</span>
-              <strong>{status?.provider || '检测中'}</strong>
-              <small>{status?.message || '正在同步当前设备状态。'}</small>
-            </div>
-            <div className="keychain-status-card">
-              <span>Vault 状态</span>
-              <strong>{vaultInitialized ? (vaultUnlocked ? '已初始化并就绪' : '已初始化，待输入主密码') : '尚未初始化'}</strong>
-              <small>{hostCount} 台主机已纳入当前保险箱。</small>
-            </div>
-            <div className="keychain-status-card">
-              <span>当前策略</span>
-              <strong>主密码只负责加密</strong>
-              <small>日常进入优先交给系统钥匙串，只有缺失或不可用时才手动输入。</small>
-            </div>
+                <button type="button" className="primary-button" onClick={() => openDrawer('generateKey')}>
+                  <KeyRound size={15} />
+                  生成
+                </button>
+              </>
+            ) : (
+              <button type="button" className="ghost-button" disabled>
+                <SectionIcon size={15} />
+                {sectionCopy.primaryLabel}
+              </button>
+            )}
           </div>
         </div>
+      </div>
 
         {activeDrawer === 'generateKey' ? (
           <aside className="keychain-drawer" role="dialog" aria-modal="false" aria-labelledby="generate-key-title">

@@ -836,7 +836,7 @@ export default function App() {
               </div>
             </header>
 
-            <main className={`content-area${isHostsPage ? ' hosts-content-area' : ''}`}>
+            <main className="content-area">
               {isHostsPage ? (
                 <section className="hosts-stage">
                   <HostList
