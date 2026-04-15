@@ -1,4 +1,4 @@
-import { AlertTriangle, KeyRound, RotateCcw, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2, ShieldCheck } from 'lucide-react'
 
 export default function VaultSettingsPanel({
   vaultUnlocked,
@@ -86,6 +86,71 @@ export default function VaultSettingsPanel({
               </button>
             </div>
           </form>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <div className="settings-card-icon info">
+              <Settings2 size={18} />
+            </div>
+            <div>
+              <h2>应用偏好</h2>
+              <p>这里开始承接 ZenTerm 的通用设置，后续可继续补主题、终端、启动行为等偏好项。</p>
+            </div>
+          </div>
+
+          <div className="settings-list">
+            <div className="settings-list-row">
+              <div>
+                <strong>主题与外观</strong>
+                <p>当前仍在顶部切换，后续会把默认主题、强调色和界面密度收进这里。</p>
+              </div>
+              <span className="pill subtle">占位</span>
+            </div>
+            <div className="settings-list-row">
+              <div>
+                <strong>终端偏好</strong>
+                <p>后续可配置默认字体、光标样式、复制行为和启动 Shell 选项。</p>
+              </div>
+              <span className="pill subtle">占位</span>
+            </div>
+            <div className="settings-list-row">
+              <div>
+                <strong>启动行为</strong>
+                <p>预留启动工作区、恢复标签页与窗口策略等基础行为开关。</p>
+              </div>
+              <span className="pill subtle">占位</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <div className="settings-card-icon info">
+              <Database size={18} />
+            </div>
+            <div>
+              <h2>数据状态</h2>
+              <p>把本地配置、凭据存储与同步状态聚合在这里，方便后面继续补导入导出和诊断工具。</p>
+            </div>
+          </div>
+
+          <div className="settings-list">
+            <div className="settings-list-row">
+              <div>
+                <strong>本地配置</strong>
+                <p>后续会补充数据文件位置、配置导出与备份恢复入口。</p>
+              </div>
+              <span className="pill subtle">计划中</span>
+            </div>
+            <div className="settings-list-row">
+              <div>
+                <strong>系统钥匙串</strong>
+                <p>预留检测当前平台可用性、重新同步与清理凭据缓存的状态面板。</p>
+              </div>
+              <span className="pill subtle">计划中</span>
+            </div>
+          </div>
         </section>
 
         <section className="settings-card danger">

@@ -1,16 +1,22 @@
 import {
+  Activity,
+  FolderKanban,
+  FolderLock,
+  KeyRound,
   LayoutGrid,
-  Lock,
   Monitor,
   Moon,
   FolderOpen,
   Plus,
+  PlugZap,
   Search,
   Settings2,
+  Shield,
   ShieldCheck,
   Sun,
   TerminalSquare,
 } from 'lucide-react'
+import FeaturePlaceholderPanel from './components/FeaturePlaceholderPanel.jsx'
 import { startTransition, useEffect, useRef, useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createHostFormFromHost, createInitialHostForm } from './components/HostForm.jsx'
@@ -144,6 +150,75 @@ function createChangeMasterForm() {
   }
 }
 
+const sidebarPages = {
+  hosts: {
+    label: '主机',
+    icon: LayoutGrid,
+    title: '全部主机',
+    kicker: 'Vaults',
+  },
+  keychain: {
+    label: '钥匙串',
+    icon: KeyRound,
+    title: '钥匙串',
+    kicker: 'Keychain',
+    description: '集中管理密码、私钥与凭据来源，让主机配置、SFTP 与未来扩展模块共享同一套安全入口。',
+    highlights: [
+      { title: '凭据条目', description: '后续会把已保存密码、私钥引用和凭据来源整理成独立列表。' },
+      { title: '来源标记', description: '区分系统钥匙串、本地导入、临时输入等不同凭据来源。' },
+      { title: '安全操作', description: '为替换、清除、重新同步系统钥匙串预留清晰操作入口。' },
+    ],
+  },
+  forwarding: {
+    label: '端口转发',
+    icon: PlugZap,
+    title: '端口转发',
+    kicker: 'Forwarding',
+    description: '这里会承载本地、远端和动态端口转发，方便把 SSH 会话扩展成完整的开发入口。',
+    highlights: [
+      { title: '规则列表', description: '展示当前已启用和待启用的转发规则，后续可直接启停。' },
+      { title: '模板创建', description: '预留快速创建常用数据库、内部服务和调试代理转发的入口。' },
+      { title: '运行状态', description: '未来会补充流量、监听端口与失败重试等运行信息。' },
+    ],
+  },
+  snippets: {
+    label: '代码片段',
+    icon: FolderKanban,
+    title: '代码片段',
+    kicker: 'Snippets',
+    description: '把常用命令、部署脚本和排障片段集中管理，减少重复输入和切换工具的成本。',
+    highlights: [
+      { title: '片段分组', description: '后续支持按主机、环境和用途组织命令片段。' },
+      { title: '一键发送', description: '预留直接发送到当前终端标签页的操作入口。' },
+      { title: '变量占位', description: '未来可补主机变量、环境变量和常用模板替换能力。' },
+    ],
+  },
+  knownHosts: {
+    label: '已知主机',
+    icon: Shield,
+    title: '已知主机',
+    kicker: 'Known Hosts',
+    description: '把当前保存的可信指纹集中展示，后续可在这里审查、比对和清理主机信任关系。',
+    highlights: [
+      { title: '指纹审查', description: '展示 SHA256、来源主机和最近使用时间，方便排查变更。' },
+      { title: '信任同步', description: '为未来的导入、导出和批量清理 known_hosts 预留位置。' },
+      { title: '风险提醒', description: '后续可补主机指纹变化、冲突记录和人工确认轨迹。' },
+    ],
+  },
+  logs: {
+    label: '日志',
+    icon: Activity,
+    title: '日志',
+    kicker: 'Logs',
+    description: '用于汇总连接、SFTP、指纹确认与系统事件，让排查问题时能快速看到完整上下文。',
+    highlights: [
+      { title: '会话事件', description: '未来记录连接建立、断开、失败原因和关键时间点。' },
+      { title: '安全事件', description: '预留主密码变更、指纹确认和本地凭据操作日志。' },
+      { title: '筛选视图', description: '后续会支持按主机、级别与时间范围筛选日志。' },
+    ],
+  },
+}
+
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
@@ -186,6 +261,11 @@ export default function App() {
   const onlineHostsCount = Object.keys(sessionCountByHost).length
   const navigationItems = [
     { id: 'hosts', label: '主机', icon: LayoutGrid },
+    { id: 'keychain', label: '钥匙串', icon: KeyRound },
+    { id: 'forwarding', label: '端口转发', icon: PlugZap },
+    { id: 'snippets', label: '代码片段', icon: FolderKanban },
+    { id: 'knownHosts', label: '已知主机', icon: Shield },
+    { id: 'logs', label: '日志', icon: Activity },
   ]
 
   function closeHostDialog() {
@@ -580,6 +660,9 @@ export default function App() {
   const ThemeIcon = theme === 'auto' ? Monitor : theme === 'light' ? Sun : Moon
   const showSetupModal = !vaultInitialized && vaultReady
   const showAccessModal = vaultInitialized && !vaultUnlocked && vaultReady
+  const currentSidebarPage = sidebarPages[activeSidebarPage] || sidebarPages.hosts
+  const isHostsPage = activeSidebarPage === 'hosts'
+  const isSettingsPage = activeSidebarPage === 'settings'
 
   return (
     <div className="app-shell">
@@ -591,7 +674,7 @@ export default function App() {
             onClick={() => handleWorkspaceChange('vaults')}
             aria-pressed={activeWorkspace === 'vaults'}
           >
-            <Lock size={15} />
+            <FolderLock size={15} />
             {t('vaults')}
           </button>
           <button
@@ -676,7 +759,7 @@ export default function App() {
 
           <section className="page-shell">
             <header className="page-toolbar">
-              {activeSidebarPage === 'hosts' ? (
+              {isHostsPage ? (
                 <div className="page-toolbar-main">
                   <label className="search-bar">
                     <Search size={15} />
@@ -688,11 +771,17 @@ export default function App() {
                     />
                   </label>
                 </div>
-              ) : (
+              ) : isSettingsPage ? (
                 <div className="page-toolbar-copy">
                   <span className="panel-kicker">Security</span>
                   <h2>保险箱与主密码</h2>
                   <p>在这里管理主密码与整个 Vault 的重置操作。日常进入默认由系统钥匙串接管。</p>
+                </div>
+              ) : (
+                <div className="page-toolbar-copy">
+                  <span className="panel-kicker">{currentSidebarPage.kicker}</span>
+                  <h2>{currentSidebarPage.title}</h2>
+                  <p>{currentSidebarPage.description}</p>
                 </div>
               )}
 
@@ -701,7 +790,7 @@ export default function App() {
                   <ShieldCheck size={14} />
                   {vaultInitialized ? (vaultUnlocked ? '主密码已就绪' : '需要主密码') : '等待初始化'}
                 </span>
-                {activeSidebarPage === 'hosts' && (
+                {isHostsPage && (
                   <button
                     type="button"
                     className="toolbar-btn primary"
@@ -715,7 +804,7 @@ export default function App() {
             </header>
 
             <main className="content-area">
-              {activeSidebarPage === 'hosts' ? (
+              {isHostsPage ? (
                 <section className="hosts-stage panel">
                   <div className="section-head hosts-stage-head">
                     <div>
@@ -742,7 +831,7 @@ export default function App() {
                     disabled={!vaultUnlocked}
                   />
                 </section>
-              ) : (
+              ) : isSettingsPage ? (
                 <VaultSettingsPanel
                   vaultUnlocked={vaultUnlocked}
                   changeForm={changeMasterForm}
@@ -753,6 +842,13 @@ export default function App() {
                   onChangePassword={handleChangeMasterPassword}
                   onResetConfirmedChange={setResetVaultConfirmed}
                   onResetVault={handleResetVault}
+                />
+              ) : (
+                <FeaturePlaceholderPanel
+                  kicker={currentSidebarPage.kicker}
+                  title={currentSidebarPage.title}
+                  description={currentSidebarPage.description}
+                  highlights={currentSidebarPage.highlights}
                 />
               )}
             </main>

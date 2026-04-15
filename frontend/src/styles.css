@@ -772,6 +772,11 @@ textarea {
   color: var(--accent-success);
 }
 
+.settings-card-icon.info {
+  background: rgba(24, 149, 194, 0.12);
+  color: var(--accent-cyan);
+}
+
 .settings-card-icon.danger {
   background: rgba(226, 77, 77, 0.12);
   color: var(--accent-danger);
@@ -791,6 +796,33 @@ textarea {
 .settings-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.settings-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.92rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong);
+}
+
+.settings-list-row strong {
+  display: block;
+  font-size: 0.94rem;
+}
+
+.settings-list-row p {
+  margin-top: 0.22rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .settings-danger-copy {
@@ -844,6 +876,73 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 0.8rem;
+}
+
+.placeholder-stage {
+  min-height: 100%;
+  padding: 1rem;
+  border-radius: 18px;
+  display: grid;
+  gap: 1rem;
+}
+
+.placeholder-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background:
+    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 42%),
+    linear-gradient(180deg, var(--panel-bg-strong) 0%, var(--panel-bg) 100%);
+}
+
+.placeholder-hero-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(24, 149, 194, 0.12);
+  color: var(--accent-cyan);
+}
+
+.placeholder-hero-copy h1 {
+  margin-top: 0.18rem;
+  font-size: 1.16rem;
+}
+
+.placeholder-hero-copy p {
+  margin-top: 0.36rem;
+  max-width: 42rem;
+  color: var(--text-secondary);
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.placeholder-card {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+}
+
+.placeholder-card h2 {
+  font-size: 1rem;
+}
+
+.placeholder-card p {
+  margin-top: 0.28rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
 }
 
 .host-grid-empty {
@@ -1585,6 +1684,10 @@ textarea {
   }
 
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .placeholder-grid {
     grid-template-columns: 1fr;
   }
 }
