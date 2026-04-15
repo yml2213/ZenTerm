@@ -160,6 +160,26 @@ func (a *App) ListHosts() ([]model.Host, error) {
 	return hosts, nil
 }
 
+// ListLocalFiles 返回本机目录内容 / returns the local directory contents.
+func (a *App) ListLocalFiles(path string) (model.FileListing, error) {
+	listing, err := a.service.ListLocalFiles(path)
+	if err != nil {
+		return model.FileListing{}, normalizeFrontendError(err)
+	}
+
+	return listing, nil
+}
+
+// ListRemoteFiles 返回指定主机的远端目录内容 / returns the remote directory contents for the selected host.
+func (a *App) ListRemoteFiles(hostID, path string) (model.FileListing, error) {
+	listing, err := a.service.ListRemoteFiles(hostID, path)
+	if err != nil {
+		return model.FileListing{}, normalizeFrontendError(err)
+	}
+
+	return listing, nil
+}
+
 // ListSessions 返回当前活跃 SSH 会话列表 / returns the current active SSH sessions.
 func (a *App) ListSessions() []service.Session {
 	return a.service.ListSessions()

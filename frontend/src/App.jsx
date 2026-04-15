@@ -676,9 +676,11 @@ export default function App() {
         <SftpWorkspace
           hosts={hosts}
           selectedHost={selectedSftpHost}
+          vaultUnlocked={vaultUnlocked}
           onChooseHost={handlePickSftpHost}
           onCreateHost={openCreateHost}
           onBackToVaults={() => handleWorkspaceChange('vaults')}
+          onError={(message) => setError(message)}
         />
       )}
 

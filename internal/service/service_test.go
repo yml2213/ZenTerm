@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -557,6 +558,110 @@ func TestCloseAllClosesEverySession(t *testing.T) {
 	}
 }
 
+func TestListLocalFilesReturnsSortedEntries(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "beta-dir"), 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "alpha.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	listing, err := svc.ListLocalFiles(dir)
+	if err != nil {
+		t.Fatalf("ListLocalFiles() error = %v", err)
+	}
+	if listing.Path != dir {
+		t.Fatalf("listing.Path = %q, want %q", listing.Path, dir)
+	}
+	if len(listing.Entries) != 2 {
+		t.Fatalf("len(listing.Entries) = %d, want 2", len(listing.Entries))
+	}
+	if !listing.Entries[0].IsDir || listing.Entries[0].Name != "beta-dir" {
+		t.Fatalf("listing.Entries[0] = %#v, want beta-dir directory first", listing.Entries[0])
+	}
+	if listing.Entries[1].Name != "alpha.txt" || listing.Entries[1].IsDir {
+		t.Fatalf("listing.Entries[1] = %#v, want alpha.txt file second", listing.Entries[1])
+	}
+}
+
+func TestListRemoteFilesReturnsResolvedDirectory(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-sftp", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd: "/home/zen",
+			realPaths: map[string]string{
+				".":            "/home/zen",
+				"/home/zen":    "/home/zen",
+				"/srv/project": "/srv/project",
+			},
+			dirs: map[string][]os.FileInfo{
+				"/srv/project": {
+					stubFileInfo{name: "z-last.log", size: 17, mode: 0o644, modTime: time.Unix(1710000100, 0)},
+					stubFileInfo{name: "config", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+				},
+			},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	listing, err := svc.ListRemoteFiles(host.ID, "/srv/project")
+	if err != nil {
+		t.Fatalf("ListRemoteFiles() error = %v", err)
+	}
+	if listing.Path != "/srv/project" {
+		t.Fatalf("listing.Path = %q, want %q", listing.Path, "/srv/project")
+	}
+	if listing.ParentPath != "/srv" {
+		t.Fatalf("listing.ParentPath = %q, want %q", listing.ParentPath, "/srv")
+	}
+	if len(listing.Entries) != 2 {
+		t.Fatalf("len(listing.Entries) = %d, want 2", len(listing.Entries))
+	}
+	if listing.Entries[0].Name != "config" || !listing.Entries[0].IsDir {
+		t.Fatalf("listing.Entries[0] = %#v, want config directory first", listing.Entries[0])
+	}
+	if listing.Entries[1].Name != "z-last.log" || listing.Entries[1].IsDir {
+		t.Fatalf("listing.Entries[1] = %#v, want z-last.log file second", listing.Entries[1])
+	}
+	if !client.sftp.closed {
+		t.Fatal("ListRemoteFiles() did not close the sftp client")
+	}
+}
+
 func TestHostKeyCallbackAcceptPersistsKnownHost(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
@@ -741,6 +846,7 @@ func (d *stubDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshCl
 
 type stubSSHClient struct {
 	session *stubSSHSession
+	sftp    *stubSFTPClient
 	closed  bool
 }
 
@@ -753,10 +859,70 @@ func (c *stubSSHClient) NewSession() (sshSession, error) {
 	return c.session, nil
 }
 
+func (c *stubSSHClient) NewSFTPClient() (sftpClient, error) {
+	if c.sftp == nil {
+		c.sftp = &stubSFTPClient{
+			cwd:       "/",
+			realPaths: map[string]string{".": "/"},
+			dirs:      map[string][]os.FileInfo{"/": {}},
+		}
+	}
+
+	return c.sftp, nil
+}
+
 func (c *stubSSHClient) Close() error {
 	c.closed = true
 	return nil
 }
+
+type stubSFTPClient struct {
+	cwd       string
+	realPaths map[string]string
+	dirs      map[string][]os.FileInfo
+	closed    bool
+}
+
+func (c *stubSFTPClient) ReadDir(path string) ([]os.FileInfo, error) {
+	entries, ok := c.dirs[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return entries, nil
+}
+
+func (c *stubSFTPClient) RealPath(path string) (string, error) {
+	if resolved, ok := c.realPaths[path]; ok {
+		return resolved, nil
+	}
+
+	return "", os.ErrNotExist
+}
+
+func (c *stubSFTPClient) Getwd() (string, error) {
+	return c.cwd, nil
+}
+
+func (c *stubSFTPClient) Close() error {
+	c.closed = true
+	return nil
+}
+
+type stubFileInfo struct {
+	name    string
+	size    int64
+	mode    os.FileMode
+	modTime time.Time
+	dir     bool
+}
+
+func (s stubFileInfo) Name() string       { return s.name }
+func (s stubFileInfo) Size() int64        { return s.size }
+func (s stubFileInfo) Mode() os.FileMode  { return s.mode }
+func (s stubFileInfo) ModTime() time.Time { return s.modTime }
+func (s stubFileInfo) IsDir() bool        { return s.dir }
+func (s stubFileInfo) Sys() any           { return nil }
 
 type stubSSHSession struct {
 	stdin        bytes.Buffer

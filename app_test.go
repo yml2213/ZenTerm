@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -174,6 +175,29 @@ func TestAppListSessionsReturnsServiceSnapshot(t *testing.T) {
 	sessions := app.ListSessions()
 	if len(sessions) != 0 {
 		t.Fatalf("len(ListSessions()) = %d, want 0", len(sessions))
+	}
+}
+
+func TestAppListLocalFilesReturnsDirectoryEntries(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "demo.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	listing, err := app.ListLocalFiles(dir)
+	if err != nil {
+		t.Fatalf("ListLocalFiles() error = %v", err)
+	}
+	if listing.Path != dir {
+		t.Fatalf("listing.Path = %q, want %q", listing.Path, dir)
+	}
+	if len(listing.Entries) != 1 || listing.Entries[0].Name != "demo.txt" {
+		t.Fatalf("listing.Entries = %#v, want demo.txt", listing.Entries)
 	}
 }
 

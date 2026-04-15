@@ -1095,6 +1095,11 @@ textarea {
   font-weight: 700;
 }
 
+.sftp-pane-host {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
 .sftp-close-tab,
 .sftp-add-tab,
 .sftp-toolbar-btn {
@@ -1138,8 +1143,17 @@ textarea {
   min-width: 0;
 }
 
-.sftp-breadcrumb strong {
+.sftp-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  padding: 0.15rem 0;
+}
+
+.sftp-breadcrumb-link.active {
   color: var(--text-primary);
+  font-weight: 700;
 }
 
 .sftp-toolbar-actions {
@@ -1178,10 +1192,16 @@ textarea {
 .sftp-file-row {
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-subtle);
+  width: 100%;
+  text-align: left;
 }
 
-.sftp-file-row:hover {
+.sftp-file-row:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.sftp-file-row:disabled {
+  cursor: default;
 }
 
 .sftp-file-name {
@@ -1305,6 +1325,20 @@ textarea {
 .sftp-host-chip:hover {
   border-color: var(--border-hover);
   background: var(--panel-muted);
+}
+
+.spin {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .form-panel {

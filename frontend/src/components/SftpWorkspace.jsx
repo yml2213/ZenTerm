@@ -1,165 +1,362 @@
 import {
   ChevronRight,
-  FilePlus2,
   Folder,
   FolderOpen,
-  FolderPlus,
   HardDrive,
   Home,
-  List,
+  LoaderCircle,
   MonitorSmartphone,
   RefreshCw,
-  Search,
-  Star,
+  Server,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { listLocalFiles, listRemoteFiles } from '../lib/backend.js'
 
-const localEntries = [
-  { name: '..', modifiedAt: '--', size: '--', type: 'Folder', parent: true },
-  { name: 'Applications', modifiedAt: '2026-04-12 22:56', size: '--', type: 'Folder' },
-  { name: 'codes', modifiedAt: '2026-04-15 10:31', size: '--', type: 'Folder' },
-  { name: 'Desktop', modifiedAt: '2026-04-15 10:09', size: '--', type: 'Folder' },
-  { name: 'Documents', modifiedAt: '2026-04-13 20:32', size: '--', type: 'Folder' },
-  { name: 'Downloads', modifiedAt: '2026-04-15 16:07', size: '--', type: 'Folder' },
-  { name: 'go', modifiedAt: '2026-04-15 12:13', size: '--', type: 'Folder' },
-  { name: 'Library', modifiedAt: '2026-04-13 20:41', size: '--', type: 'Folder' },
-  { name: 'Movies', modifiedAt: '2026-04-13 05:54', size: '--', type: 'Folder' },
-  { name: 'Music', modifiedAt: '2026-04-12 17:57', size: '--', type: 'Folder' },
-  { name: 'Pictures', modifiedAt: '2026-04-12 17:44', size: '--', type: 'Folder' },
-  { name: 'Public', modifiedAt: '2026-04-12 17:44', size: '--', type: 'Folder' },
-]
+function splitLocalPath(path) {
+  const normalized = path || ''
+  const parts = normalized.split('/').filter(Boolean)
 
-const toolbarActions = [
-  { label: '收藏', icon: Star },
-  { label: '列表', icon: List },
-  { label: '搜索', icon: Search },
-  { label: '新建文件夹', icon: FolderPlus },
-  { label: '新建文件', icon: FilePlus2 },
-  { label: '刷新', icon: RefreshCw },
-]
+  if (parts.length === 0) {
+    return [{ label: '/', path: '/' }]
+  }
+
+  return [
+    { label: '/', path: '/' },
+    ...parts.map((segment, index) => ({
+      label: segment,
+      path: `/${parts.slice(0, index + 1).join('/')}`,
+    })),
+  ]
+}
+
+function splitRemotePath(path) {
+  const normalized = path || '/'
+  const parts = normalized.split('/').filter(Boolean)
+
+  if (parts.length === 0) {
+    return [{ label: '/', path: '/' }]
+  }
+
+  return [
+    { label: '/', path: '/' },
+    ...parts.map((segment, index) => ({
+      label: segment,
+      path: `/${parts.slice(0, index + 1).join('/')}`,
+    })),
+  ]
+}
+
+function formatSize(size, isDir) {
+  if (isDir) {
+    return '--'
+  }
+
+  if (!Number.isFinite(size) || size < 1024) {
+    return `${Math.max(size, 0)} B`
+  }
+
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = size
+  let unitIndex = -1
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function formatTime(value) {
+  if (!value) {
+    return '--'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '--'
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date).replace(/\//g, '-')
+}
+
+function buildRows(listing) {
+  const rows = listing?.entries || []
+  if (!listing?.parentPath) {
+    return rows
+  }
+
+  return [
+    {
+      name: '..',
+      path: listing.parentPath,
+      size: 0,
+      modTime: '',
+      type: 'dir',
+      isDir: true,
+      parent: true,
+    },
+    ...rows,
+  ]
+}
+
+function FilePane({
+  sourceLabel,
+  sourceIcon: SourceIcon,
+  listing,
+  loading,
+  hostLabel,
+  onNavigate,
+  onRefresh,
+  breadcrumbItems,
+}) {
+  const rows = buildRows(listing)
+
+  return (
+    <section className="sftp-pane">
+      <header className="sftp-pane-topbar">
+        <button type="button" className="sftp-source-tab active">
+          <SourceIcon size={14} />
+          <span>{sourceLabel}</span>
+        </button>
+
+        {hostLabel ? <span className="sftp-pane-host">{hostLabel}</span> : null}
+
+        <button
+          type="button"
+          className="sftp-add-tab"
+          aria-label={`刷新 ${sourceLabel}`}
+          title={`刷新 ${sourceLabel}`}
+          onClick={onRefresh}
+        >
+          <RefreshCw size={15} />
+        </button>
+      </header>
+
+      <div className="sftp-local-toolbar">
+        <div className="sftp-breadcrumb">
+          {breadcrumbItems.map((item, index) => (
+            <button
+              key={`${item.path}-${index}`}
+              type="button"
+              className={`sftp-breadcrumb-link${index === breadcrumbItems.length - 1 ? ' active' : ''}`}
+              onClick={() => onNavigate(item.path)}
+            >
+              {index === 0 && item.label === '/' ? <Home size={14} /> : item.label}
+              {index < breadcrumbItems.length - 1 ? <ChevronRight size={14} /> : null}
+            </button>
+          ))}
+        </div>
+
+        <div className="sftp-toolbar-actions">
+          {loading ? (
+            <span className="pill subtle">
+              <LoaderCircle size={13} className="spin" />
+              加载中
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="sftp-file-table">
+        <div className="sftp-file-head">
+          <span>名称</span>
+          <span>修改时间</span>
+          <span>大小</span>
+          <span>类型</span>
+        </div>
+
+        <div className="sftp-file-body">
+          {rows.map((entry) => (
+            <button
+              key={`${entry.path}-${entry.name}`}
+              type="button"
+              className={`sftp-file-row${entry.parent ? ' is-parent' : ''}`}
+              onClick={() => entry.isDir && onNavigate(entry.path)}
+              disabled={!entry.isDir}
+            >
+              <div className="sftp-file-name">
+                <span className="sftp-file-icon">
+                  {entry.parent ? <FolderOpen size={16} /> : <Folder size={16} />}
+                </span>
+                <strong>{entry.name}</strong>
+              </div>
+              <span>{formatTime(entry.modTime)}</span>
+              <span>{formatSize(entry.size, entry.isDir)}</span>
+              <span>{entry.isDir ? 'Folder' : 'File'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <footer className="sftp-pane-footer">
+        <span>{listing?.entries?.length || 0} 个项目</span>
+        <span>{listing?.path || '--'}</span>
+      </footer>
+    </section>
+  )
+}
 
 export default function SftpWorkspace({
   hosts,
   selectedHost,
+  vaultUnlocked,
   onChooseHost,
   onCreateHost,
   onBackToVaults,
+  onError,
 }) {
-  const hasHosts = hosts.length > 0
+  const [localListing, setLocalListing] = useState(null)
+  const [remoteListing, setRemoteListing] = useState(null)
+  const [localLoading, setLocalLoading] = useState(false)
+  const [remoteLoading, setRemoteLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLocalLoading(true)
+
+    listLocalFiles('')
+      .then((listing) => {
+        if (!cancelled) {
+          setLocalListing(listing)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          onError(error?.message || String(error))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLocalLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [onError])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!selectedHost || !vaultUnlocked) {
+      setRemoteListing(null)
+      setRemoteLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setRemoteLoading(true)
+    listRemoteFiles(selectedHost.id, '')
+      .then((listing) => {
+        if (!cancelled) {
+          setRemoteListing(listing)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          onError(error?.message || String(error))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setRemoteLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [onError, selectedHost, vaultUnlocked])
+
+  async function handleLocalNavigate(path) {
+    setLocalLoading(true)
+    try {
+      const listing = await listLocalFiles(path)
+      setLocalListing(listing)
+    } catch (error) {
+      onError(error?.message || String(error))
+    } finally {
+      setLocalLoading(false)
+    }
+  }
+
+  async function handleRemoteNavigate(path) {
+    if (!selectedHost) {
+      return
+    }
+
+    setRemoteLoading(true)
+    try {
+      const listing = await listRemoteFiles(selectedHost.id, path)
+      setRemoteListing(listing)
+    } catch (error) {
+      onError(error?.message || String(error))
+    } finally {
+      setRemoteLoading(false)
+    }
+  }
 
   return (
     <section className="sftp-shell" aria-label="SFTP 工作区">
       <div className="sftp-browser">
-        <section className="sftp-pane sftp-pane-local">
-          <header className="sftp-pane-topbar">
-            <button type="button" className="sftp-source-tab active">
-              <MonitorSmartphone size={14} />
-              <span>Local</span>
-            </button>
-            <button type="button" className="sftp-close-tab" aria-label="关闭本地标签">
-              ×
-            </button>
-            <button type="button" className="sftp-add-tab" aria-label="新增 SFTP 标签">
-              +
-            </button>
-          </header>
+        <FilePane
+          sourceLabel="Local"
+          sourceIcon={MonitorSmartphone}
+          listing={localListing}
+          loading={localLoading}
+          onNavigate={handleLocalNavigate}
+          onRefresh={() => handleLocalNavigate(localListing?.path || '')}
+          breadcrumbItems={splitLocalPath(localListing?.path || '')}
+        />
 
-          <div className="sftp-local-toolbar">
-            <div className="sftp-breadcrumb">
-              <Home size={14} />
-              <ChevronRight size={14} />
-              <span>Users</span>
-              <ChevronRight size={14} />
-              <strong>yml</strong>
-            </div>
-
-            <div className="sftp-toolbar-actions">
-              {toolbarActions.map((action) => {
-                const Icon = action.icon
-                return (
-                  <button
-                    key={action.label}
-                    type="button"
-                    className="sftp-toolbar-btn"
-                    aria-label={action.label}
-                    title={action.label}
-                  >
-                    <Icon size={15} />
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="sftp-file-table">
-            <div className="sftp-file-head">
-              <span>名称 ↑</span>
-              <span>修改时间</span>
-              <span>大小</span>
-              <span>类型</span>
-            </div>
-
-            <div className="sftp-file-body">
-              {localEntries.map((entry) => (
-                <div key={entry.name} className={`sftp-file-row${entry.parent ? ' is-parent' : ''}`}>
-                  <div className="sftp-file-name">
-                    <span className="sftp-file-icon">
-                      {entry.parent ? <FolderOpen size={16} /> : <Folder size={16} />}
-                    </span>
-                    <strong>{entry.name}</strong>
-                  </div>
-                  <span>{entry.modifiedAt}</span>
-                  <span>{entry.size}</span>
-                  <span>{entry.type}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <footer className="sftp-pane-footer">
-            <span>{localEntries.length} 个项目</span>
-            <span>/Users/yml</span>
-          </footer>
-        </section>
-
-        <section className="sftp-pane sftp-pane-remote">
-          {selectedHost ? (
-            <div className="sftp-empty-state has-host">
-              <div className="sftp-empty-icon">
-                <HardDrive size={24} />
-              </div>
-              <div className="sftp-empty-copy">
-                <strong>{selectedHost.name || selectedHost.id}</strong>
-                <p>{selectedHost.username}@{selectedHost.address}:{selectedHost.port || 22}</p>
-                <small>SFTP 远端目录浏览器是下一步接入的能力，这里先保留完整工作区结构与主机上下文。</small>
-              </div>
-
-              <div className="sftp-host-meta">
-                <span className="pill subtle">远端浏览器待接入</span>
-                <span className="pill subtle">{selectedHost.known_hosts ? '已信任主机' : '首次连接需校验指纹'}</span>
-              </div>
-
-              <div className="sftp-empty-actions">
-                <button type="button" className="primary-button" onClick={onChooseHost}>
-                  切换主机
-                </button>
-                <button type="button" className="ghost-button" onClick={onBackToVaults}>
-                  返回 Vaults
-                </button>
-              </div>
-            </div>
+        {selectedHost ? (
+          vaultUnlocked ? (
+            <FilePane
+              sourceLabel="Remote"
+              sourceIcon={Server}
+              listing={remoteListing}
+              loading={remoteLoading}
+              hostLabel={selectedHost.name || selectedHost.id}
+              onNavigate={handleRemoteNavigate}
+              onRefresh={() => handleRemoteNavigate(remoteListing?.path || '')}
+              breadcrumbItems={splitRemotePath(remoteListing?.path || '/')}
+            />
           ) : (
+            <section className="sftp-pane sftp-pane-remote">
+              <div className="sftp-empty-state">
+                <div className="sftp-empty-icon">
+                  <HardDrive size={24} />
+                </div>
+                <div className="sftp-empty-copy">
+                  <strong>先解锁保险箱</strong>
+                  <p>远端文件需要使用主机凭据建立 SFTP 连接后才能展示。</p>
+                </div>
+              </div>
+            </section>
+          )
+        ) : (
+          <section className="sftp-pane sftp-pane-remote">
             <div className="sftp-empty-state">
               <div className="sftp-empty-icon">
                 <HardDrive size={24} />
               </div>
               <div className="sftp-empty-copy">
                 <strong>先选择一个主机</strong>
-                <p>选择要浏览的本地或远端文件系统</p>
+                <p>选择要浏览的远端文件系统</p>
               </div>
 
               <div className="sftp-empty-actions">
-                {hasHosts ? (
-                  <button type="button" className="primary-button" onClick={onChooseHost}>
+                {hosts.length > 0 ? (
+                  <button type="button" className="primary-button" onClick={() => onChooseHost()}>
                     选择主机
                   </button>
                 ) : (
@@ -167,11 +364,14 @@ export default function SftpWorkspace({
                     新建主机
                   </button>
                 )}
+                <button type="button" className="ghost-button" onClick={onBackToVaults}>
+                  返回 Vaults
+                </button>
               </div>
 
-              {hasHosts ? (
+              {hosts.length > 0 ? (
                 <div className="sftp-host-picker">
-                  {hosts.slice(0, 4).map((host) => (
+                  {hosts.slice(0, 6).map((host) => (
                     <button
                       key={host.id}
                       type="button"
@@ -185,8 +385,8 @@ export default function SftpWorkspace({
                 </div>
               ) : null}
             </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </section>
   )

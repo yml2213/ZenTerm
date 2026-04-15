@@ -10,7 +10,9 @@ import {
   connect,
   deleteHost,
   disconnect,
+  listLocalFiles,
   listHosts,
+  listRemoteFiles,
   listSessions,
   onRuntimeEvent,
   unlock,
@@ -35,6 +37,8 @@ vi.mock('./lib/backend.js', () => ({
   unlock: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
+  listLocalFiles: vi.fn(),
+  listRemoteFiles: vi.fn(),
   listSessions: vi.fn(),
   acceptHostKey: vi.fn(),
   rejectHostKey: vi.fn(),
@@ -104,6 +108,34 @@ describe('App', () => {
     unlock.mockResolvedValue(undefined)
     connect.mockResolvedValue('session-1')
     disconnect.mockResolvedValue(undefined)
+    listLocalFiles.mockResolvedValue({
+      path: '/Users/yml',
+      parentPath: '/Users',
+      entries: [
+        {
+          name: 'codes',
+          path: '/Users/yml/codes',
+          size: 0,
+          modTime: '2026-04-15T10:31:00Z',
+          type: 'dir',
+          isDir: true,
+        },
+      ],
+    })
+    listRemoteFiles.mockResolvedValue({
+      path: '/home/root',
+      parentPath: '/home',
+      entries: [
+        {
+          name: 'app',
+          path: '/home/root/app',
+          size: 0,
+          modTime: '2026-04-15T10:31:00Z',
+          type: 'dir',
+          isDir: true,
+        },
+      ],
+    })
     acceptHostKey.mockResolvedValue(undefined)
     onRuntimeEvent.mockImplementation((eventName, handler) => {
       runtimeHandlers.set(eventName, handler)
@@ -134,6 +166,7 @@ describe('App', () => {
 
     expect(screen.getByText('先选择一个主机')).toBeInTheDocument()
     expect(screen.getByText('Local')).toBeInTheDocument()
+    expect(listLocalFiles).toHaveBeenCalled()
   })
 
   it('新增主机时会拆分 host 和 identity 参数', async () => {

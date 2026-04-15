@@ -56,6 +56,14 @@ export async function listHosts() {
   return callApp('ListHosts')
 }
 
+export async function listLocalFiles(path = '') {
+  return callApp('ListLocalFiles', path)
+}
+
+export async function listRemoteFiles(hostID, path = '') {
+  return callApp('ListRemoteFiles', hostID, path)
+}
+
 export async function addHost(host, identity) {
   return callApp('AddHost', host, identity)
 }
