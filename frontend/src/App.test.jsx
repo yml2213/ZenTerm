@@ -11,6 +11,7 @@ import {
   connect,
   deleteHost,
   disconnect,
+  getKeychainStatus,
   getVaultStatus,
   initializeVaultWithPreferences,
   listLocalFiles,
@@ -30,6 +31,7 @@ vi.mock('./lib/backend.js', () => ({
   addHost: vi.fn(),
   updateHost: vi.fn(),
   deleteHost: vi.fn(),
+  getKeychainStatus: vi.fn(),
   getVaultStatus: vi.fn(),
   initializeVaultWithPreferences: vi.fn(),
   unlock: vi.fn(),
@@ -118,6 +120,12 @@ describe('App', () => {
     addHost.mockResolvedValue(undefined)
     updateHost.mockResolvedValue(undefined)
     deleteHost.mockResolvedValue(undefined)
+    getKeychainStatus.mockResolvedValue({
+      supported: true,
+      saved: true,
+      provider: 'macOS 钥匙串',
+      message: '系统钥匙串可用，且已经保存主密码。',
+    })
     getVaultStatus.mockResolvedValue({ initialized: true, unlocked: false })
     initializeVaultWithPreferences.mockResolvedValue(undefined)
     unlockWithPreferences.mockResolvedValue(undefined)
@@ -227,6 +235,42 @@ describe('App', () => {
     await waitFor(() => {
       expect(changeMasterPassword).toHaveBeenCalledWith('master-password', 'next-password', true)
     })
+  })
+
+  it('已知主机页展示真实可信记录', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '已知主机' }))
+
+    expect(screen.getAllByRole('heading', { name: '已知主机' }).length).toBeGreaterThan(0)
+    expect(screen.getByText('可信记录')).toBeInTheDocument()
+    expect(screen.getByText('Beta')).toBeInTheDocument()
+    expect(screen.getByText('1 条已保存')).toBeInTheDocument()
+    expect(screen.getByText(/ssh-ed25519/)).toBeInTheDocument()
+  })
+
+  it('钥匙串页点击生成后才展示右侧抽屉', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '钥匙串' }))
+
+    expect(screen.getByText('macOS 钥匙串')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '生成密钥' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '生成' }))
+
+    expect(screen.getByRole('dialog', { name: '生成密钥' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Label')).toBeInTheDocument()
+    expect(screen.getByText('密钥类型')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '关闭生成密钥' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '关闭生成密钥' }))
+
+    expect(screen.queryByRole('dialog', { name: '生成密钥' })).not.toBeInTheDocument()
   })
 
   it('设置页支持重置 Vault', async () => {

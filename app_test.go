@@ -19,6 +19,7 @@ type stubVaultCredentialStore struct {
 	saveErr    error
 	deleteErr  error
 	deleteHits int
+	status     model.KeychainStatus
 }
 
 func (s *stubVaultCredentialStore) Load() (string, bool, error) {
@@ -44,6 +45,10 @@ func (s *stubVaultCredentialStore) Delete() error {
 	s.password = ""
 	s.found = false
 	return nil
+}
+
+func (s *stubVaultCredentialStore) Status() model.KeychainStatus {
+	return s.status
 }
 
 func TestAppUnlockAddHostAndListHosts(t *testing.T) {
@@ -332,6 +337,29 @@ func TestAppGetVaultStatusReflectsInitialization(t *testing.T) {
 	}
 	if !status.Initialized || !status.Unlocked {
 		t.Fatalf("GetVaultStatus() = %#v, want initialized unlocked vault", status)
+	}
+}
+
+func TestAppGetKeychainStatusReflectsCredentialStore(t *testing.T) {
+	credentials := &stubVaultCredentialStore{
+		status: model.KeychainStatus{
+			Supported: true,
+			Saved:     true,
+			Provider:  "测试钥匙串",
+			Message:   "已保存主密码",
+		},
+	}
+	app, err := newAppWithCredentialStore(filepath.Join(t.TempDir(), "config.zen"), credentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	status, err := app.GetKeychainStatus()
+	if err != nil {
+		t.Fatalf("GetKeychainStatus() error = %v", err)
+	}
+	if status != credentials.status {
+		t.Fatalf("GetKeychainStatus() = %#v, want %#v", status, credentials.status)
 	}
 }
 

@@ -92,6 +92,11 @@ func (a *App) GetVaultStatus() (model.VaultStatus, error) {
 	return status, nil
 }
 
+// GetKeychainStatus 返回当前系统钥匙串的可用状态与保存情况 / returns the current system keychain availability and saved-password status.
+func (a *App) GetKeychainStatus() (model.KeychainStatus, error) {
+	return a.credentials.Status(), nil
+}
+
 // InitializeVaultWithPreferences 首次设置主密码，并按需写入系统钥匙串 / initializes the vault and optionally persists the password in the system keychain.
 func (a *App) InitializeVaultWithPreferences(password string, remember bool) error {
 	if err := a.service.InitializeVault(password); err != nil {

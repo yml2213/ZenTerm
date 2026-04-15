@@ -25,10 +25,13 @@ import UnlockModal from './components/UnlockModal.jsx'
 import SessionTabs from './components/SessionTabs.jsx'
 import SftpWorkspace from './components/SftpWorkspace.jsx'
 import VaultSettingsPanel from './components/VaultSettingsPanel.jsx'
+import KnownHostsPanel from './components/KnownHostsPanel.jsx'
+import KeychainPanel from './components/KeychainPanel.jsx'
 import { useTheme } from './contexts/ThemeProvider.jsx'
 import { useLanguage } from './contexts/LanguageProvider.jsx'
 import {
   changeMasterPassword,
+  getKeychainStatus,
   getVaultStatus,
   initializeVaultWithPreferences,
   listHosts,
@@ -249,6 +252,8 @@ export default function App() {
   const [sessionTabs, setSessionTabs] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [connectingHostIds, setConnectingHostIds] = useState([])
+  const [keychainStatus, setKeychainStatus] = useState(null)
+  const [keychainLoading, setKeychainLoading] = useState(false)
 
   const rejectedHostIdsRef = useRef(new Set())
 
@@ -271,6 +276,17 @@ export default function App() {
   function closeHostDialog() {
     setHostDialogMode(null)
     setHostForm(createInitialHostForm())
+  }
+
+  function refreshKeychainStatus() {
+    setKeychainLoading(true)
+
+    return getKeychainStatus()
+      .then((status) => {
+        setKeychainStatus(status)
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setKeychainLoading(false))
   }
 
   function refreshHosts() {
@@ -366,6 +382,8 @@ export default function App() {
         setVaultUnlocked(Boolean(unlocked))
         setVaultReady(true)
       })
+
+      refreshKeychainStatus()
     }
 
     bootstrap().catch((err) => {
@@ -425,6 +443,7 @@ export default function App() {
         setVaultInitialized(true)
         setVaultUnlocked(true)
         setVaultSetupForm(createVaultSetupForm())
+        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setVaultSetupBusy(false))
@@ -439,6 +458,7 @@ export default function App() {
       .then(() => {
         setVaultUnlocked(true)
         setAccessPassword('')
+        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setAccessBusy(false))
@@ -485,6 +505,7 @@ export default function App() {
     )
       .then(() => {
         setChangeMasterForm(createChangeMasterForm())
+        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setChangeMasterBusy(false))
@@ -520,7 +541,9 @@ export default function App() {
           setSessionTabs([])
           setActiveSessionId(null)
           setConnectingHostIds([])
+          setKeychainStatus(null)
         })
+        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setResetVaultBusy(false))
@@ -663,6 +686,8 @@ export default function App() {
   const currentSidebarPage = sidebarPages[activeSidebarPage] || sidebarPages.hosts
   const isHostsPage = activeSidebarPage === 'hosts'
   const isSettingsPage = activeSidebarPage === 'settings'
+  const isKnownHostsPage = activeSidebarPage === 'knownHosts'
+  const isKeychainPage = activeSidebarPage === 'keychain'
 
   return (
     <div className="app-shell">
@@ -842,6 +867,17 @@ export default function App() {
                   onChangePassword={handleChangeMasterPassword}
                   onResetConfirmedChange={setResetVaultConfirmed}
                   onResetVault={handleResetVault}
+                />
+              ) : isKnownHostsPage ? (
+                <KnownHostsPanel hosts={hosts} />
+              ) : isKeychainPage ? (
+                <KeychainPanel
+                  status={keychainStatus}
+                  loading={keychainLoading}
+                  vaultInitialized={vaultInitialized}
+                  vaultUnlocked={vaultUnlocked}
+                  hostCount={hosts.length}
+                  onRefresh={refreshKeychainStatus}
                 />
               ) : (
                 <FeaturePlaceholderPanel

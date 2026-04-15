@@ -61,6 +61,10 @@ export async function getVaultStatus() {
   return callApp('GetVaultStatus')
 }
 
+export async function getKeychainStatus() {
+  return callApp('GetKeychainStatus')
+}
+
 export async function initializeVaultWithPreferences(password, remember) {
   return callApp('InitializeVaultWithPreferences', password, remember)
 }

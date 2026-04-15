@@ -31,6 +31,14 @@ type VaultStatus struct {
 	Unlocked    bool `json:"unlocked"`
 }
 
+// KeychainStatus 描述系统钥匙串当前是否可用，以及是否已经保存主密码 / describes whether the system keychain is usable and whether a master password is stored.
+type KeychainStatus struct {
+	Supported bool   `json:"supported"`
+	Saved     bool   `json:"saved"`
+	Provider  string `json:"provider,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
 // FileEntry 表示文件浏览器中的单个条目 / represents a single file-system entry in the browser.
 type FileEntry struct {
 	Name    string    `json:"name"`
