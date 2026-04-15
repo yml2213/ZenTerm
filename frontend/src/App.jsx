@@ -143,12 +143,10 @@ export default function App() {
     <div className="shell">
       <div className="workspace-shell">
         <header className="panel topbar">
-          <div className="desktop-lights">
-            <div className="traffic-lights">
-              <span />
-              <span />
-              <span />
-            </div>
+          <div className="traffic-lights">
+            <span />
+            <span />
+            <span />
           </div>
 
           <div className="topbar-tabs">
@@ -178,21 +176,6 @@ export default function App() {
         </header>
 
         <div className="workspace-body">
-          <nav className="panel app-nav">
-            <div className="app-nav-header">
-              <span className="panel-kicker">Navigation</span>
-              <strong>ZenTerm</strong>
-            </div>
-            <div className="nav-list">
-              <button type="button" className="nav-item active">
-                主机列表
-              </button>
-            </div>
-            <div className="nav-footer">
-              <p>安全终端 · 本地加密存储</p>
-            </div>
-          </nav>
-
           <main className="main-stage panel">
             <section className="hosts-board">
               <div className="section-header">
