@@ -18,10 +18,11 @@ const (
 )
 
 var (
-	ErrVaultLocked      = errors.New("vault is locked")
-	ErrEmptyPassword    = errors.New("master password cannot be empty")
-	ErrInvalidSalt      = errors.New("salt must be at least 16 bytes")
-	ErrInvalidKeyLength = errors.New("derived key must be 32 bytes")
+	ErrVaultLocked           = errors.New("vault is locked")
+	ErrEmptyPassword         = errors.New("master password cannot be empty")
+	ErrInvalidMasterPassword = errors.New("invalid master password")
+	ErrInvalidSalt           = errors.New("salt must be at least 16 bytes")
+	ErrInvalidKeyLength      = errors.New("derived key must be 32 bytes")
 )
 
 // Argon2Params 控制如何将主密码拉伸为 AES 密钥 / controls how the master password is stretched into an AES key.
@@ -120,6 +121,11 @@ func (v *Vault) Lock() {
 	}
 	v.key = nil
 	v.aead = nil
+}
+
+// IsUnlocked 返回当前 Vault 是否已经持有可用密钥 / reports whether the vault currently holds a usable derived key.
+func (v *Vault) IsUnlocked() bool {
+	return v.aead != nil
 }
 
 // EncryptString 将 UTF-8 字符串加密为 base64 编码载荷 / encrypts a UTF-8 string into a base64-encoded payload.

@@ -18,6 +18,8 @@ var (
 	ErrInvalidTerminalSize         = errors.New("invalid terminal size")
 	ErrSessionNotFound             = errors.New("session not found")
 	ErrHostHasActiveSession        = errors.New("host has active sessions")
+	ErrVaultAlreadyInitialized     = errors.New("vault is already initialized")
+	ErrVaultNotInitialized         = errors.New("vault is not initialized")
 	ErrHostKeyRejected             = errors.New("host key was rejected")
 	ErrHostKeyConfirmationPending  = errors.New("host key confirmation already pending")
 	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
@@ -55,7 +57,11 @@ type Session struct {
 
 // ZenService 定义暴露给应用层的后端服务契约 / is the backend contract exposed to the application layer.
 type ZenService interface {
+	GetVaultStatus() (model.VaultStatus, error)
+	InitializeVault(masterPassword string) error
 	UnlockVault(masterPassword string) error
+	ChangeMasterPassword(currentPassword, nextPassword string) error
+	ResetVault() error
 	GetHosts() ([]model.Host, error)
 	ListLocalFiles(path string) (model.FileListing, error)
 	ListRemoteFiles(hostID, path string) (model.FileListing, error)

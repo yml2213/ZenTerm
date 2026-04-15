@@ -54,6 +54,8 @@
   --pill-success-text: #1d8d3d;
   --pill-subtle-bg: #eef2f6;
   --pill-subtle-text: #6f8094;
+  --panel-grid-line: rgba(31, 47, 67, 0.028);
+  --panel-grid-glow: rgba(24, 149, 194, 0.1);
   --terminal-bg: #0c1420;
   --terminal-fg: #d9e5f0;
   --terminal-cursor: #4fd1c5;
@@ -99,6 +101,8 @@
   --pill-success-text: #86efac;
   --pill-subtle-bg: rgba(148, 163, 184, 0.14);
   --pill-subtle-text: #c1d0dd;
+  --panel-grid-line: rgba(148, 163, 184, 0.06);
+  --panel-grid-glow: rgba(56, 189, 248, 0.12);
   --terminal-bg: #0a1220;
   --terminal-fg: #d8e4f0;
   --terminal-cursor: #4fd1c5;
@@ -550,6 +554,20 @@ textarea {
   min-width: 0;
 }
 
+.page-toolbar-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.page-toolbar-copy h2 {
+  font-size: 1.04rem;
+}
+
+.page-toolbar-copy p {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
 .page-toolbar-actions {
   display: flex;
   align-items: center;
@@ -668,6 +686,126 @@ textarea {
 .hosts-stage {
   min-height: 100%;
   padding: 1rem;
+}
+
+.settings-stage {
+  min-height: 100%;
+  padding: 1rem;
+  border-radius: 18px;
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, var(--panel-grid-glow), transparent 46%),
+    linear-gradient(180deg, var(--panel-bg-strong) 0%, var(--panel-bg) 100%);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-hero h1 {
+  margin-top: 0.2rem;
+  font-size: 1.2rem;
+}
+
+.settings-hero p {
+  margin-top: 0.38rem;
+  max-width: 42rem;
+  color: var(--text-secondary);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+}
+
+.settings-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+}
+
+.settings-card.danger {
+  background:
+    linear-gradient(180deg, rgba(226, 77, 77, 0.04) 0%, rgba(226, 77, 77, 0) 100%),
+    var(--panel-bg);
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.settings-card-head h2 {
+  font-size: 1.02rem;
+}
+
+.settings-card-head p {
+  margin-top: 0.24rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.settings-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.settings-card-icon.success {
+  background: rgba(34, 164, 71, 0.12);
+  color: var(--accent-success);
+}
+
+.settings-card-icon.danger {
+  background: rgba(226, 77, 77, 0.12);
+  color: var(--accent-danger);
+}
+
+.settings-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-danger-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: rgba(226, 77, 77, 0.08);
+  color: var(--accent-danger);
+}
+
+.settings-danger-copy span {
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .section-head {
@@ -878,9 +1016,13 @@ textarea {
   gap: 1rem;
   padding: clamp(2rem, 5vw, 3.5rem);
   text-align: center;
-  background:
-    radial-gradient(circle at top, rgba(24, 149, 194, 0.08), transparent 46%),
-    var(--panel-bg);
+  background-color: var(--panel-bg);
+  background-image:
+    radial-gradient(circle at top, var(--panel-grid-glow), transparent 44%),
+    linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  background-position: center top, center center, center center;
 }
 
 .empty-card-icon {
@@ -1381,6 +1523,42 @@ textarea {
   gap: 0.8rem;
 }
 
+.remember-toggle {
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.78rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-muted);
+}
+
+.remember-toggle input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.1rem;
+}
+
+.remember-toggle span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.remember-toggle strong {
+  color: var(--text-primary);
+  font-size: 0.84rem;
+}
+
+.remember-toggle small {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.danger-toggle {
+  background: rgba(226, 77, 77, 0.05);
+  border-color: rgba(226, 77, 77, 0.18);
+}
+
 .wide {
   width: 100%;
 }
@@ -1404,6 +1582,10 @@ textarea {
 @media (max-width: 1180px) {
   .host-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 }
 

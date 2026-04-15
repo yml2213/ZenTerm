@@ -12,14 +12,48 @@ import (
 	"zenterm/internal/service"
 )
 
+type stubVaultCredentialStore struct {
+	password   string
+	found      bool
+	loadErr    error
+	saveErr    error
+	deleteErr  error
+	deleteHits int
+}
+
+func (s *stubVaultCredentialStore) Load() (string, bool, error) {
+	return s.password, s.found, s.loadErr
+}
+
+func (s *stubVaultCredentialStore) Save(password string) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+
+	s.password = password
+	s.found = true
+	return nil
+}
+
+func (s *stubVaultCredentialStore) Delete() error {
+	s.deleteHits++
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
+
+	s.password = ""
+	s.found = false
+	return nil
+}
+
 func TestAppUnlockAddHostAndListHosts(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
 	if err != nil {
 		t.Fatalf("NewApp() error = %v", err)
 	}
 
-	if err := app.Unlock("master-password"); err != nil {
-		t.Fatalf("Unlock() error = %v", err)
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
 	host := model.Host{
@@ -52,6 +86,79 @@ func TestAppUnlockAddHostAndListHosts(t *testing.T) {
 	}
 }
 
+func TestAppUnlockWithPreferencesStoresPasswordForAutoUnlock(t *testing.T) {
+	credentials := &stubVaultCredentialStore{}
+	storePath := filepath.Join(t.TempDir(), "config.zen")
+
+	app, err := newAppWithCredentialStore(storePath, credentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	if err := app.InitializeVaultWithPreferences("master-password", true); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
+	}
+
+	if credentials.password != "master-password" || !credentials.found {
+		t.Fatalf("credentials = %#v, want remembered master password", credentials)
+	}
+
+	secondApp, err := newAppWithCredentialStore(storePath, credentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	unlocked, err := secondApp.TryAutoUnlock()
+	if err != nil {
+		t.Fatalf("TryAutoUnlock() error = %v", err)
+	}
+	if !unlocked {
+		t.Fatal("TryAutoUnlock() = false, want true")
+	}
+}
+
+func TestAppTryAutoUnlockClearsInvalidRememberedPassword(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "config.zen")
+	bootstrapCredentials := &stubVaultCredentialStore{}
+
+	app, err := newAppWithCredentialStore(storePath, bootstrapCredentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
+	}
+
+	if err := app.AddHost(
+		model.Host{ID: "host-1", Address: "127.0.0.1", Username: "root", Port: 22},
+		model.Identity{Password: "secret"},
+	); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	remembered := &stubVaultCredentialStore{
+		password: "wrong-password",
+		found:    true,
+	}
+
+	secondApp, err := newAppWithCredentialStore(storePath, remembered)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	unlocked, err := secondApp.TryAutoUnlock()
+	if err != nil {
+		t.Fatalf("TryAutoUnlock() error = %v", err)
+	}
+	if unlocked {
+		t.Fatal("TryAutoUnlock() = true, want false")
+	}
+	if remembered.deleteHits != 1 || remembered.found {
+		t.Fatalf("remembered credentials = %#v, want cleared entry", remembered)
+	}
+}
+
 func TestAppPreservesVaultLockedErrorForFrontend(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
 	if err != nil {
@@ -70,8 +177,8 @@ func TestAppConnectPropagatesHostLookupError(t *testing.T) {
 		t.Fatalf("NewApp() error = %v", err)
 	}
 
-	if err := app.Unlock("master-password"); err != nil {
-		t.Fatalf("Unlock() error = %v", err)
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
 	_, err = app.Connect("missing-host")
@@ -122,8 +229,8 @@ func TestAppUpdateHostPreservesKnownErrorsForFrontend(t *testing.T) {
 		t.Fatalf("NewApp() error = %v", err)
 	}
 
-	if err := app.Unlock("master-password"); err != nil {
-		t.Fatalf("Unlock() error = %v", err)
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
 	err = app.UpdateHost(model.Host{ID: "missing-host"}, model.Identity{})
@@ -138,8 +245,8 @@ func TestAppDeleteHostRemovesSavedHost(t *testing.T) {
 		t.Fatalf("NewApp() error = %v", err)
 	}
 
-	if err := app.Unlock("master-password"); err != nil {
-		t.Fatalf("Unlock() error = %v", err)
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
 	host := model.Host{
@@ -198,6 +305,86 @@ func TestAppListLocalFilesReturnsDirectoryEntries(t *testing.T) {
 	}
 	if len(listing.Entries) != 1 || listing.Entries[0].Name != "demo.txt" {
 		t.Fatalf("listing.Entries = %#v, want demo.txt", listing.Entries)
+	}
+}
+
+func TestAppGetVaultStatusReflectsInitialization(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	status, err := app.GetVaultStatus()
+	if err != nil {
+		t.Fatalf("GetVaultStatus() error = %v", err)
+	}
+	if status.Initialized || status.Unlocked {
+		t.Fatalf("GetVaultStatus() = %#v, want uninitialized locked vault", status)
+	}
+
+	if err := app.InitializeVaultWithPreferences("master-password", false); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
+	}
+
+	status, err = app.GetVaultStatus()
+	if err != nil {
+		t.Fatalf("GetVaultStatus() error = %v", err)
+	}
+	if !status.Initialized || !status.Unlocked {
+		t.Fatalf("GetVaultStatus() = %#v, want initialized unlocked vault", status)
+	}
+}
+
+func TestAppChangeMasterPasswordUpdatesRememberedPassword(t *testing.T) {
+	credentials := &stubVaultCredentialStore{}
+	app, err := newAppWithCredentialStore(filepath.Join(t.TempDir(), "config.zen"), credentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	if err := app.InitializeVaultWithPreferences("master-password", true); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
+	}
+
+	if err := app.ChangeMasterPassword("master-password", "next-password", true); err != nil {
+		t.Fatalf("ChangeMasterPassword() error = %v", err)
+	}
+
+	if credentials.password != "next-password" || !credentials.found {
+		t.Fatalf("credentials = %#v, want updated remembered password", credentials)
+	}
+}
+
+func TestAppResetVaultClearsRememberedPassword(t *testing.T) {
+	credentials := &stubVaultCredentialStore{}
+	app, err := newAppWithCredentialStore(filepath.Join(t.TempDir(), "config.zen"), credentials)
+	if err != nil {
+		t.Fatalf("newAppWithCredentialStore() error = %v", err)
+	}
+
+	if err := app.InitializeVaultWithPreferences("master-password", true); err != nil {
+		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
+	}
+	if err := app.AddHost(
+		model.Host{ID: "host-1", Address: "127.0.0.1", Port: 22, Username: "root"},
+		model.Identity{Password: "secret"},
+	); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	if err := app.ResetVault(); err != nil {
+		t.Fatalf("ResetVault() error = %v", err)
+	}
+
+	status, err := app.GetVaultStatus()
+	if err != nil {
+		t.Fatalf("GetVaultStatus() error = %v", err)
+	}
+	if status.Initialized || status.Unlocked {
+		t.Fatalf("GetVaultStatus() = %#v, want uninitialized locked vault", status)
+	}
+	if credentials.found || credentials.deleteHits == 0 {
+		t.Fatalf("credentials = %#v, want cleared remembered password", credentials)
 	}
 }
 

@@ -4,16 +4,6 @@ import (
 	"zenterm/internal/model"
 )
 
-// UnlockVault 使用存储中的盐值初始化并解锁内存中的 Vault / initializes the in-memory vault from the persisted store salt.
-func (s *Service) UnlockVault(masterPassword string) error {
-	salt, err := s.store.EnsureSalt()
-	if err != nil {
-		return err
-	}
-
-	return s.vault.Unlock(masterPassword, salt)
-}
-
 // GetHosts 返回供 UI 使用的非敏感主机元数据 / returns non-sensitive host metadata for the UI.
 func (s *Service) GetHosts() ([]model.Host, error) {
 	return s.store.GetHosts()

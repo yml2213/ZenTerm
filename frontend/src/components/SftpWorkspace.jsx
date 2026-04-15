@@ -337,8 +337,8 @@ export default function SftpWorkspace({
                   <HardDrive size={24} />
                 </div>
                 <div className="sftp-empty-copy">
-                  <strong>先解锁保险箱</strong>
-                  <p>远端文件需要使用主机凭据建立 SFTP 连接后才能展示。</p>
+                  <strong>需要主密码</strong>
+                  <p>远端文件需要先完成一次主密码验证，才能使用已保存凭据建立 SFTP 连接。</p>
                 </div>
               </div>
             </section>

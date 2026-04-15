@@ -1,13 +1,9 @@
 import {
-  Activity,
-  FolderKanban,
-  KeyRound,
   LayoutGrid,
   Lock,
   Monitor,
   Moon,
   FolderOpen,
-  PlugZap,
   Plus,
   Search,
   Settings2,
@@ -22,20 +18,27 @@ import HostKeyModal from './components/HostKeyModal.jsx'
 import UnlockModal from './components/UnlockModal.jsx'
 import SessionTabs from './components/SessionTabs.jsx'
 import SftpWorkspace from './components/SftpWorkspace.jsx'
+import VaultSettingsPanel from './components/VaultSettingsPanel.jsx'
 import { useTheme } from './contexts/ThemeProvider.jsx'
 import { useLanguage } from './contexts/LanguageProvider.jsx'
 import {
+  changeMasterPassword,
+  getVaultStatus,
+  initializeVaultWithPreferences,
   listHosts,
   addHost,
   updateHost,
   deleteHost,
-  unlock,
+  resetVault,
+  unlockWithPreferences,
+  tryAutoUnlock,
   connect,
   disconnect,
   listSessions,
   acceptHostKey,
   rejectHostKey,
   onRuntimeEvent,
+  windowToggleMaximise,
 } from './lib/backend.js'
 
 function buildHostPayload(form) {
@@ -125,17 +128,42 @@ function matchesHost(host, query) {
     .some((value) => value.toLowerCase().includes(keyword))
 }
 
+function createVaultSetupForm() {
+  return {
+    password: '',
+    confirmPassword: '',
+    riskAcknowledged: false,
+  }
+}
+
+function createChangeMasterForm() {
+  return {
+    currentPassword: '',
+    nextPassword: '',
+    confirmPassword: '',
+  }
+}
+
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
   const [activeWorkspace, setActiveWorkspace] = useState('vaults')
+  const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
   const [hosts, setHosts] = useState([])
   const [selectedHostId, setSelectedHostId] = useState(null)
   const [selectedSftpHostId, setSelectedSftpHostId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [vaultInitialized, setVaultInitialized] = useState(false)
   const [vaultUnlocked, setVaultUnlocked] = useState(false)
-  const [unlockPassword, setUnlockPassword] = useState('')
-  const [unlockBusy, setUnlockBusy] = useState(false)
+  const [vaultReady, setVaultReady] = useState(false)
+  const [vaultSetupForm, setVaultSetupForm] = useState(createVaultSetupForm)
+  const [vaultSetupBusy, setVaultSetupBusy] = useState(false)
+  const [accessPassword, setAccessPassword] = useState('')
+  const [accessBusy, setAccessBusy] = useState(false)
+  const [changeMasterForm, setChangeMasterForm] = useState(createChangeMasterForm)
+  const [changeMasterBusy, setChangeMasterBusy] = useState(false)
+  const [resetVaultConfirmed, setResetVaultConfirmed] = useState(false)
+  const [resetVaultBusy, setResetVaultBusy] = useState(false)
   const [hostDialogMode, setHostDialogMode] = useState(null)
   const [hostForm, setHostForm] = useState(createInitialHostForm)
   const [isSavingHost, setIsSavingHost] = useState(false)
@@ -157,12 +185,7 @@ export default function App() {
   const selectedSftpHost = hosts.find((host) => host.id === selectedSftpHostId) || null
   const onlineHostsCount = Object.keys(sessionCountByHost).length
   const navigationItems = [
-    { label: '主机', icon: LayoutGrid, active: true },
-    { label: '钥匙串', icon: KeyRound, muted: true },
-    { label: '端口转发', icon: PlugZap, muted: true },
-    { label: '代码片段', icon: FolderKanban, muted: true },
-    { label: '已知主机', icon: ShieldCheck, muted: true },
-    { label: '日志', icon: Activity, muted: true },
+    { id: 'hosts', label: '主机', icon: LayoutGrid },
   ]
 
   function closeHostDialog() {
@@ -244,11 +267,31 @@ export default function App() {
         setSessionTabs(nextTabs)
         setActiveSessionId(nextTabs.at(-1)?.sessionId || null)
       })
+
+      const status = await getVaultStatus()
+      if (disposed) {
+        return
+      }
+
+      let unlocked = Boolean(status.unlocked)
+      if (status.initialized && !unlocked) {
+        unlocked = await tryAutoUnlock()
+        if (disposed) {
+          return
+        }
+      }
+
+      startTransition(() => {
+        setVaultInitialized(Boolean(status.initialized))
+        setVaultUnlocked(Boolean(unlocked))
+        setVaultReady(true)
+      })
     }
 
     bootstrap().catch((err) => {
       if (!disposed) {
         setError(err.message || String(err))
+        setVaultReady(true)
       }
     })
 
@@ -264,7 +307,7 @@ export default function App() {
 
   function openCreateHost() {
     if (!vaultUnlocked) {
-      setError('请先解锁本地保险箱，再保存主机配置。')
+      setError('请输入主密码后继续保存主机配置。')
       return
     }
 
@@ -274,7 +317,7 @@ export default function App() {
 
   function openEditHost(host) {
     if (!vaultUnlocked) {
-      setError('请先解锁本地保险箱，再编辑主机配置。')
+      setError('请输入主密码后继续编辑主机配置。')
       return
     }
 
@@ -282,22 +325,125 @@ export default function App() {
     setHostDialogMode('edit')
   }
 
-  function handleUnlock(event) {
+  function handleInitializeVault(event) {
     event.preventDefault()
-    setUnlockBusy(true)
+
+    if (vaultSetupForm.password !== vaultSetupForm.confirmPassword) {
+      setError('两次输入的主密码不一致，请重新确认。')
+      return
+    }
+    if (!vaultSetupForm.riskAcknowledged) {
+      setError('请先确认你已了解主密码遗失后无法恢复。')
+      return
+    }
+
+    setVaultSetupBusy(true)
     setError(null)
 
-    unlock(unlockPassword)
+    initializeVaultWithPreferences(vaultSetupForm.password, true)
       .then(() => {
+        setVaultInitialized(true)
         setVaultUnlocked(true)
-        setUnlockPassword('')
+        setVaultSetupForm(createVaultSetupForm())
       })
       .catch((err) => setError(err.message || String(err)))
-      .finally(() => setUnlockBusy(false))
+      .finally(() => setVaultSetupBusy(false))
+  }
+
+  function handleAccessPassword(event) {
+    event.preventDefault()
+    setAccessBusy(true)
+    setError(null)
+
+    unlockWithPreferences(accessPassword, true)
+      .then(() => {
+        setVaultUnlocked(true)
+        setAccessPassword('')
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setAccessBusy(false))
+  }
+
+  function handleSidebarPageChange(page) {
+    setActiveSidebarPage(page)
+  }
+
+  function handleWorkspaceStripDoubleClick(event) {
+    if (event.target.closest('button, input, textarea, select, a, [role="button"]')) {
+      return
+    }
+
+    windowToggleMaximise().catch((err) => setError(err.message || String(err)))
   }
 
   function handleWorkspaceChange(workspace) {
     setActiveWorkspace(workspace)
+  }
+
+  function handleChangeMasterField(field, value) {
+    setChangeMasterForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  function handleChangeMasterPassword(event) {
+    event.preventDefault()
+
+    if (changeMasterForm.nextPassword !== changeMasterForm.confirmPassword) {
+      setError('两次输入的新主密码不一致，请重新确认。')
+      return
+    }
+
+    setChangeMasterBusy(true)
+    setError(null)
+
+    changeMasterPassword(
+      changeMasterForm.currentPassword,
+      changeMasterForm.nextPassword,
+      true,
+    )
+      .then(() => {
+        setChangeMasterForm(createChangeMasterForm())
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setChangeMasterBusy(false))
+  }
+
+  function handleResetVault() {
+    if (!resetVaultConfirmed) {
+      setError('请先确认要清空当前 Vault。')
+      return
+    }
+
+    setResetVaultBusy(true)
+    setError(null)
+
+    resetVault()
+      .then(() => {
+        startTransition(() => {
+          setActiveWorkspace('vaults')
+          setActiveSidebarPage('hosts')
+          setHosts([])
+          setSelectedHostId(null)
+          setSelectedSftpHostId(null)
+          setSearchQuery('')
+          setVaultInitialized(false)
+          setVaultUnlocked(false)
+          setVaultSetupForm(createVaultSetupForm())
+          setAccessPassword('')
+          setChangeMasterForm(createChangeMasterForm())
+          setResetVaultConfirmed(false)
+          setHostDialogMode(null)
+          setDeleteCandidate(null)
+          setHostKeyPrompt(null)
+          setSessionTabs([])
+          setActiveSessionId(null)
+          setConnectingHostIds([])
+        })
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setResetVaultBusy(false))
   }
 
   function handleSaveHost(event) {
@@ -344,7 +490,7 @@ export default function App() {
 
   function handleConnect(hostID) {
     if (!vaultUnlocked) {
-      setError('连接 SSH 前请先解锁本地保险箱。')
+      setError('请输入主密码后继续连接 SSH。')
       return
     }
 
@@ -432,10 +578,12 @@ export default function App() {
   }
 
   const ThemeIcon = theme === 'auto' ? Monitor : theme === 'light' ? Sun : Moon
+  const showSetupModal = !vaultInitialized && vaultReady
+  const showAccessModal = vaultInitialized && !vaultUnlocked && vaultReady
 
   return (
     <div className="app-shell">
-      <section className="workspace-strip">
+      <section className="workspace-strip" onDoubleClick={handleWorkspaceStripDoubleClick}>
         <div className="workspace-modules">
           <button
             type="button"
@@ -499,10 +647,10 @@ export default function App() {
                 return (
                   <button
                     type="button"
-                    key={item.label}
-                    className={`sidebar-nav-item${item.active ? ' active' : ''}${item.muted ? ' muted' : ''}`}
-                    aria-current={item.active ? 'page' : undefined}
-                    disabled={!item.active}
+                    key={item.id}
+                    className={`sidebar-nav-item${activeSidebarPage === item.id ? ' active' : ''}`}
+                    aria-current={activeSidebarPage === item.id ? 'page' : undefined}
+                    onClick={() => handleSidebarPageChange(item.id)}
                   >
                     <Icon size={16} />
                     <span>{item.label}</span>
@@ -514,7 +662,12 @@ export default function App() {
             <div className="sidebar-spacer" />
 
             <div className="sidebar-footer">
-              <button type="button" className="sidebar-nav-item muted" disabled>
+              <button
+                type="button"
+                className={`sidebar-nav-item${activeSidebarPage === 'settings' ? ' active' : ''}`}
+                aria-current={activeSidebarPage === 'settings' ? 'page' : undefined}
+                onClick={() => handleSidebarPageChange('settings')}
+              >
                 <Settings2 size={16} />
                 <span>设置</span>
               </button>
@@ -523,61 +676,85 @@ export default function App() {
 
           <section className="page-shell">
             <header className="page-toolbar">
-              <div className="page-toolbar-main">
-                <label className="search-bar">
-                  <Search size={15} />
-                  <input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder={t('searchPlaceholder')}
-                    aria-label="搜索主机"
-                  />
-                </label>
-              </div>
+              {activeSidebarPage === 'hosts' ? (
+                <div className="page-toolbar-main">
+                  <label className="search-bar">
+                    <Search size={15} />
+                    <input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder={t('searchPlaceholder')}
+                      aria-label="搜索主机"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="page-toolbar-copy">
+                  <span className="panel-kicker">Security</span>
+                  <h2>保险箱与主密码</h2>
+                  <p>在这里管理主密码与整个 Vault 的重置操作。日常进入默认由系统钥匙串接管。</p>
+                </div>
+              )}
 
               <div className="page-toolbar-actions">
                 <span className={`pill ${vaultUnlocked ? 'success' : 'subtle'}`}>
                   <ShieldCheck size={14} />
-                  {vaultUnlocked ? '保险箱已解锁' : '保险箱未解锁'}
+                  {vaultInitialized ? (vaultUnlocked ? '主密码已就绪' : '需要主密码') : '等待初始化'}
                 </span>
-                <button
-                  type="button"
-                  className="toolbar-btn primary"
-                  onClick={openCreateHost}
-                >
-                  <Plus size={16} />
-                  {t('newHost')}
-                </button>
+                {activeSidebarPage === 'hosts' && (
+                  <button
+                    type="button"
+                    className="toolbar-btn primary"
+                    onClick={openCreateHost}
+                  >
+                    <Plus size={16} />
+                    {t('newHost')}
+                  </button>
+                )}
               </div>
             </header>
 
             <main className="content-area">
-              <section className="hosts-stage panel">
-                <div className="section-head hosts-stage-head">
-                  <div>
-                    <span className="panel-kicker">Vaults</span>
-                    <h1>全部主机</h1>
+              {activeSidebarPage === 'hosts' ? (
+                <section className="hosts-stage panel">
+                  <div className="section-head hosts-stage-head">
+                    <div>
+                      <span className="panel-kicker">Vaults</span>
+                      <h1>全部主机</h1>
+                    </div>
+                    <div className="section-head-meta">
+                      <span>{filteredHosts.length} 条</span>
+                      <span className="pill subtle">{onlineHostsCount} 台在线</span>
+                    </div>
                   </div>
-                  <div className="section-head-meta">
-                    <span>{filteredHosts.length} 条</span>
-                    <span className="pill subtle">{onlineHostsCount} 台在线</span>
-                  </div>
-                </div>
 
-                <HostList
-                  hosts={filteredHosts}
-                  hasAnyHosts={hosts.length > 0}
-                  searchQuery={searchQuery}
-                  selectedHostId={selectedHostId}
-                  sessionCountByHost={sessionCountByHost}
-                  connectingHostIds={connectingHostIds}
-                  onSelect={setSelectedHostId}
-                  onConnect={handleConnect}
-                  onEdit={openEditHost}
-                  onDelete={setDeleteCandidate}
-                  disabled={!vaultUnlocked}
+                  <HostList
+                    hosts={filteredHosts}
+                    hasAnyHosts={hosts.length > 0}
+                    searchQuery={searchQuery}
+                    selectedHostId={selectedHostId}
+                    sessionCountByHost={sessionCountByHost}
+                    connectingHostIds={connectingHostIds}
+                    onSelect={setSelectedHostId}
+                    onConnect={handleConnect}
+                    onEdit={openEditHost}
+                    onDelete={setDeleteCandidate}
+                    disabled={!vaultUnlocked}
+                  />
+                </section>
+              ) : (
+                <VaultSettingsPanel
+                  vaultUnlocked={vaultUnlocked}
+                  changeForm={changeMasterForm}
+                  changeBusy={changeMasterBusy}
+                  resetConfirmed={resetVaultConfirmed}
+                  resetBusy={resetVaultBusy}
+                  onChangeField={handleChangeMasterField}
+                  onChangePassword={handleChangeMasterPassword}
+                  onResetConfirmedChange={setResetVaultConfirmed}
+                  onResetVault={handleResetVault}
                 />
-              </section>
+              )}
             </main>
           </section>
         </div>
@@ -594,11 +771,25 @@ export default function App() {
       )}
 
       <UnlockModal
-        open={!vaultUnlocked}
-        password={unlockPassword}
-        busy={unlockBusy}
-        onPasswordChange={setUnlockPassword}
-        onSubmit={handleUnlock}
+        open={showSetupModal}
+        mode="setup"
+        password={vaultSetupForm.password}
+        confirmPassword={vaultSetupForm.confirmPassword}
+        busy={vaultSetupBusy}
+        riskAcknowledged={vaultSetupForm.riskAcknowledged}
+        onPasswordChange={(value) => setVaultSetupForm((current) => ({ ...current, password: value }))}
+        onConfirmPasswordChange={(value) => setVaultSetupForm((current) => ({ ...current, confirmPassword: value }))}
+        onRiskAcknowledgedChange={(value) => setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value }))}
+        onSubmit={handleInitializeVault}
+      />
+
+      <UnlockModal
+        open={showAccessModal}
+        mode="continue"
+        password={accessPassword}
+        busy={accessBusy}
+        onPasswordChange={setAccessPassword}
+        onSubmit={handleAccessPassword}
       />
 
       {hostDialogMode && (

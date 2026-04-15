@@ -22,8 +22,8 @@ const translations = {
     settings: '设置',
 
     // Host list
-    unlockVault: '首次使用需要解锁本地加密存储的密码保险箱',
-    unlockButton: '解锁保险箱',
+    unlockVault: '首次使用需要设置主密码来保护本地加密存储',
+    unlockButton: '输入主密码继续',
 
     // Errors
     errorTitle: '发生错误',
@@ -46,8 +46,8 @@ const translations = {
     settings: 'Settings',
 
     // Host list
-    unlockVault: 'Unlock the encrypted password vault to get started',
-    unlockButton: 'Unlock Vault',
+    unlockVault: 'Set a master password to protect local encrypted storage',
+    unlockButton: 'Continue with Master Password',
 
     // Errors
     errorTitle: 'Error',

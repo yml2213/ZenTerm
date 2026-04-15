@@ -49,7 +49,46 @@ export function onRuntimeEvent(eventName, handler) {
 }
 
 export async function unlock(password) {
+  const binding = getAppBinding()
+  if (typeof binding?.UnlockWithPreferences === 'function') {
+    return binding.UnlockWithPreferences(password, false)
+  }
+
   return callApp('Unlock', password)
+}
+
+export async function getVaultStatus() {
+  return callApp('GetVaultStatus')
+}
+
+export async function initializeVaultWithPreferences(password, remember) {
+  return callApp('InitializeVaultWithPreferences', password, remember)
+}
+
+export async function unlockWithPreferences(password, remember) {
+  const binding = getAppBinding()
+  if (typeof binding?.UnlockWithPreferences === 'function') {
+    return binding.UnlockWithPreferences(password, remember)
+  }
+
+  return callApp('Unlock', password)
+}
+
+export async function tryAutoUnlock() {
+  const binding = getAppBinding()
+  if (typeof binding?.TryAutoUnlock !== 'function') {
+    return false
+  }
+
+  return binding.TryAutoUnlock()
+}
+
+export async function changeMasterPassword(currentPassword, nextPassword, remember) {
+  return callApp('ChangeMasterPassword', currentPassword, nextPassword, remember)
+}
+
+export async function resetVault() {
+  return callApp('ResetVault')
 }
 
 export async function listHosts() {
@@ -102,4 +141,34 @@ export async function disconnect(sessionID) {
 
 export async function listSessions() {
   return callApp('ListSessions')
+}
+
+async function callRuntime(method, fallbackValue, ...args) {
+  const runtime = getRuntimeBinding()
+  const fn = runtime?.[method]
+  if (typeof fn !== 'function') {
+    return fallbackValue
+  }
+
+  return fn(...args)
+}
+
+export async function windowGetSize() {
+  return callRuntime('WindowGetSize', { w: 0, h: 0 })
+}
+
+export async function windowIsMaximised() {
+  return callRuntime('WindowIsMaximised', false)
+}
+
+export async function windowSetSize(width, height) {
+  return callRuntime('WindowSetSize', undefined, width, height)
+}
+
+export async function windowMaximise() {
+  return callRuntime('WindowMaximise', undefined)
+}
+
+export async function windowToggleMaximise() {
+  return callRuntime('WindowToggleMaximise', undefined)
 }

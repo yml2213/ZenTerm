@@ -29,7 +29,7 @@ export default function HostList({
             <p>
               {isSearching && hasAnyHosts
                 ? `没有找到与 “${searchQuery}” 匹配的主机，试试主机名、地址或用户名。`
-                : '先新建一台主机，然后解锁保险箱并发起连接。'}
+                : '先新建一台主机，再通过主密码保护本地凭据并发起连接。'}
             </p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function HostList({
 
             <div className="host-card-footer">
               <span className="host-card-summary">
-                {disabled ? '解锁后可连接与编辑' : trusted ? '可信指纹已写入' : '首次连接会确认指纹'}
+                {disabled ? '输入主密码后可继续连接与编辑' : trusted ? '可信指纹已写入' : '首次连接会确认指纹'}
               </span>
               <div className="host-card-actions">
                 <button

@@ -18,6 +18,19 @@ type Identity struct {
 	PrivateKey string `json:"private_key,omitempty"`
 }
 
+// WindowState 保存窗口尺寸与启动状态 / stores persisted window dimensions and startup state.
+type WindowState struct {
+	Width     int  `json:"width,omitempty"`
+	Height    int  `json:"height,omitempty"`
+	Maximised bool `json:"maximised,omitempty"`
+}
+
+// VaultStatus 描述当前 Vault 是否已初始化以及是否已解锁 / describes whether the vault has been initialised and unlocked.
+type VaultStatus struct {
+	Initialized bool `json:"initialized"`
+	Unlocked    bool `json:"unlocked"`
+}
+
 // FileEntry 表示文件浏览器中的单个条目 / represents a single file-system entry in the browser.
 type FileEntry struct {
 	Name    string    `json:"name"`

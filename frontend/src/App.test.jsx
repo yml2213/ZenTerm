@@ -7,16 +7,22 @@ import App from './App.jsx'
 import {
   acceptHostKey,
   addHost,
+  changeMasterPassword,
   connect,
   deleteHost,
   disconnect,
+  getVaultStatus,
+  initializeVaultWithPreferences,
   listLocalFiles,
   listHosts,
   listRemoteFiles,
   listSessions,
   onRuntimeEvent,
-  unlock,
+  resetVault,
+  tryAutoUnlock,
+  unlockWithPreferences,
   updateHost,
+  windowToggleMaximise,
 } from './lib/backend.js'
 
 vi.mock('./lib/backend.js', () => ({
@@ -24,7 +30,13 @@ vi.mock('./lib/backend.js', () => ({
   addHost: vi.fn(),
   updateHost: vi.fn(),
   deleteHost: vi.fn(),
+  getVaultStatus: vi.fn(),
+  initializeVaultWithPreferences: vi.fn(),
   unlock: vi.fn(),
+  unlockWithPreferences: vi.fn(),
+  tryAutoUnlock: vi.fn(),
+  changeMasterPassword: vi.fn(),
+  resetVault: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
   listLocalFiles: vi.fn(),
@@ -35,6 +47,7 @@ vi.mock('./lib/backend.js', () => ({
   sendInput: vi.fn(),
   resizeTerminal: vi.fn(),
   onRuntimeEvent: vi.fn(),
+  windowToggleMaximise: vi.fn(),
 }))
 
 function createDeferred() {
@@ -59,10 +72,19 @@ function renderApp() {
   )
 }
 
-async function unlockVault(user) {
-  await user.type(screen.getByLabelText('主密码'), 'master-password')
-  await user.click(screen.getByRole('button', { name: '解锁并继续' }))
-  await waitFor(() => expect(unlock).toHaveBeenCalledWith('master-password'))
+async function continueWithMasterPassword(user) {
+  const passwordInput = await screen.findByLabelText('主密码')
+  await user.type(passwordInput, 'master-password')
+  await user.click(screen.getByRole('button', { name: '继续' }))
+  await waitFor(() => expect(unlockWithPreferences).toHaveBeenCalledWith('master-password', true))
+}
+
+async function initializeVault(user) {
+  await user.type(await screen.findByLabelText('主密码'), 'master-password')
+  await user.type(screen.getByLabelText('确认主密码'), 'master-password')
+  await user.click(screen.getByLabelText(/我已了解忘记主密码后无法恢复/))
+  await user.click(screen.getByRole('button', { name: '创建并进入' }))
+  await waitFor(() => expect(initializeVaultWithPreferences).toHaveBeenCalledWith('master-password', true))
 }
 
 describe('App', () => {
@@ -87,6 +109,7 @@ describe('App', () => {
   ]
 
   beforeEach(() => {
+    vi.clearAllMocks()
     runtimeHandlers.clear()
     localStorage.clear()
 
@@ -95,9 +118,15 @@ describe('App', () => {
     addHost.mockResolvedValue(undefined)
     updateHost.mockResolvedValue(undefined)
     deleteHost.mockResolvedValue(undefined)
-    unlock.mockResolvedValue(undefined)
+    getVaultStatus.mockResolvedValue({ initialized: true, unlocked: false })
+    initializeVaultWithPreferences.mockResolvedValue(undefined)
+    unlockWithPreferences.mockResolvedValue(undefined)
+    tryAutoUnlock.mockResolvedValue(false)
+    changeMasterPassword.mockResolvedValue(undefined)
+    resetVault.mockResolvedValue(undefined)
     connect.mockResolvedValue('session-1')
     disconnect.mockResolvedValue(undefined)
+    windowToggleMaximise.mockResolvedValue(undefined)
     listLocalFiles.mockResolvedValue({
       path: '/Users/yml',
       parentPath: '/Users',
@@ -135,21 +164,45 @@ describe('App', () => {
     })
   })
 
-  it('提交主密码解锁保险箱', async () => {
+  it('在缺少钥匙串记录时允许输入主密码继续', async () => {
     const user = userEvent.setup()
     renderApp()
 
     await waitFor(() => expect(listHosts).toHaveBeenCalledTimes(1))
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
 
-    expect(screen.getByText('保险箱已解锁')).toBeInTheDocument()
+    expect(screen.getByText('主密码已就绪')).toBeInTheDocument()
+  })
+
+  it('未初始化时显示主密码设置流程，并跳过自动进入', async () => {
+    const user = userEvent.setup()
+    getVaultStatus.mockResolvedValue({ initialized: false, unlocked: false })
+
+    renderApp()
+
+    expect(await screen.findByText('设置主密码以启用本地保险箱')).toBeInTheDocument()
+    expect(tryAutoUnlock).not.toHaveBeenCalled()
+
+    await initializeVault(user)
+
+    expect(screen.getByText('主密码已就绪')).toBeInTheDocument()
+  })
+
+  it('支持使用系统钥匙串自动进入', async () => {
+    tryAutoUnlock.mockResolvedValue(true)
+    renderApp()
+
+    await waitFor(() => expect(tryAutoUnlock).toHaveBeenCalledTimes(1))
+
+    expect(screen.queryByLabelText('主密码')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('主密码已就绪')).toBeInTheDocument())
   })
 
   it('默认打开 Vaults，并支持切换到 SFTP 工作区', async () => {
     const user = userEvent.setup()
     renderApp()
 
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
 
     expect(screen.getByText('全部主机')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
@@ -159,11 +212,41 @@ describe('App', () => {
     expect(listLocalFiles).toHaveBeenCalled()
   })
 
+  it('设置页支持修改主密码', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '设置' }))
+
+    await user.type(screen.getByLabelText('当前主密码'), 'master-password')
+    await user.type(screen.getByLabelText('新主密码'), 'next-password')
+    await user.type(screen.getByLabelText('确认新主密码'), 'next-password')
+    await user.click(screen.getByRole('button', { name: '更新主密码' }))
+
+    await waitFor(() => {
+      expect(changeMasterPassword).toHaveBeenCalledWith('master-password', 'next-password', true)
+    })
+  })
+
+  it('设置页支持重置 Vault', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    await user.click(screen.getByLabelText(/我确认要清空当前 Vault/))
+    await user.click(screen.getByRole('button', { name: '重置 Vault' }))
+
+    await waitFor(() => expect(resetVault).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('设置主密码以启用本地保险箱')).toBeInTheDocument()
+  })
+
   it('新增主机时会拆分 host 和 identity 参数', async () => {
     const user = userEvent.setup()
     renderApp()
 
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: /New Host|新建主机/ }))
     await user.clear(screen.getByLabelText('主机 ID'))
     await user.type(screen.getByLabelText('主机 ID'), 'host-3')
@@ -198,7 +281,7 @@ describe('App', () => {
     const user = userEvent.setup()
     renderApp()
 
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '编辑' })[0])
 
     expect(screen.getByLabelText('主机 ID')).toBeDisabled()
@@ -238,7 +321,7 @@ describe('App', () => {
 
     renderApp()
 
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
 
@@ -272,7 +355,7 @@ describe('App', () => {
 
     renderApp()
 
-    await unlockVault(user)
+    await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
     runtimeHandlers.get('ssh:host-key:confirm')?.({
@@ -292,5 +375,19 @@ describe('App', () => {
 
     pendingConnect.resolve('session-key')
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
+  })
+
+  it('双击顶部空白区域时切换窗口最大化', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => expect(listHosts).toHaveBeenCalled())
+    const workspaceStrip = document.querySelector('.workspace-strip')
+    if (!workspaceStrip) {
+      throw new Error('workspace strip not found')
+    }
+
+    await user.dblClick(workspaceStrip)
+    expect(windowToggleMaximise).toHaveBeenCalledTimes(1)
   })
 })
