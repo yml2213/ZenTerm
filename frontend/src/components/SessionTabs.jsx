@@ -10,17 +10,7 @@ export default function SessionTabs({
   emptyDescription = '选择一台主机后点击连接即可打开新标签。',
 }) {
   if (sessions.length === 0) {
-    return (
-      <section className={`panel session-tabs session-tabs-empty ${className}`.trim()}>
-        <div className="session-tabs-empty-icon">
-          <MonitorSmartphone size={16} />
-        </div>
-        <div>
-          <strong>{emptyLabel}</strong>
-          <span>{emptyDescription}</span>
-        </div>
-      </section>
-    )
+    return null
   }
 
   return (

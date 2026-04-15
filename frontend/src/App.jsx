@@ -452,6 +452,14 @@ export default function App() {
           emptyLabel="还没有打开的 SSH 终端标签"
           emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
         />
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={cycleTheme}
+          aria-label="切换主题"
+        >
+          <ThemeIcon size={16} />
+        </button>
       </section>
 
       <div className="app-content">

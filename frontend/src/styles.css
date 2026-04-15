@@ -197,32 +197,43 @@ textarea {
 
 .workspace-strip {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.65rem;
-  min-height: 54px;
-  padding: 0.5rem 0.7rem;
+  gap: 1rem;
+  min-height: 48px;
+  padding: 0 0.7rem;
+  padding-left: 85px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--toolbar-bg);
+  -webkit-app-region: drag;
 }
 
 .workspace-modules {
   display: flex;
   align-items: center;
   gap: 0.45rem;
+  justify-self: start;
+  -webkit-app-region: no-drag;
 }
 
 .workspace-module {
   display: inline-flex;
   align-items: center;
   gap: 0.38rem;
-  padding: 0.4rem 0.68rem;
+  padding: 0.35rem 0.68rem;
   border-radius: 8px;
   border: 1px solid var(--border-default);
   background: var(--panel-muted);
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.workspace-module:hover {
+  background: var(--panel-bg-strong);
+  border-color: var(--border-hover);
 }
 
 .workspace-module.active {
@@ -235,6 +246,29 @@ textarea {
   background: transparent;
   border: 0;
   padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  justify-self: end;
+  -webkit-app-region: no-drag;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--panel-bg-strong);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 .session-tabs {
