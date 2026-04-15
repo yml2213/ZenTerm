@@ -7,4 +7,8 @@ export default defineConfig({
     port: 34115,
     strictPort: true,
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+  },
 })

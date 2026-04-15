@@ -322,6 +322,105 @@ func TestDisconnectRemovesActiveSession(t *testing.T) {
 	}
 }
 
+func TestUpdateHostPreservesExistingCredentialsWhenFieldsLeftBlank(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-update",
+		Name:     "Before",
+		Address:  "before.example.com",
+		Port:     22,
+		Username: "zen",
+	}
+	identity := model.Identity{
+		Password:   "password-1",
+		PrivateKey: "PRIVATE KEY 1",
+	}
+	if err := store.AddHost(host, identity, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	updated := host
+	updated.Name = "After"
+	updated.Address = "after.example.com"
+	if err := svc.UpdateHost(updated, model.Identity{}); err != nil {
+		t.Fatalf("UpdateHost() error = %v", err)
+	}
+
+	loadedIdentity, err := store.GetIdentity(host.ID, vault)
+	if err != nil {
+		t.Fatalf("GetIdentity() error = %v", err)
+	}
+	if loadedIdentity != identity {
+		t.Fatalf("GetIdentity() = %#v, want %#v", loadedIdentity, identity)
+	}
+
+	loadedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if loadedHost.Name != updated.Name || loadedHost.Address != updated.Address {
+		t.Fatalf("GetHost() = %#v, want updated fields from %#v", loadedHost, updated)
+	}
+}
+
+func TestDeleteHostRejectsWhenHostHasActiveSession(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-busy", Address: "busy.example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer func() { _ = svc.Disconnect(sessionID) }()
+
+	err = svc.DeleteHost(host.ID)
+	if !errors.Is(err, ErrHostHasActiveSession) {
+		t.Fatalf("DeleteHost() error = %v, want %v", err, ErrHostHasActiveSession)
+	}
+}
+
 func TestSendInputWritesIntoSessionStdin(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))

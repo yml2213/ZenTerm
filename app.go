@@ -77,6 +77,24 @@ func (a *App) AddHost(host model.Host, identity model.Identity) error {
 	return nil
 }
 
+// UpdateHost 更新已存在主机的非敏感元数据，并按需保留现有凭据 / updates an existing host and preserves credentials when no replacement is provided.
+func (a *App) UpdateHost(host model.Host, identity model.Identity) error {
+	if err := a.service.UpdateHost(host, identity); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
+// DeleteHost 删除指定主机 / deletes the requested host.
+func (a *App) DeleteHost(hostID string) error {
+	if err := a.service.DeleteHost(hostID); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
 // Connect 为前端创建 SSH 会话，并返回可用于后续通信的 sessionID / creates an SSH session for the frontend and returns the sessionID for later communication.
 func (a *App) Connect(hostID string) (string, error) {
 	sessionID, err := a.service.Connect(hostID)
@@ -142,6 +160,11 @@ func (a *App) ListHosts() ([]model.Host, error) {
 	return hosts, nil
 }
 
+// ListSessions 返回当前活跃 SSH 会话列表 / returns the current active SSH sessions.
+func (a *App) ListSessions() []service.Session {
+	return a.service.ListSessions()
+}
+
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
@@ -180,6 +203,8 @@ func normalizeFrontendError(err error) error {
 		return service.ErrInvalidTerminalSize
 	case errors.Is(err, service.ErrSessionNotFound):
 		return service.ErrSessionNotFound
+	case errors.Is(err, service.ErrHostHasActiveSession):
+		return service.ErrHostHasActiveSession
 	case errors.Is(err, service.ErrHostKeyRejected):
 		return service.ErrHostKeyRejected
 	case errors.Is(err, service.ErrHostKeyConfirmationPending):

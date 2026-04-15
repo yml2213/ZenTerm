@@ -192,3 +192,51 @@ func TestStoreUpdateKnownHostsPreservesIdentity(t *testing.T) {
 		t.Fatalf("GetIdentity() = %#v, want %#v", loadedIdentity, identity)
 	}
 }
+
+func TestStoreDeleteHostRemovesHostAndIdentity(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-delete",
+		Name:     "Delete Me",
+		Address:  "delete.example.com",
+		Port:     22,
+		Username: "zen",
+	}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	if err := store.DeleteHost(host.ID); err != nil {
+		t.Fatalf("DeleteHost() error = %v", err)
+	}
+
+	hosts, err := store.GetHosts()
+	if err != nil {
+		t.Fatalf("GetHosts() error = %v", err)
+	}
+	if len(hosts) != 0 {
+		t.Fatalf("len(GetHosts()) = %d, want 0", len(hosts))
+	}
+
+	_, err = store.GetIdentity(host.ID, vault)
+	if err == nil {
+		t.Fatal("GetIdentity() error = nil, want host not found")
+	}
+	if err != ErrHostNotFound {
+		t.Fatalf("GetIdentity() error = %v, want %v", err, ErrHostNotFound)
+	}
+}

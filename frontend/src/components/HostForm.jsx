@@ -1,4 +1,4 @@
-import { PlusCircle, X } from 'lucide-react'
+import { PencilLine, PlusCircle, X } from 'lucide-react'
 
 const initialState = {
   id: '',
@@ -14,7 +14,29 @@ export function createInitialHostForm() {
   return { ...initialState }
 }
 
-export default function HostForm({ value, onChange, onSubmit, disabled, busy, expanded, onToggle }) {
+export function createHostFormFromHost(host) {
+  return {
+    id: host?.id || '',
+    name: host?.name || '',
+    address: host?.address || '',
+    port: String(host?.port || 22),
+    username: host?.username || '',
+    password: '',
+    privateKey: '',
+  }
+}
+
+export default function HostForm({
+  mode,
+  value,
+  onChange,
+  onSubmit,
+  disabled,
+  busy,
+  onClose,
+}) {
+  const isEdit = mode === 'edit'
+
   function update(field, nextValue) {
     onChange({
       ...value,
@@ -23,16 +45,16 @@ export default function HostForm({ value, onChange, onSubmit, disabled, busy, ex
   }
 
   return (
-    <form className={`panel form-panel${expanded ? ' expanded' : ' collapsed'}`} onSubmit={onSubmit}>
+    <form className="form-panel" onSubmit={onSubmit}>
       <div className="form-toggle">
         <div>
-          <span className="panel-kicker">New Host</span>
+          <span className="panel-kicker">{isEdit ? '编辑主机' : '新增主机'}</span>
           <div className="panel-title form-title">
-            <PlusCircle size={16} />
-            <span>添加主机</span>
+            {isEdit ? <PencilLine size={16} /> : <PlusCircle size={16} />}
+            <span>{isEdit ? '更新连接配置' : '保存新的 SSH 主机'}</span>
           </div>
         </div>
-        <button type="button" className="icon-button" onClick={onToggle} aria-label="关闭添加主机面板">
+        <button type="button" className="icon-button" onClick={onClose} aria-label="关闭主机表单">
           <X size={16} />
         </button>
       </div>
@@ -46,6 +68,7 @@ export default function HostForm({ value, onChange, onSubmit, disabled, busy, ex
               onChange={(event) => update('id', event.target.value)}
               placeholder="prod-hk-01"
               required
+              disabled={isEdit}
             />
           </label>
 
@@ -94,7 +117,7 @@ export default function HostForm({ value, onChange, onSubmit, disabled, busy, ex
               type="password"
               value={value.password}
               onChange={(event) => update('password', event.target.value)}
-              placeholder="可选"
+              placeholder={isEdit ? '留空则保留现有密码' : '可选'}
             />
           </label>
         </div>
@@ -104,21 +127,23 @@ export default function HostForm({ value, onChange, onSubmit, disabled, busy, ex
           <textarea
             value={value.privateKey}
             onChange={(event) => update('privateKey', event.target.value)}
-            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+            placeholder={isEdit ? '留空则保留现有私钥' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
             rows={5}
           />
         </label>
 
         <p className="form-hint">
-          首次连接未知主机时，ZenTerm 会弹出指纹确认框；信任后会自动写入本地 `config.zen`。
+          {isEdit
+            ? '编辑时如果密码或私钥留空，后端会保留原有的加密凭据。'
+            : '首次连接未知主机时，ZenTerm 会弹出指纹确认框；信任后会自动写入本地 config.zen。'}
         </p>
 
         <div className="form-actions">
-          <button type="button" className="ghost-button" onClick={onToggle}>
+          <button type="button" className="ghost-button" onClick={onClose}>
             取消
           </button>
           <button type="submit" className="primary-button" disabled={disabled || busy}>
-            {busy ? '保存中...' : '加密保存'}
+            {busy ? (isEdit ? '更新中...' : '保存中...') : (isEdit ? '保存修改' : '加密保存')}
           </button>
         </div>
       </div>

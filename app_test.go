@@ -115,6 +115,68 @@ func TestAppAcceptHostKeyPropagatesPendingError(t *testing.T) {
 	}
 }
 
+func TestAppUpdateHostPreservesKnownErrorsForFrontend(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	if err := app.Unlock("master-password"); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	err = app.UpdateHost(model.Host{ID: "missing-host"}, model.Identity{})
+	if !errors.Is(err, db.ErrHostNotFound) {
+		t.Fatalf("UpdateHost() error = %v, want %v", err, db.ErrHostNotFound)
+	}
+}
+
+func TestAppDeleteHostRemovesSavedHost(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	if err := app.Unlock("master-password"); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-delete",
+		Name:     "To Delete",
+		Address:  "127.0.0.1",
+		Port:     22,
+		Username: "root",
+	}
+	if err := app.AddHost(host, model.Identity{Password: "secret"}); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	if err := app.DeleteHost(host.ID); err != nil {
+		t.Fatalf("DeleteHost() error = %v", err)
+	}
+
+	hosts, err := app.ListHosts()
+	if err != nil {
+		t.Fatalf("ListHosts() error = %v", err)
+	}
+	if len(hosts) != 0 {
+		t.Fatalf("len(ListHosts()) = %d, want 0", len(hosts))
+	}
+}
+
+func TestAppListSessionsReturnsServiceSnapshot(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	sessions := app.ListSessions()
+	if len(sessions) != 0 {
+		t.Fatalf("len(ListSessions()) = %d, want 0", len(sessions))
+	}
+}
+
 func TestNormalizeFrontendErrorUnwrapsKnownBackendErrors(t *testing.T) {
 	err := normalizeFrontendError(errors.Join(
 		errors.New("wrapped"),

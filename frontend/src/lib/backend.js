@@ -17,7 +17,7 @@ async function callApp(method, ...args) {
   const fn = binding?.[method]
 
   if (typeof fn !== 'function') {
-    if (method === 'ListHosts') {
+    if (method === 'ListHosts' || method === 'ListSessions') {
       return []
     }
 
@@ -60,6 +60,14 @@ export async function addHost(host, identity) {
   return callApp('AddHost', host, identity)
 }
 
+export async function updateHost(host, identity) {
+  return callApp('UpdateHost', host, identity)
+}
+
+export async function deleteHost(hostID) {
+  return callApp('DeleteHost', hostID)
+}
+
 export async function connect(hostID) {
   return callApp('Connect', hostID)
 }
@@ -82,4 +90,8 @@ export async function resizeTerminal(sessionID, cols, rows) {
 
 export async function disconnect(sessionID) {
   return callApp('Disconnect', sessionID)
+}
+
+export async function listSessions() {
+  return callApp('ListSessions')
 }

@@ -1,14 +1,13 @@
 import { useEffect, useEffectEvent, useRef } from 'react'
-import { Terminal } from '@xterm/xterm'
+import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
-import '@xterm/xterm/css/xterm.css'
-
-import { onRuntimeEvent } from '../lib/backend'
+import { onRuntimeEvent } from '../lib/backend.js'
 
 export default function TerminalPane({
-  sessionId,
-  hostLabel,
+  sessions,
+  activeSessionId,
+  activeSessionTitle,
   onSendInput,
   onResize,
   onSessionClosed,
@@ -17,10 +16,14 @@ export default function TerminalPane({
   const terminalContainerRef = useRef(null)
   const terminalRef = useRef(null)
   const fitAddonRef = useRef(null)
+  const activeSessionIdRef = useRef(null)
+  const buffersRef = useRef(new Map())
+  const unsubscribeMapRef = useRef(new Map())
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
     const fitAddon = fitAddonRef.current
+    const sessionId = activeSessionIdRef.current
 
     if (!terminal || !fitAddon) {
       return
@@ -37,7 +40,54 @@ export default function TerminalPane({
     }
   })
 
+  const renderActiveBuffer = useEffectEvent(() => {
+    const terminal = terminalRef.current
+    if (!terminal) {
+      return
+    }
+
+    terminal.reset()
+    terminal.clear()
+
+    if (!activeSessionId) {
+      terminal.writeln('\x1b[33mNo active session.\x1b[0m')
+      terminal.writeln('Connect a host to begin.')
+      return
+    }
+
+    const output = buffersRef.current.get(activeSessionId) || `\x1b[32mConnected:\x1b[0m ${activeSessionTitle}\r\n`
+    buffersRef.current.set(activeSessionId, output)
+    terminal.write(output)
+    void syncSize()
+  })
+
+  const appendChunk = useEffectEvent((sessionId, chunk) => {
+    const text = typeof chunk === 'string' ? chunk : String(chunk ?? '')
+    const previous = buffersRef.current.get(sessionId) || ''
+    const next = previous + text
+    buffersRef.current.set(sessionId, next)
+
+    if (sessionId === activeSessionIdRef.current && terminalRef.current) {
+      terminalRef.current.write(text)
+    }
+  })
+
+  const appendError = useEffectEvent((sessionId, message) => {
+    const text = `\r\n\x1b[31m[error]\x1b[0m ${String(message ?? '')}`
+    appendChunk(sessionId, text)
+
+    if (sessionId === activeSessionIdRef.current) {
+      onError(message)
+    }
+  })
+
+  const appendClosed = useEffectEvent((sessionId) => {
+    appendChunk(sessionId, '\r\n\x1b[33m[session closed]\x1b[0m\r\n')
+    onSessionClosed(sessionId)
+  })
+
   const handleInput = useEffectEvent(async (data) => {
+    const sessionId = activeSessionIdRef.current
     if (!sessionId) {
       return
     }
@@ -50,30 +100,19 @@ export default function TerminalPane({
   })
 
   useEffect(() => {
-    const terminal = new Terminal({
+    if (!terminalContainerRef.current) {
+      return undefined
+    }
+
+    const terminal = new XTerm({
+      convertEol: true,
       cursorBlink: true,
-      fontFamily: '"JetBrains Mono", "IBM Plex Mono", "SF Mono", monospace',
+      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
       fontSize: 13,
-      lineHeight: 1.2,
       theme: {
-        background: 'var(--terminal-bg)',
-        foreground: 'var(--terminal-fg)',
-        cursor: 'var(--terminal-cursor)',
-        black: '#000000',
-        blue: '#53c6ff',
-        brightBlue: '#8be0ff',
-        brightCyan: '#8ef4d6',
-        brightGreen: '#b5f28c',
-        brightMagenta: '#ffd0a8',
-        brightRed: '#ff8d83',
-        brightWhite: '#f7fffd',
-        brightYellow: '#ffe58a',
-        cyan: '#5ddbcc',
-        green: '#8fcf63',
-        magenta: '#f0b48b',
-        red: '#ff6f61',
-        white: '#b8d6d1',
-        yellow: '#f1cb65',
+        background: '#0f1720',
+        foreground: '#dbe4ee',
+        cursor: '#7dd3fc',
       },
     })
 
@@ -89,7 +128,7 @@ export default function TerminalPane({
 
     terminal.open(terminalContainerRef.current)
     terminal.write('\x1b[1;32mZenTerm\x1b[0m ready.\r\n')
-    terminal.write('Select a host and connect to start your shell.\r\n')
+    terminal.write('Connect a host to start your shell.\r\n')
     fitAddon.fit()
 
     const disposable = terminal.onData((data) => {
@@ -105,8 +144,14 @@ export default function TerminalPane({
     resizeObserver.observe(terminalContainerRef.current)
 
     return () => {
-      disposable.dispose()
       resizeObserver.disconnect()
+      disposable.dispose()
+
+      for (const [, unsubscribe] of unsubscribeMapRef.current) {
+        unsubscribe()
+      }
+      unsubscribeMapRef.current.clear()
+      buffersRef.current.clear()
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
@@ -114,48 +159,56 @@ export default function TerminalPane({
   }, [handleInput, syncSize])
 
   useEffect(() => {
-    const terminal = terminalRef.current
-    if (!terminal) {
-      return
+    activeSessionIdRef.current = activeSessionId
+    renderActiveBuffer()
+  }, [activeSessionId, activeSessionTitle, renderActiveBuffer])
+
+  useEffect(() => {
+    const activeIds = new Set(sessions.map((session) => session.sessionId))
+
+    for (const session of sessions) {
+      if (!buffersRef.current.has(session.sessionId)) {
+        buffersRef.current.set(session.sessionId, `\x1b[32mConnected:\x1b[0m ${session.title}\r\n`)
+      }
+
+      if (unsubscribeMapRef.current.has(session.sessionId)) {
+        continue
+      }
+
+      const offData = onRuntimeEvent(`term:data:${session.sessionId}`, (data) => {
+        appendChunk(session.sessionId, data)
+      })
+      const offError = onRuntimeEvent(`term:error:${session.sessionId}`, (message) => {
+        appendError(session.sessionId, message)
+      })
+      const offClosed = onRuntimeEvent(`term:closed:${session.sessionId}`, () => {
+        appendClosed(session.sessionId)
+      })
+
+      unsubscribeMapRef.current.set(session.sessionId, () => {
+        offData()
+        offError()
+        offClosed()
+      })
     }
 
-    terminal.reset()
-    terminal.clear()
+    for (const [sessionId, unsubscribe] of unsubscribeMapRef.current) {
+      if (activeIds.has(sessionId)) {
+        continue
+      }
 
-    if (!sessionId) {
-      terminal.writeln('\x1b[33mNo active session.\x1b[0m')
-      terminal.writeln('Connect a host to begin.')
-      return
+      unsubscribe()
+      unsubscribeMapRef.current.delete(sessionId)
+      buffersRef.current.delete(sessionId)
     }
-
-    terminal.writeln(`\x1b[32mConnected:\x1b[0m ${hostLabel}`)
-    void syncSize()
-
-    const offData = onRuntimeEvent(`term:data:${sessionId}`, (data) => {
-      terminal.write(typeof data === 'string' ? data : String(data ?? ''))
-    })
-    const offError = onRuntimeEvent(`term:error:${sessionId}`, (message) => {
-      terminal.writeln(`\r\n\x1b[31m[error]\x1b[0m ${String(message ?? '')}`)
-      onError(message)
-    })
-    const offClosed = onRuntimeEvent(`term:closed:${sessionId}`, () => {
-      terminal.writeln('\r\n\x1b[33m[session closed]\x1b[0m')
-      onSessionClosed()
-    })
-
-    return () => {
-      offData()
-      offError()
-      offClosed()
-    }
-  }, [hostLabel, onError, onSessionClosed, sessionId, syncSize])
+  }, [appendChunk, appendClosed, appendError, sessions])
 
   return (
     <section className="panel terminal-panel">
       <div className="terminal-toolbar">
         <div>
           <span className="panel-kicker">Live Session</span>
-          <h2>{sessionId ? hostLabel : 'Zen Console'}</h2>
+          <h2>{activeSessionId ? activeSessionTitle : 'Zen Console'}</h2>
         </div>
       </div>
 

@@ -233,6 +233,38 @@ func (s *Store) UpdateKnownHosts(hostID, knownHosts string) error {
 	return ErrHostNotFound
 }
 
+// DeleteHost 删除指定主机及其加密身份信息 / removes the host and its encrypted identity material.
+func (s *Store) DeleteHost(hostID string) error {
+	if hostID == "" {
+		return ErrHostIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	filtered := data.Hosts[:0]
+	deleted := false
+	for _, entry := range data.Hosts {
+		if entry.Host.ID == hostID {
+			deleted = true
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+
+	if !deleted {
+		return ErrHostNotFound
+	}
+
+	data.Hosts = filtered
+	return s.saveLocked(data)
+}
+
 func (s *Store) loadLocked() (fileData, error) {
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {

@@ -29,6 +29,7 @@ var (
 	ErrHostUsernameRequired        = errors.New("host username is required")
 	ErrInvalidTerminalSize         = errors.New("invalid terminal size")
 	ErrSessionNotFound             = errors.New("session not found")
+	ErrHostHasActiveSession        = errors.New("host has active sessions")
 	ErrHostKeyRejected             = errors.New("host key was rejected")
 	ErrHostKeyConfirmationPending  = errors.New("host key confirmation already pending")
 	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
@@ -153,9 +154,12 @@ type ZenService interface {
 	UnlockVault(masterPassword string) error
 	GetHosts() ([]model.Host, error)
 	AddHost(host model.Host, identity model.Identity) error
+	UpdateHost(host model.Host, identity model.Identity) error
+	DeleteHost(hostID string) error
 	Connect(hostID string) (string, error)
 	AcceptHostKey(hostID, key string) error
 	RejectHostKey(hostID string) error
+	ListSessions() []Session
 	SendInput(sessionID, data string) error
 	ResizeTerminal(sessionID string, cols, rows int) error
 	Disconnect(sessionID string) error
@@ -227,6 +231,40 @@ func (s *Service) GetHosts() ([]model.Host, error) {
 // AddHost 使用已解锁的 Vault 加密并持久化主机身份信息 / encrypts and persists a host identity using the unlocked vault.
 func (s *Service) AddHost(host model.Host, identity model.Identity) error {
 	return s.store.AddHost(host, identity, s.vault)
+}
+
+// UpdateHost 更新主机元数据，并在未提供新凭据时保留原有身份信息 / updates a host while preserving existing credentials when the frontend leaves them blank.
+func (s *Service) UpdateHost(host model.Host, identity model.Identity) error {
+	existingHost, err := s.store.GetHost(host.ID)
+	if err != nil {
+		return err
+	}
+
+	existingIdentity, err := s.store.GetIdentity(host.ID, s.vault)
+	if err != nil {
+		return err
+	}
+
+	if identity.Password == "" {
+		identity.Password = existingIdentity.Password
+	}
+	if identity.PrivateKey == "" {
+		identity.PrivateKey = existingIdentity.PrivateKey
+	}
+	if host.KnownHosts == "" {
+		host.KnownHosts = existingHost.KnownHosts
+	}
+
+	return s.store.AddHost(host, identity, s.vault)
+}
+
+// DeleteHost 删除主机；如果仍有活跃会话则拒绝删除 / deletes the host unless there are active sessions still attached to it.
+func (s *Service) DeleteHost(hostID string) error {
+	if s.hasActiveSessionForHost(hostID) {
+		return ErrHostHasActiveSession
+	}
+
+	return s.store.DeleteHost(hostID)
 }
 
 // AcceptHostKey 接受待确认的主机公钥并将其持久化 / accepts a pending host public key confirmation and persists it.
@@ -574,6 +612,19 @@ func (s *Service) detachSession(sessionID string) (*managedSession, bool) {
 	}
 
 	return session, ok
+}
+
+func (s *Service) hasActiveSessionForHost(hostID string) bool {
+	s.sessionMu.RLock()
+	defer s.sessionMu.RUnlock()
+
+	for _, session := range s.sessions {
+		if session.HostID == hostID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *Service) forwardOutput(sessionID string, reader io.Reader) {
