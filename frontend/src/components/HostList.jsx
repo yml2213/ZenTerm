@@ -20,7 +20,7 @@ export default function HostList({
 
     return (
       <div className="host-grid host-grid-empty">
-        <div className="empty-card panel">
+        <div className="empty-card">
           <div className="empty-card-icon">
             {isSearching ? <SearchX size={20} /> : <ShieldCheck size={20} />}
           </div>

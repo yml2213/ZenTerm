@@ -36,20 +36,8 @@ export default function KnownHostsPanel({ hosts }) {
 
   if (groups.length === 0) {
     return (
-      <section className="known-hosts-stage panel">
-        <div className="known-hosts-hero">
-          <div className="known-hosts-hero-copy">
-            <span className="panel-kicker">Known Hosts</span>
-            <h1>已知主机</h1>
-            <p>这里会集中展示每台主机已确认保存的可信公钥。当前还没有任何已保存的可信记录。</p>
-          </div>
-          <span className="pill subtle">
-            <ShieldQuestion size={14} />
-            暂无记录
-          </span>
-        </div>
-
-        <div className="empty-card panel">
+      <section className="known-hosts-stage">
+        <div className="empty-card">
           <div className="empty-card-icon">
             <ShieldQuestion size={20} />
           </div>
@@ -63,23 +51,15 @@ export default function KnownHostsPanel({ hosts }) {
   }
 
   return (
-    <section className="known-hosts-stage panel">
-      <div className="known-hosts-hero">
-        <div className="known-hosts-hero-copy">
-          <span className="panel-kicker">Known Hosts</span>
-          <h1>已知主机</h1>
-          <p>当前按主机保存已确认的 SSH 公钥，方便快速检查哪些连接已经建立过可信关系。</p>
+    <section className="known-hosts-stage">
+      <div className="known-hosts-stats known-hosts-stats-panel" aria-label="已知主机统计">
+        <div className="known-hosts-stat">
+          <strong>{trustedKeyCount}</strong>
+          <span>可信记录</span>
         </div>
-
-        <div className="known-hosts-stats" aria-label="已知主机统计">
-          <div className="known-hosts-stat">
-            <strong>{trustedKeyCount}</strong>
-            <span>可信记录</span>
-          </div>
-          <div className="known-hosts-stat">
-            <strong>{trustedHostCount}</strong>
-            <span>关联主机</span>
-          </div>
+        <div className="known-hosts-stat">
+          <strong>{trustedHostCount}</strong>
+          <span>关联主机</span>
         </div>
       </div>
 

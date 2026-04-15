@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
-  FolderLock,
   KeyRound,
   RefreshCw,
-  Shield,
   ShieldCheck,
   ShieldQuestion,
   Upload,
@@ -134,7 +132,7 @@ export default function KeychainPanel({
   }
 
   return (
-    <section className="keychain-stage panel">
+    <section className="keychain-stage">
       <div className="keychain-toolbar">
         <div className="keychain-sections" role="tablist" aria-label="钥匙串分类">
           {sections.map((item) => {

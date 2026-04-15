@@ -1,5 +1,6 @@
 import {
   Activity,
+  Clock3,
   FolderKanban,
   FolderLock,
   KeyRound,
@@ -12,7 +13,6 @@ import {
   Search,
   Settings2,
   Shield,
-  ShieldCheck,
   Sun,
   TerminalSquare,
 } from 'lucide-react'
@@ -159,6 +159,7 @@ const sidebarPages = {
     icon: LayoutGrid,
     title: '全部主机',
     kicker: 'Vaults',
+    description: '集中管理保险箱中的 SSH 主机与连接入口，后续的终端、SFTP 和身份能力都会从这里展开。',
   },
   keychain: {
     label: '钥匙串',
@@ -688,6 +689,14 @@ export default function App() {
   const isSettingsPage = activeSidebarPage === 'settings'
   const isKnownHostsPage = activeSidebarPage === 'knownHosts'
   const isKeychainPage = activeSidebarPage === 'keychain'
+  const pageHeader = isSettingsPage
+    ? {
+        kicker: 'Security',
+        title: '保险箱设置',
+        description: '主密码用于保护本地保存的 SSH 凭据。ZenTerm 会默认交给系统钥匙串保管，日常不再需要手动进入。',
+      }
+    : currentSidebarPage
+  const isPlaceholderPage = !isHostsPage && !isSettingsPage && !isKnownHostsPage && !isKeychainPage
 
   return (
     <div className="app-shell">
@@ -784,64 +793,52 @@ export default function App() {
 
           <section className="page-shell">
             <header className="page-toolbar">
-              {isHostsPage ? (
-                <div className="page-toolbar-main">
-                  <label className="search-bar">
-                    <Search size={15} />
-                    <input
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder={t('searchPlaceholder')}
-                      aria-label="搜索主机"
-                    />
-                  </label>
+              <div className="page-toolbar-main">
+                <div className="page-intro-copy page-toolbar-copy">
+                  <span className="panel-kicker">{pageHeader.kicker}</span>
+                  <h1>{pageHeader.title}</h1>
+                  {pageHeader.description ? <p>{pageHeader.description}</p> : null}
                 </div>
-              ) : isSettingsPage ? (
-                <div className="page-toolbar-copy">
-                  <span className="panel-kicker">Security</span>
-                  <h2>保险箱与主密码</h2>
-                  <p>在这里管理主密码与整个 Vault 的重置操作。日常进入默认由系统钥匙串接管。</p>
-                </div>
-              ) : (
-                <div className="page-toolbar-copy">
-                  <span className="panel-kicker">{currentSidebarPage.kicker}</span>
-                  <h2>{currentSidebarPage.title}</h2>
-                  <p>{currentSidebarPage.description}</p>
-                </div>
-              )}
+              </div>
 
-              <div className="page-toolbar-actions">
-                <span className={`pill ${vaultUnlocked ? 'success' : 'subtle'}`}>
-                  <ShieldCheck size={14} />
-                  {vaultInitialized ? (vaultUnlocked ? '主密码已就绪' : '需要主密码') : '等待初始化'}
-                </span>
-                {isHostsPage && (
-                  <button
-                    type="button"
-                    className="toolbar-btn primary"
-                    onClick={openCreateHost}
-                  >
-                    <Plus size={16} />
-                    {t('newHost')}
-                  </button>
-                )}
+              <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : ''}`}>
+                {isHostsPage ? (
+                  <div className="page-toolbar-search-slot">
+                    <label className="search-bar search-bar-compact">
+                      <Search size={15} />
+                      <input
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder={t('searchPlaceholder')}
+                        aria-label="搜索主机"
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
+                  {isPlaceholderPage ? (
+                    <span className="pill subtle">
+                      <Clock3 size={14} />
+                      占位中
+                    </span>
+                  ) : null}
+                  {isHostsPage && (
+                    <button
+                      type="button"
+                      className="toolbar-btn primary"
+                      onClick={openCreateHost}
+                    >
+                      <Plus size={16} />
+                      {t('newHost')}
+                    </button>
+                  )}
+                </div>
               </div>
             </header>
 
-            <main className="content-area">
+            <main className={`content-area${isHostsPage ? ' hosts-content-area' : ''}`}>
               {isHostsPage ? (
-                <section className="hosts-stage panel">
-                  <div className="section-head hosts-stage-head">
-                    <div>
-                      <span className="panel-kicker">Vaults</span>
-                      <h1>全部主机</h1>
-                    </div>
-                    <div className="section-head-meta">
-                      <span>{filteredHosts.length} 条</span>
-                      <span className="pill subtle">{onlineHostsCount} 台在线</span>
-                    </div>
-                  </div>
-
+                <section className="hosts-stage">
                   <HostList
                     hosts={filteredHosts}
                     hasAnyHosts={hosts.length > 0}

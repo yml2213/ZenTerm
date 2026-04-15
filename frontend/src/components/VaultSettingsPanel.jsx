@@ -1,4 +1,4 @@
-import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2 } from 'lucide-react'
 
 export default function VaultSettingsPanel({
   vaultUnlocked,
@@ -12,19 +12,7 @@ export default function VaultSettingsPanel({
   onResetVault,
 }) {
   return (
-    <section className="settings-stage panel">
-      <div className="settings-hero">
-        <div>
-          <span className="panel-kicker">Security</span>
-          <h1>保险箱设置</h1>
-          <p>主密码用于保护本地保存的 SSH 凭据。ZenTerm 会默认交给系统钥匙串保管，日常不再需要手动进入。</p>
-        </div>
-        <span className={`pill ${vaultUnlocked ? 'success' : 'subtle'}`}>
-          <ShieldCheck size={14} />
-          {vaultUnlocked ? '主密码已就绪' : '等待主密码'}
-        </span>
-      </div>
-
+    <section className="settings-stage">
       <div className="settings-grid">
         <section className="settings-card">
           <div className="settings-card-head">

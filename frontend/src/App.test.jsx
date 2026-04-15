@@ -179,7 +179,7 @@ describe('App', () => {
     await waitFor(() => expect(listHosts).toHaveBeenCalledTimes(1))
     await continueWithMasterPassword(user)
 
-    expect(screen.getByText('主密码已就绪')).toBeInTheDocument()
+    expect(screen.getByText('全部主机')).toBeInTheDocument()
   })
 
   it('未初始化时显示主密码设置流程，并跳过自动进入', async () => {
@@ -193,7 +193,7 @@ describe('App', () => {
 
     await initializeVault(user)
 
-    expect(screen.getByText('主密码已就绪')).toBeInTheDocument()
+    expect(screen.getByText('全部主机')).toBeInTheDocument()
   })
 
   it('支持使用系统钥匙串自动进入', async () => {
@@ -203,7 +203,7 @@ describe('App', () => {
     await waitFor(() => expect(tryAutoUnlock).toHaveBeenCalledTimes(1))
 
     expect(screen.queryByLabelText('主密码')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('主密码已就绪')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('全部主机')).toBeInTheDocument())
   })
 
   it('默认打开 Vaults，并支持切换到 SFTP 工作区', async () => {
