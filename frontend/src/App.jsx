@@ -1,7 +1,6 @@
 import {
-  ChevronRight,
+  Activity,
   FolderKanban,
-  HardDriveDownload,
   KeyRound,
   LayoutGrid,
   Lock,
@@ -13,7 +12,6 @@ import {
   Search,
   Settings2,
   ShieldCheck,
-  Sparkles,
   Sun,
   TerminalSquare,
 } from 'lucide-react'
@@ -157,16 +155,35 @@ export default function App() {
     return acc
   }, {})
   const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
-  const selectedHost = hosts.find((host) => host.id === selectedHostId) || null
   const trustedHostsCount = hosts.filter((host) => Boolean(host.known_hosts)).length
   const onlineHostsCount = Object.keys(sessionCountByHost).length
-  const pendingHostsCount = Math.max(hosts.length - trustedHostsCount, 0)
   const navigationItems = [
-    { label: 'Hosts', icon: LayoutGrid, active: true },
-    { label: 'Port Forwarding', icon: PlugZap, muted: true },
-    { label: 'Snippets', icon: FolderKanban, muted: true },
-    { label: 'Transfers', icon: HardDriveDownload, muted: true },
-    { label: 'Settings', icon: Settings2, muted: true },
+    { label: '主机', icon: LayoutGrid, active: true },
+    { label: '钥匙串', icon: KeyRound, muted: true },
+    { label: '端口转发', icon: PlugZap, muted: true },
+    { label: '代码片段', icon: FolderKanban, muted: true },
+    { label: '已知主机', icon: ShieldCheck, muted: true },
+    { label: '日志', icon: Activity, muted: true },
+  ]
+  const overviewCards = [
+    {
+      label: '全部主机',
+      value: `${hosts.length} 台主机`,
+      icon: LayoutGrid,
+      tone: 'cyan',
+    },
+    {
+      label: '可信主机',
+      value: `${trustedHostsCount} 台已信任`,
+      icon: ShieldCheck,
+      tone: 'green',
+    },
+    {
+      label: '在线会话',
+      value: `${sessionTabs.length} 个标签`,
+      icon: TerminalSquare,
+      tone: 'violet',
+    },
   ]
 
   function closeHostDialog() {
@@ -479,52 +496,28 @@ export default function App() {
               const Icon = item.icon
 
               return (
-                <div
+                <button
+                  type="button"
                   key={item.label}
                   className={`sidebar-nav-item${item.active ? ' active' : ''}${item.muted ? ' muted' : ''}`}
+                  aria-current={item.active ? 'page' : undefined}
+                  disabled={!item.active}
                 >
                   <Icon size={16} />
                   <span>{item.label}</span>
-                </div>
+                </button>
               )
             })}
           </nav>
 
-          <section className="sidebar-section">
-            <span className="sidebar-label">当前范围</span>
-            <div className="sidebar-stat">
-              <LayoutGrid size={16} />
-              <div>
-                <strong>{hosts.length}</strong>
-                <span>已保存主机</span>
-              </div>
-            </div>
-            <div className="sidebar-stat">
-              <TerminalSquare size={16} />
-              <div>
-                <strong>{sessionTabs.length}</strong>
-                <span>活跃终端标签</span>
-              </div>
-            </div>
-          </section>
+          <div className="sidebar-spacer" />
 
-          <section className="sidebar-section">
-            <span className="sidebar-label">已选主机</span>
-            {selectedHost ? (
-              <div className="sidebar-host">
-                <strong>{selectedHost.name || selectedHost.id}</strong>
-                <span>{selectedHost.username}@{selectedHost.address}:{selectedHost.port || 22}</span>
-                <small>{selectedHost.known_hosts ? '已写入可信指纹' : '首次连接需确认指纹'}</small>
-              </div>
-            ) : (
-              <p className="sidebar-note">从右侧列表中选择一台主机，可编辑配置或打开新的终端标签。</p>
-            )}
-          </section>
-
-          <section className="sidebar-section">
-            <span className="sidebar-label">路线图</span>
-            <p className="sidebar-note">SFTP、端口转发、代码片段和设置中心保持在界面参考层，不进入本期交互主流程。</p>
-          </section>
+          <div className="sidebar-footer">
+            <button type="button" className="sidebar-nav-item muted" disabled>
+              <Settings2 size={16} />
+              <span>设置</span>
+            </button>
+          </div>
         </aside>
 
         <section className="page-shell">
@@ -548,14 +541,6 @@ export default function App() {
               </span>
               <button
                 type="button"
-                className="toolbar-icon-btn"
-                onClick={cycleTheme}
-                aria-label="切换主题"
-              >
-                <ThemeIcon size={16} />
-              </button>
-              <button
-                type="button"
                 className="toolbar-btn primary"
                 onClick={openCreateHost}
               >
@@ -567,72 +552,54 @@ export default function App() {
 
           <main className="content-area">
             <section className="content-header">
-              <div className="content-breadcrumb">
-                <span>All hosts</span>
-                <ChevronRight size={14} />
-                <span>Workspace</span>
+              <div>
+                <span className="panel-kicker">全部主机</span>
+                <h1>主机工作台</h1>
+              </div>
+              <div className="section-head-meta">
+                <span>{hosts.length} 台主机</span>
+                <span className="pill subtle">{onlineHostsCount} 台在线</span>
               </div>
             </section>
 
             <section className="groups-stage panel" aria-label="主机概览">
               <div className="section-head section-head-tight">
                 <div>
-                  <span className="panel-kicker">Groups</span>
+                  <span className="panel-kicker">分组</span>
                 </div>
                 <div className="section-head-meta">
-                  <span>{Math.min(hosts.length, 4)} total</span>
+                  <span>共 {overviewCards.length} 组</span>
                 </div>
               </div>
 
               <div className="group-strip">
-                <article className="group-card">
-                  <div className="group-card-icon green">
-                    <LayoutGrid size={16} />
-                  </div>
-                  <div>
-                    <strong>All Hosts</strong>
-                    <span>{hosts.length} Hosts</span>
-                  </div>
-                </article>
-                <article className="group-card">
-                  <div className="group-card-icon cyan">
-                    <ShieldCheck size={16} />
-                  </div>
-                  <div>
-                    <strong>Trusted</strong>
-                    <span>{trustedHostsCount} Hosts</span>
-                  </div>
-                </article>
-                <article className="group-card">
-                  <div className="group-card-icon amber">
-                    <PlugZap size={16} />
-                  </div>
-                  <div>
-                    <strong>Live</strong>
-                    <span>{onlineHostsCount} Hosts</span>
-                  </div>
-                </article>
-                <article className="group-card">
-                  <div className="group-card-icon violet">
-                    <KeyRound size={16} />
-                  </div>
-                  <div>
-                    <strong>Pending</strong>
-                    <span>{pendingHostsCount} Hosts</span>
-                  </div>
-                </article>
+                {overviewCards.map((item) => {
+                  const Icon = item.icon
+
+                  return (
+                    <article key={item.label} className="group-card">
+                      <div className={`group-card-icon ${item.tone}`}>
+                        <Icon size={16} />
+                      </div>
+                      <div>
+                        <strong>{item.label}</strong>
+                        <span>{item.value}</span>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             </section>
 
             <section className="hosts-stage panel">
               <div className="section-head">
                 <div>
-                  <span className="panel-kicker">Hosts</span>
+                  <span className="panel-kicker">主机</span>
                   <h2>主机列表</h2>
                 </div>
                 <div className="section-head-meta">
-                  <span>{filteredHosts.length} entries</span>
-                  <span className="pill subtle">{onlineHostsCount} live</span>
+                  <span>{filteredHosts.length} 条</span>
+                  <span className="pill subtle">{onlineHostsCount} 台在线</span>
                 </div>
               </div>
 

@@ -66,6 +66,7 @@ export default function HostList({
                 <div className="host-card-title">
                   <strong>{host.name || host.id}</strong>
                   <span>{host.username}@{host.address}:{host.port || 22}</span>
+                  <small>{host.id}</small>
                 </div>
               </div>
               <div className="host-card-badges">
@@ -77,13 +78,10 @@ export default function HostList({
               </div>
             </div>
 
-            <div className="host-card-meta">
-              <span>主机 ID: {host.id}</span>
-              <span>认证状态: {trusted ? '可信指纹已写入' : '首次连接会弹出指纹确认'}</span>
-            </div>
-
             <div className="host-card-footer">
-              <span className="pill subtle">{disabled ? '保险箱未解锁' : '可直接连接或编辑'}</span>
+              <span className="host-card-summary">
+                {disabled ? '解锁后可连接与编辑' : trusted ? '可信指纹已写入' : '首次连接会确认指纹'}
+              </span>
               <div className="host-card-actions">
                 <button
                   type="button"
