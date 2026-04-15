@@ -25,7 +25,7 @@ func main() {
 		Height:           920,
 		MinWidth:         1080,
 		MinHeight:        720,
-		BackgroundColour: options.NewRGBA(6, 16, 22, 255),
+		BackgroundColour: options.NewRGBA(253, 254, 254, 255),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -38,7 +38,7 @@ func main() {
 			TitleBar:             mac.TitleBarHiddenInset(),
 			Appearance:           mac.DefaultAppearance,
 			WebviewIsTransparent: false,
-			WindowIsTranslucent:  true,
+			WindowIsTranslucent:  false,
 		},
 	})
 	if err != nil {

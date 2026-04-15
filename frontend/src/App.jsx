@@ -1,4 +1,22 @@
-import { Plus, Sun, Moon, Monitor, Search, ShieldCheck, Server, TerminalSquare } from 'lucide-react'
+import {
+  ChevronRight,
+  FolderKanban,
+  HardDriveDownload,
+  KeyRound,
+  LayoutGrid,
+  Lock,
+  Monitor,
+  Moon,
+  FolderOpen,
+  PlugZap,
+  Plus,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+  TerminalSquare,
+} from 'lucide-react'
 import { startTransition, useEffect, useRef, useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createHostFormFromHost, createInitialHostForm } from './components/HostForm.jsx'
@@ -140,6 +158,16 @@ export default function App() {
   }, {})
   const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
   const selectedHost = hosts.find((host) => host.id === selectedHostId) || null
+  const trustedHostsCount = hosts.filter((host) => Boolean(host.known_hosts)).length
+  const onlineHostsCount = Object.keys(sessionCountByHost).length
+  const pendingHostsCount = Math.max(hosts.length - trustedHostsCount, 0)
+  const navigationItems = [
+    { label: 'Hosts', icon: LayoutGrid, active: true },
+    { label: 'Port Forwarding', icon: PlugZap, muted: true },
+    { label: 'Snippets', icon: FolderKanban, muted: true },
+    { label: 'Transfers', icon: HardDriveDownload, muted: true },
+    { label: 'Settings', icon: Settings2, muted: true },
+  ]
 
   function closeHostDialog() {
     setHostDialogMode(null)
@@ -404,59 +432,60 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="toolbar">
-        <div className="toolbar-left">
-          <div className="toolbar-logo">
-            <TerminalSquare size={18} />
-          </div>
-          <div className="toolbar-brand">
-            <strong>ZenTerm</strong>
-            <span>SSH Workbench</span>
-          </div>
-        </div>
-
-        <div className="toolbar-center">
-          <label className="search-bar">
-            <Search size={15} />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t('searchPlaceholder')}
-              aria-label="搜索主机"
-            />
-          </label>
-        </div>
-
-        <div className="toolbar-right">
-          <span className={`pill ${vaultUnlocked ? 'success' : 'subtle'}`}>
-            <ShieldCheck size={14} />
-            {vaultUnlocked ? '保险箱已解锁' : '保险箱未解锁'}
-          </span>
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={cycleTheme}
-            aria-label="切换主题"
-          >
-            <ThemeIcon size={16} />
+      <section className="workspace-strip">
+        <div className="workspace-modules">
+          <button type="button" className="workspace-module active">
+            <Lock size={15} />
+            Vaults
           </button>
-          <button
-            type="button"
-            className="toolbar-btn primary"
-            onClick={openCreateHost}
-          >
-            <Plus size={16} />
-            {t('newHost')}
+          <button type="button" className="workspace-module">
+            <FolderOpen size={15} />
+            SFTP
           </button>
         </div>
-      </header>
+        <SessionTabs
+          className="workspace-tabs"
+          sessions={sessionTabs}
+          activeSessionId={activeSessionId}
+          onSelect={setActiveSessionId}
+          onClose={handleCloseTab}
+          emptyLabel="还没有打开的 SSH 终端标签"
+          emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
+        />
+      </section>
 
       <div className="app-content">
         <aside className="sidebar">
+          <section className="sidebar-brand-card">
+            <div className="sidebar-brand-icon">
+              <TerminalSquare size={18} />
+            </div>
+            <div className="sidebar-brand-copy">
+              <strong>ZenTerm</strong>
+              <span>SSH Workbench</span>
+            </div>
+          </section>
+
+          <nav className="sidebar-nav" aria-label="工作台导航">
+            {navigationItems.map((item) => {
+              const Icon = item.icon
+
+              return (
+                <div
+                  key={item.label}
+                  className={`sidebar-nav-item${item.active ? ' active' : ''}${item.muted ? ' muted' : ''}`}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </div>
+              )
+            })}
+          </nav>
+
           <section className="sidebar-section">
             <span className="sidebar-label">当前范围</span>
             <div className="sidebar-stat">
-              <Server size={16} />
+              <LayoutGrid size={16} />
               <div>
                 <strong>{hosts.length}</strong>
                 <span>已保存主机</span>
@@ -485,51 +514,149 @@ export default function App() {
           </section>
 
           <section className="sidebar-section">
-            <span className="sidebar-label">延期路线图</span>
-            <p className="sidebar-note">SFTP、端口转发、代码片段和设置中心已从本期主流程移出，等 MVP 稳定后再继续扩展。</p>
+            <span className="sidebar-label">路线图</span>
+            <p className="sidebar-note">SFTP、端口转发、代码片段和设置中心保持在界面参考层，不进入本期交互主流程。</p>
           </section>
         </aside>
 
-        <main className="content-area">
-          <section className="content-intro panel">
-            <div>
-              <span className="panel-kicker">Hosts</span>
-              <h1>主机管理与多标签终端</h1>
-              <p>主机列表支持搜索、编辑、删除；连接后会在下方打开独立终端标签，可随时切换和关闭。</p>
+        <section className="page-shell">
+          <header className="page-toolbar">
+            <div className="page-toolbar-main">
+              <label className="search-bar">
+                <Search size={15} />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  aria-label="搜索主机"
+                />
+              </label>
             </div>
-          </section>
 
-          <HostList
-            hosts={filteredHosts}
-            selectedHostId={selectedHostId}
-            sessionCountByHost={sessionCountByHost}
-            connectingHostIds={connectingHostIds}
-            onSelect={setSelectedHostId}
-            onConnect={handleConnect}
-            onEdit={openEditHost}
-            onDelete={setDeleteCandidate}
-            disabled={!vaultUnlocked}
-          />
+            <div className="page-toolbar-actions">
+              <span className={`pill ${vaultUnlocked ? 'success' : 'subtle'}`}>
+                <ShieldCheck size={14} />
+                {vaultUnlocked ? '保险箱已解锁' : '保险箱未解锁'}
+              </span>
+              <button
+                type="button"
+                className="toolbar-icon-btn"
+                onClick={cycleTheme}
+                aria-label="切换主题"
+              >
+                <ThemeIcon size={16} />
+              </button>
+              <button
+                type="button"
+                className="toolbar-btn primary"
+                onClick={openCreateHost}
+              >
+                <Plus size={16} />
+                {t('newHost')}
+              </button>
+            </div>
+          </header>
 
-          <SessionTabs
-            sessions={sessionTabs}
-            activeSessionId={activeSessionId}
-            onSelect={setActiveSessionId}
-            onClose={handleCloseTab}
-          />
+          <main className="content-area">
+            <section className="content-header">
+              <div className="content-breadcrumb">
+                <span>All hosts</span>
+                <ChevronRight size={14} />
+                <span>Workspace</span>
+              </div>
+            </section>
 
-          <div className="terminal-wrapper">
-            <TerminalPane
-              sessions={sessionTabs}
-              activeSessionId={activeSessionId}
-              activeSessionTitle={activeSession?.title || 'Zen Console'}
-              onSendInput={sendInput}
-              onResize={resizeTerminal}
-              onSessionClosed={handleSessionClosed}
-              onError={(err) => setError(err.message || String(err))}
-            />
-          </div>
-        </main>
+            <section className="groups-stage panel" aria-label="主机概览">
+              <div className="section-head section-head-tight">
+                <div>
+                  <span className="panel-kicker">Groups</span>
+                </div>
+                <div className="section-head-meta">
+                  <span>{Math.min(hosts.length, 4)} total</span>
+                </div>
+              </div>
+
+              <div className="group-strip">
+                <article className="group-card">
+                  <div className="group-card-icon green">
+                    <LayoutGrid size={16} />
+                  </div>
+                  <div>
+                    <strong>All Hosts</strong>
+                    <span>{hosts.length} Hosts</span>
+                  </div>
+                </article>
+                <article className="group-card">
+                  <div className="group-card-icon cyan">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <div>
+                    <strong>Trusted</strong>
+                    <span>{trustedHostsCount} Hosts</span>
+                  </div>
+                </article>
+                <article className="group-card">
+                  <div className="group-card-icon amber">
+                    <PlugZap size={16} />
+                  </div>
+                  <div>
+                    <strong>Live</strong>
+                    <span>{onlineHostsCount} Hosts</span>
+                  </div>
+                </article>
+                <article className="group-card">
+                  <div className="group-card-icon violet">
+                    <KeyRound size={16} />
+                  </div>
+                  <div>
+                    <strong>Pending</strong>
+                    <span>{pendingHostsCount} Hosts</span>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section className="hosts-stage panel">
+              <div className="section-head">
+                <div>
+                  <span className="panel-kicker">Hosts</span>
+                  <h2>主机列表</h2>
+                </div>
+                <div className="section-head-meta">
+                  <span>{filteredHosts.length} entries</span>
+                  <span className="pill subtle">{onlineHostsCount} live</span>
+                </div>
+              </div>
+
+              <HostList
+                hosts={filteredHosts}
+                hasAnyHosts={hosts.length > 0}
+                searchQuery={searchQuery}
+                selectedHostId={selectedHostId}
+                sessionCountByHost={sessionCountByHost}
+                connectingHostIds={connectingHostIds}
+                onSelect={setSelectedHostId}
+                onConnect={handleConnect}
+                onEdit={openEditHost}
+                onDelete={setDeleteCandidate}
+                disabled={!vaultUnlocked}
+              />
+            </section>
+
+            <div className="terminal-wrapper">
+              <TerminalPane
+                sessions={sessionTabs}
+                activeSessionId={activeSessionId}
+                activeSessionTitle={activeSession?.title || 'Zen Console'}
+                activeSessionMeta={activeSession}
+                onSendInput={sendInput}
+                onResize={resizeTerminal}
+                onSessionClosed={handleSessionClosed}
+                onError={(err) => setError(err.message || String(err))}
+              />
+            </div>
+          </main>
+        </section>
       </div>
 
       <UnlockModal

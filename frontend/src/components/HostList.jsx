@@ -1,7 +1,11 @@
-import { PencilLine, PlugZap, Server, ShieldCheck, Trash2 } from 'lucide-react'
+import { PencilLine, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Trash2 } from 'lucide-react'
+
+const avatarTones = ['amber', 'emerald', 'cyan', 'violet', 'rose', 'blue']
 
 export default function HostList({
   hosts,
+  hasAnyHosts,
+  searchQuery,
   selectedHostId,
   sessionCountByHost,
   connectingHostIds,
@@ -12,13 +16,19 @@ export default function HostList({
   disabled,
 }) {
   if (hosts.length === 0) {
+    const isSearching = Boolean(searchQuery?.trim())
+
     return (
       <div className="host-grid">
         <div className="empty-card panel">
-          <ShieldCheck size={18} />
+          {isSearching ? <SearchX size={18} /> : <ShieldCheck size={18} />}
           <div>
-            <strong>还没有主机</strong>
-            <p>先新建一台主机，然后解锁保险箱并发起连接。</p>
+            <strong>{isSearching && hasAnyHosts ? '没有匹配的主机' : '还没有主机'}</strong>
+            <p>
+              {isSearching && hasAnyHosts
+                ? `没有找到与 “${searchQuery}” 匹配的主机，试试主机名、地址或用户名。`
+                : '先新建一台主机，然后解锁保险箱并发起连接。'}
+            </p>
           </div>
         </div>
       </div>
@@ -31,6 +41,8 @@ export default function HostList({
         const active = host.id === selectedHostId
         const sessionCount = sessionCountByHost[host.id] || 0
         const connecting = connectingHostIds.includes(host.id)
+        const avatarTone = avatarTones[host.id.length % avatarTones.length]
+        const trusted = Boolean(host.known_hosts)
 
         return (
           <article
@@ -47,20 +59,31 @@ export default function HostList({
             }}
           >
             <div className="host-card-header">
-              <div className="host-card-title">
-                <Server size={16} />
-                <span>{host.name || host.id}</span>
+              <div className="host-card-identity">
+                <div className={`host-card-avatar ${avatarTone}`}>
+                  <Server size={15} />
+                </div>
+                <div className="host-card-title">
+                  <strong>{host.name || host.id}</strong>
+                  <span>{host.username}@{host.address}:{host.port || 22}</span>
+                </div>
               </div>
-              {sessionCount > 0 ? <span className="pill success">会话 {sessionCount}</span> : null}
+              <div className="host-card-badges">
+                {sessionCount > 0 ? <span className="pill success">会话 {sessionCount}</span> : null}
+                <span className={`host-inline-state ${trusted ? 'trusted' : 'pending'}`}>
+                  {trusted ? <ShieldCheck size={13} /> : <ShieldQuestion size={13} />}
+                  {trusted ? '已信任' : '待验证'}
+                </span>
+              </div>
             </div>
 
             <div className="host-card-meta">
-              <span>{host.username}@{host.address}:{host.port || 22}</span>
-              <span>ID: {host.id}</span>
+              <span>主机 ID: {host.id}</span>
+              <span>认证状态: {trusted ? '可信指纹已写入' : '首次连接会弹出指纹确认'}</span>
             </div>
 
             <div className="host-card-footer">
-              <span className="pill subtle">{host.known_hosts ? '已信任指纹' : '待验证指纹'}</span>
+              <span className="pill subtle">{disabled ? '保险箱未解锁' : '可直接连接或编辑'}</span>
               <div className="host-card-actions">
                 <button
                   type="button"
