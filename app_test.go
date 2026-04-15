@@ -8,6 +8,7 @@ import (
 	"zenterm/internal/db"
 	"zenterm/internal/model"
 	"zenterm/internal/security"
+	"zenterm/internal/service"
 )
 
 func TestAppUnlockAddHostAndListHosts(t *testing.T) {
@@ -75,6 +76,30 @@ func TestAppConnectPropagatesHostLookupError(t *testing.T) {
 	_, err = app.Connect("missing-host")
 	if !errors.Is(err, db.ErrHostNotFound) {
 		t.Fatalf("Connect() error = %v, want %v", err, db.ErrHostNotFound)
+	}
+}
+
+func TestAppSendInputPropagatesSessionError(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	err = app.SendInput("missing-session", "pwd\n")
+	if !errors.Is(err, service.ErrSessionNotFound) {
+		t.Fatalf("SendInput() error = %v, want %v", err, service.ErrSessionNotFound)
+	}
+}
+
+func TestAppResizeTerminalValidatesSize(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	err = app.ResizeTerminal("missing-session", 0, 24)
+	if !errors.Is(err, service.ErrInvalidTerminalSize) {
+		t.Fatalf("ResizeTerminal() error = %v, want %v", err, service.ErrInvalidTerminalSize)
 	}
 }
 

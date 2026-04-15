@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -22,23 +23,102 @@ var (
 	ErrNoIdentityAuth       = errors.New("no supported ssh authentication method configured")
 	ErrHostAddressRequired  = errors.New("host address is required")
 	ErrHostUsernameRequired = errors.New("host username is required")
+	ErrInvalidTerminalSize  = errors.New("invalid terminal size")
 	ErrSessionNotFound      = errors.New("session not found")
 )
 
-const defaultSSHPort = 22
+const (
+	defaultSSHPort = 22
+	defaultTerm    = "xterm-256color"
+	defaultRows    = 24
+	defaultCols    = 80
+)
+
+// EventEmitter 用于将会话事件转发给应用层 / forwards session events to the application layer.
+type EventEmitter func(event string, payload any)
 
 type sshDialer interface {
 	Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error)
 }
 
 type sshClient interface {
+	NewSession() (sshSession, error)
+	Close() error
+}
+
+type sshSession interface {
+	StdinPipe() (io.WriteCloser, error)
+	StdoutPipe() (io.Reader, error)
+	StderrPipe() (io.Reader, error)
+	RequestPty(term string, h, w int, modes ssh.TerminalModes) error
+	Shell() error
+	WindowChange(h, w int) error
+	Wait() error
 	Close() error
 }
 
 type realSSHDialer struct{}
 
 func (d realSSHDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error) {
-	return ssh.Dial(network, addr, config)
+	client, err := ssh.Dial(network, addr, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &realSSHClient{client: client}, nil
+}
+
+type realSSHClient struct {
+	client *ssh.Client
+}
+
+func (c *realSSHClient) NewSession() (sshSession, error) {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return &realSSHSession{session: session}, nil
+}
+
+func (c *realSSHClient) Close() error {
+	return c.client.Close()
+}
+
+type realSSHSession struct {
+	session *ssh.Session
+}
+
+func (s *realSSHSession) StdinPipe() (io.WriteCloser, error) {
+	return s.session.StdinPipe()
+}
+
+func (s *realSSHSession) StdoutPipe() (io.Reader, error) {
+	return s.session.StdoutPipe()
+}
+
+func (s *realSSHSession) StderrPipe() (io.Reader, error) {
+	return s.session.StderrPipe()
+}
+
+func (s *realSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
+	return s.session.RequestPty(term, h, w, modes)
+}
+
+func (s *realSSHSession) Shell() error {
+	return s.session.Shell()
+}
+
+func (s *realSSHSession) WindowChange(h, w int) error {
+	return s.session.WindowChange(h, w)
+}
+
+func (s *realSSHSession) Wait() error {
+	return s.session.Wait()
+}
+
+func (s *realSSHSession) Close() error {
+	return s.session.Close()
 }
 
 // Session 表示一个活跃的 SSH 连接会话 / represents an active SSH connection session.
@@ -55,6 +135,10 @@ type ZenService interface {
 	GetHosts() ([]model.Host, error)
 	AddHost(host model.Host, identity model.Identity) error
 	Connect(hostID string) (string, error)
+	SendInput(sessionID, data string) error
+	ResizeTerminal(sessionID string, cols, rows int) error
+	Disconnect(sessionID string) error
+	CloseAll() error
 }
 
 // Service 负责把 Vault 生命周期与 JSON 存储连接起来 / wires the vault lifecycle to the JSON-backed store.
@@ -62,6 +146,8 @@ type Service struct {
 	store     *db.Store
 	vault     *security.Vault
 	dialer    sshDialer
+	emitter   EventEmitter
+	emitterMu sync.RWMutex
 	sessionMu sync.RWMutex
 	sessions  map[string]*managedSession
 }
@@ -83,8 +169,20 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		store:    store,
 		vault:    vault,
 		dialer:   dialer,
+		emitter:  func(string, any) {},
 		sessions: make(map[string]*managedSession),
 	}, nil
+}
+
+// SetEventEmitter 设置会话事件发射器，供上层接入 Wails Events / sets the session event emitter so the app layer can bridge to Wails Events.
+func (s *Service) SetEventEmitter(emitter EventEmitter) {
+	if emitter == nil {
+		emitter = func(string, any) {}
+	}
+
+	s.emitterMu.Lock()
+	defer s.emitterMu.Unlock()
+	s.emitter = emitter
 }
 
 // UnlockVault 使用存储中的盐值初始化并解锁内存中的 Vault / initializes the in-memory vault from the persisted store salt.
@@ -135,15 +233,62 @@ func (s *Service) Connect(hostID string) (string, error) {
 		return "", fmt.Errorf("dial ssh: %w", err)
 	}
 
+	sshSession, err := client.NewSession()
+	if err != nil {
+		_ = client.Close()
+		return "", fmt.Errorf("create ssh session: %w", err)
+	}
+
+	stdin, err := sshSession.StdinPipe()
+	if err != nil {
+		_ = sshSession.Close()
+		_ = client.Close()
+		return "", fmt.Errorf("create stdin pipe: %w", err)
+	}
+
+	stdout, err := sshSession.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
+		_ = client.Close()
+		return "", fmt.Errorf("create stdout pipe: %w", err)
+	}
+
+	stderr, err := sshSession.StderrPipe()
+	if err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
+		_ = client.Close()
+		return "", fmt.Errorf("create stderr pipe: %w", err)
+	}
+
+	if err := sshSession.RequestPty(defaultTerm, defaultRows, defaultCols, ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14_400,
+		ssh.TTY_OP_OSPEED: 14_400,
+	}); err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
+		_ = client.Close()
+		return "", fmt.Errorf("request pty: %w", err)
+	}
+
+	if err := sshSession.Shell(); err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
+		_ = client.Close()
+		return "", fmt.Errorf("start shell: %w", err)
+	}
+
 	sessionID, err := newSessionID()
 	if err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
 		_ = client.Close()
 		return "", fmt.Errorf("generate session id: %w", err)
 	}
 
 	s.sessionMu.Lock()
-	defer s.sessionMu.Unlock()
-
 	s.sessions[sessionID] = &managedSession{
 		Session: Session{
 			ID:          sessionID,
@@ -152,28 +297,31 @@ func (s *Service) Connect(hostID string) (string, error) {
 			ConnectedAt: time.Now().UTC(),
 		},
 		client: client,
+		ssh:    sshSession,
+		stdin:  stdin,
 	}
+	managed := s.sessions[sessionID]
+	s.sessionMu.Unlock()
+
+	go s.forwardOutput(sessionID, stdout)
+	go s.forwardOutput(sessionID, stderr)
+	go s.waitForSession(sessionID, managed)
 
 	return sessionID, nil
 }
 
 // Disconnect 关闭指定的活跃 SSH 会话 / closes the requested active SSH session.
 func (s *Service) Disconnect(sessionID string) error {
-	s.sessionMu.Lock()
-	session, ok := s.sessions[sessionID]
-	if ok {
-		delete(s.sessions, sessionID)
-	}
-	s.sessionMu.Unlock()
-
+	session, ok := s.detachSession(sessionID)
 	if !ok {
 		return ErrSessionNotFound
 	}
 
-	if err := session.client.Close(); err != nil {
-		return fmt.Errorf("close ssh client: %w", err)
+	if err := session.close(); err != nil {
+		return err
 	}
 
+	s.emit("term:closed:"+sessionID, nil)
 	return nil
 }
 
@@ -190,9 +338,89 @@ func (s *Service) ListSessions() []Session {
 	return sessions
 }
 
+// SendInput 将前端输入写入指定 SSH 会话的 stdin / writes frontend input into the target SSH session stdin.
+func (s *Service) SendInput(sessionID, data string) error {
+	session, err := s.getSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(session.stdin, data); err != nil {
+		return fmt.Errorf("write session input: %w", err)
+	}
+
+	return nil
+}
+
+// ResizeTerminal 调整远端 PTY 的行列尺寸 / resizes the remote PTY rows and columns.
+func (s *Service) ResizeTerminal(sessionID string, cols, rows int) error {
+	if cols <= 0 || rows <= 0 {
+		return ErrInvalidTerminalSize
+	}
+
+	session, err := s.getSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	if err := session.ssh.WindowChange(rows, cols); err != nil {
+		return fmt.Errorf("resize terminal: %w", err)
+	}
+
+	return nil
+}
+
+// CloseAll 强制关闭所有活跃会话，避免应用退出时泄露连接 / force closes all active sessions to prevent leaked connections when the app exits.
+func (s *Service) CloseAll() error {
+	s.sessionMu.Lock()
+	sessions := make(map[string]*managedSession, len(s.sessions))
+	for sessionID, session := range s.sessions {
+		sessions[sessionID] = session
+	}
+	s.sessions = make(map[string]*managedSession)
+	s.sessionMu.Unlock()
+
+	var closeErr error
+	for sessionID, session := range sessions {
+		if err := session.close(); err != nil && closeErr == nil {
+			closeErr = err
+		}
+		s.emit("term:closed:"+sessionID, nil)
+	}
+
+	return closeErr
+}
+
 type managedSession struct {
 	Session
-	client sshClient
+	client    sshClient
+	ssh       sshSession
+	stdin     io.WriteCloser
+	closeOnce sync.Once
+}
+
+func (m *managedSession) close() error {
+	var closeErr error
+
+	m.closeOnce.Do(func() {
+		if m.stdin != nil {
+			if err := m.stdin.Close(); err != nil && closeErr == nil {
+				closeErr = fmt.Errorf("close stdin: %w", err)
+			}
+		}
+		if m.ssh != nil {
+			if err := m.ssh.Close(); err != nil && closeErr == nil {
+				closeErr = fmt.Errorf("close ssh session: %w", err)
+			}
+		}
+		if m.client != nil {
+			if err := m.client.Close(); err != nil && closeErr == nil {
+				closeErr = fmt.Errorf("close ssh client: %w", err)
+			}
+		}
+	})
+
+	return closeErr
 }
 
 func newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
@@ -233,4 +461,65 @@ func newSessionID() (string, error) {
 	}
 
 	return hex.EncodeToString(buf), nil
+}
+
+func (s *Service) getSession(sessionID string) (*managedSession, error) {
+	s.sessionMu.RLock()
+	defer s.sessionMu.RUnlock()
+
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+
+	return session, nil
+}
+
+func (s *Service) detachSession(sessionID string) (*managedSession, bool) {
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+
+	session, ok := s.sessions[sessionID]
+	if ok {
+		delete(s.sessions, sessionID)
+	}
+
+	return session, ok
+}
+
+func (s *Service) forwardOutput(sessionID string, reader io.Reader) {
+	buf := make([]byte, 4096)
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			s.emit("term:data:"+sessionID, string(buf[:n]))
+		}
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				s.emit("term:error:"+sessionID, err.Error())
+			}
+			return
+		}
+	}
+}
+
+func (s *Service) waitForSession(sessionID string, session *managedSession) {
+	err := session.ssh.Wait()
+	detached, ok := s.detachSession(sessionID)
+	if !ok {
+		return
+	}
+
+	if err != nil && !errors.Is(err, io.EOF) {
+		s.emit("term:error:"+sessionID, err.Error())
+	}
+	_ = detached.close()
+	s.emit("term:closed:"+sessionID, nil)
+}
+
+func (s *Service) emit(event string, payload any) {
+	s.emitterMu.RLock()
+	emitter := s.emitter
+	s.emitterMu.RUnlock()
+	emitter(event, payload)
 }
