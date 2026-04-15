@@ -205,6 +205,7 @@ textarea {
   padding-left: 85px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--toolbar-bg);
+  --wails-draggable: drag;
   -webkit-app-region: drag;
 }
 
@@ -213,6 +214,7 @@ textarea {
   align-items: center;
   gap: 0.45rem;
   justify-self: start;
+  --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
 
@@ -246,6 +248,7 @@ textarea {
   background: transparent;
   border: 0;
   padding: 0;
+  --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
 
@@ -262,6 +265,7 @@ textarea {
   cursor: pointer;
   transition: all 0.15s ease;
   justify-self: end;
+  --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
 
