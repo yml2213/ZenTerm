@@ -1,328 +1,311 @@
-import { lazy, Suspense, useEffect, useMemo, useState, startTransition } from 'react'
-import { KeyRound, LaptopMinimal, Lock, RefreshCcw, TriangleAlert } from 'lucide-react'
-
-import HostForm, { createInitialHostForm } from './components/HostForm'
-import HostKeyModal from './components/HostKeyModal'
-import HostList from './components/HostList'
+import { Plus, Sun, Moon, Monitor } from 'lucide-react'
+import { useState } from 'react'
+import HostList from './components/HostList.jsx'
+import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
+import TerminalPane from './components/TerminalPane.jsx'
+import HostKeyModal from './components/HostKeyModal.jsx'
+import { useTheme } from './contexts/ThemeProvider.jsx'
 import {
-  addHost,
-  acceptHostKey,
-  connect,
-  disconnect,
-  isBackendAvailable,
   listHosts,
-  onRuntimeEvent,
-  rejectHostKey,
-  resizeTerminal,
-  sendInput,
+  addHost,
   unlock,
-} from './lib/backend'
+  connect,
+  sendInput,
+  resizeTerminal,
+  acceptHostKey,
+  rejectHostKey,
+  onRuntimeEvent,
+} from './lib/backend.js'
 
-const TerminalPane = lazy(() => import('./components/TerminalPane'))
-
-function toHostPayload(form) {
-  return {
-    id: form.id.trim(),
-    name: form.name.trim(),
-    address: form.address.trim(),
-    port: Number.parseInt(form.port, 10) || 22,
-    username: form.username.trim(),
-  }
-}
-
-function toIdentityPayload(form) {
-  return {
-    password: form.password,
-    private_key: form.privateKey,
-  }
+const STATUS = {
+  IDLE: 'idle',
+  CONNECTING: 'connecting',
+  CONNECTED: 'connected',
 }
 
 export default function App() {
+  const { theme, setTheme } = useTheme()
   const [hosts, setHosts] = useState([])
-  const [selectedHostId, setSelectedHostId] = useState('')
-  const [connectedHostId, setConnectedHostId] = useState('')
-  const [sessionId, setSessionId] = useState('')
-  const [masterPassword, setMasterPassword] = useState('')
+  const [selectedHostId, setSelectedHostId] = useState(null)
+  const [connectedHostId, setConnectedHostId] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState(STATUS.IDLE)
+  const [sessionId, setSessionId] = useState(null)
   const [hostForm, setHostForm] = useState(createInitialHostForm)
-  const [status, setStatus] = useState(isBackendAvailable() ? '保险箱待解锁。' : '当前为浏览器预览模式，真实连接需通过 Wails 运行。')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [savingHost, setSavingHost] = useState(false)
+  const [showAddHost, setShowAddHost] = useState(false)
+  const [isAddingHost, setIsAddingHost] = useState(false)
+  const [error, setError] = useState(null)
   const [hostKeyPrompt, setHostKeyPrompt] = useState(null)
-  const [hostKeyBusy, setHostKeyBusy] = useState(false)
+  const [isAcceptingKey, setIsAcceptingKey] = useState(false)
 
-  const selectedHost = useMemo(
-    () => hosts.find((host) => host.id === selectedHostId) ?? null,
-    [hosts, selectedHostId],
-  )
+  const connectedHost = hosts.find((h) => h.id === connectedHostId)
+  const selectedHost = hosts.find((h) => h.id === selectedHostId)
+  const vaultUnlocked = connectionStatus !== STATUS.IDLE || sessionId !== null
 
-  async function refreshHosts() {
-    try {
-      const nextHosts = await listHosts()
+  function refreshHosts() {
+    listHosts().then(setHosts, (err) => setError(err.message || String(err)))
+  }
 
-      startTransition(() => {
-        setHosts(nextHosts)
-        if (!selectedHostId && nextHosts[0]) {
-          setSelectedHostId(nextHosts[0].id)
+  function handleUnlock() {
+    setError(null)
+    unlock()
+      .then(() => {
+        setConnectionStatus(STATUS.IDLE)
+        refreshHosts()
+      })
+      .catch((err) => setError(err.message || String(err)))
+  }
+
+  function handleAddHost(event) {
+    event.preventDefault()
+    setIsAddingHost(true)
+    addHost(hostForm)
+      .then(() => {
+        setHostForm(createInitialHostForm())
+        setShowAddHost(false)
+        refreshHosts()
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setIsAddingHost(false))
+  }
+
+  function handleSelectHost(id) {
+    setSelectedHostId(id)
+  }
+
+  function handleConnect(id) {
+    const host = hosts.find((h) => h.id === id)
+    if (!host) return
+
+    setError(null)
+    setConnectionStatus(STATUS.CONNECTING)
+
+    connect(id)
+      .then((sid) => {
+        setSessionId(sid)
+        setConnectedHostId(id)
+        setConnectionStatus(STATUS.CONNECTED)
+      })
+      .catch((err) => {
+        const msg = err.message || String(err)
+        if (msg.includes('host key') || msg.includes('fingerprint')) {
+          setHostKeyPrompt({
+            hostID: id,
+            remoteAddr: `${host.address}:${host.port || 22}`,
+            sha256: 'SHA256:xxx (pending)',
+            md5: 'MD5:xxx (pending)',
+          })
+        } else {
+          setError(msg)
         }
+        setConnectionStatus(STATUS.IDLE)
       })
-    } catch (error) {
-      setErrorMessage(String(error))
-    }
   }
 
-  useEffect(() => {
-    void refreshHosts()
-  }, [])
-
-  useEffect(() => {
-    return onRuntimeEvent('ssh:host-key:confirm', (payload) => {
-      startTransition(() => {
-        setHostKeyPrompt(payload)
-        setStatus(`等待确认 ${payload?.hostID ?? '远端主机'} 的指纹...`)
+  function handleAcceptHostKey() {
+    if (!hostKeyPrompt) return
+    setIsAcceptingKey(true)
+    acceptHostKey(hostKeyPrompt.hostID)
+      .then(() => {
+        setHostKeyPrompt(null)
+        handleConnect(hostKeyPrompt.hostID)
       })
-    })
-  }, [])
-
-  async function handleUnlock(event) {
-    event.preventDefault()
-    setBusy(true)
-    setErrorMessage('')
-
-    try {
-      await unlock(masterPassword)
-      setStatus('保险箱已解锁，可以保存主机并发起连接。')
-      await refreshHosts()
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setBusy(false)
-    }
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setIsAcceptingKey(false))
   }
 
-  async function handleAddHost(event) {
-    event.preventDefault()
-    setSavingHost(true)
-    setErrorMessage('')
-
-    try {
-      await addHost(toHostPayload(hostForm), toIdentityPayload(hostForm))
-      setHostForm(createInitialHostForm())
-      setStatus('主机已安全保存。')
-      await refreshHosts()
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setSavingHost(false)
-    }
+  function handleRejectHostKey() {
+    if (!hostKeyPrompt) return
+    rejectHostKey(hostKeyPrompt.hostID)
+      .then(() => {
+        setHostKeyPrompt(null)
+        setConnectionStatus(STATUS.IDLE)
+      })
+      .catch((err) => setError(err.message || String(err)))
   }
 
-  async function handleConnect(hostID) {
-    setBusy(true)
-    setErrorMessage('')
-
-    try {
-      if (sessionId) {
-        await disconnect(sessionId)
-      }
-
-      const nextSessionId = await connect(hostID)
-      setSelectedHostId(hostID)
-      setConnectedHostId(hostID)
-      setSessionId(nextSessionId)
-      setStatus(`已连接到 ${hostID}。`)
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setBusy(false)
-    }
+  function handleSessionClosed() {
+    setSessionId(null)
+    setConnectedHostId(null)
+    setConnectionStatus(STATUS.IDLE)
   }
 
-  async function handleDisconnect() {
-    if (!sessionId) {
-      return
-    }
-
-    try {
-      await disconnect(sessionId)
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setSessionId('')
-      setConnectedHostId('')
-      setStatus('会话已断开。')
-    }
+  function cycleTheme() {
+    const themes = ['light', 'dark', 'auto']
+    const current = themes.indexOf(theme)
+    const next = themes[(current + 1) % themes.length]
+    setTheme(next)
   }
 
-  async function handleAcceptHostKey() {
-    if (!hostKeyPrompt) {
-      return
-    }
-
-    setHostKeyBusy(true)
-    setErrorMessage('')
-
-    try {
-      await acceptHostKey(hostKeyPrompt.hostID, hostKeyPrompt.key)
-      setHostKeyPrompt(null)
-      setStatus(`已信任 ${hostKeyPrompt.hostID} 的主机指纹，连接继续建立中。`)
-      await refreshHosts()
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setHostKeyBusy(false)
-    }
-  }
-
-  async function handleRejectHostKey() {
-    if (!hostKeyPrompt) {
-      return
-    }
-
-    setHostKeyBusy(true)
-    setErrorMessage('')
-
-    try {
-      await rejectHostKey(hostKeyPrompt.hostID)
-      setStatus(`已取消 ${hostKeyPrompt.hostID} 的连接。`)
-      setHostKeyPrompt(null)
-    } catch (error) {
-      setErrorMessage(String(error))
-    } finally {
-      setHostKeyBusy(false)
-    }
-  }
+  const themeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
+  const ThemeIcon = themeIcon
 
   return (
     <div className="shell">
-      <div className="ambient ambient-a" />
-      <div className="ambient ambient-b" />
-
-      <main className="app-shell">
-        <header className="hero">
-          <div>
-            <span className="hero-kicker">ZenTerm Control Deck</span>
-            <h1>把 SSH 连接交给更轻、更安静的终端。</h1>
-            <p>
-              保险箱解锁、主机加密存储、实时事件订阅与终端尺寸同步都已经接通。
-              现在前端只需要专注于把每一次输入和回显做得更顺手。
-            </p>
+      <div className="workspace-shell">
+        <header className="panel topbar">
+          <div className="desktop-lights">
+            <div className="traffic-lights">
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
 
-          <div className="hero-actions">
-            <form className="unlock-panel" onSubmit={handleUnlock}>
-              <label>
-                <KeyRound size={16} />
-                <span>Master Password</span>
-              </label>
-              <div className="unlock-row">
-                <input
-                  type="password"
-                  value={masterPassword}
-                  onChange={(event) => setMasterPassword(event.target.value)}
-                  placeholder="输入主密码解锁保险箱"
-                />
-                <button type="submit" className="primary-button" disabled={busy}>
-                  <Lock size={16} />
-                  <span>{busy ? '处理中...' : '解锁'}</span>
-                </button>
-              </div>
-            </form>
+          <div className="topbar-tabs">
+            <button type="button" className="topbar-tab active">
+              主机
+            </button>
+          </div>
 
-            <button type="button" className="ghost-button" onClick={() => void refreshHosts()}>
-              <RefreshCcw size={16} />
-              <span>刷新主机列表</span>
+          <div className="topbar-actions">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={cycleTheme}
+              aria-label="切换主题"
+            >
+              <ThemeIcon size={16} />
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setShowAddHost(true)}
+            >
+              <Plus size={16} />
+              新建主机
             </button>
           </div>
         </header>
 
-        <div className="status-bar">
-          <span className="pill success">状态</span>
-          <span>{status}</span>
-        </div>
+        <div className="workspace-body">
+          <nav className="panel app-nav">
+            <div className="app-nav-header">
+              <span className="panel-kicker">Navigation</span>
+              <strong>ZenTerm</strong>
+            </div>
+            <div className="nav-list">
+              <button type="button" className="nav-item active">
+                主机列表
+              </button>
+            </div>
+            <div className="nav-footer">
+              <p>安全终端 · 本地加密存储</p>
+            </div>
+          </nav>
 
-        {errorMessage ? (
-          <div className="error-banner">
-            <TriangleAlert size={18} />
-            <span>{errorMessage}</span>
-          </div>
-        ) : null}
-
-        <section className="workspace">
-          <aside className="sidebar">
-            <section className="panel sidebar-panel">
-              <div className="panel-title">
-                <LaptopMinimal size={18} />
-                <span>Host Registry</span>
+          <main className="main-stage panel">
+            <section className="hosts-board">
+              <div className="section-header">
+                <span className="panel-title">
+                  主机列表
+                </span>
+                {!vaultUnlocked && (
+                  <div className="section-header-actions">
+                    <button
+                      type="button"
+                      className="section-action"
+                      onClick={handleUnlock}
+                    >
+                      解锁保险箱
+                    </button>
+                  </div>
+                )}
               </div>
+
               <HostList
                 hosts={hosts}
                 selectedHostId={selectedHostId}
                 connectedHostId={connectedHostId}
-                onSelect={setSelectedHostId}
-                onConnect={(hostID) => void handleConnect(hostID)}
-                disabled={busy}
+                onSelect={handleSelectHost}
+                onConnect={handleConnect}
+                disabled={!vaultUnlocked}
               />
             </section>
 
+            <section className="session-stage panel">
+              {sessionId ? (
+                <TerminalPane
+                  sessionId={sessionId}
+                  hostLabel={connectedHost?.name || connectedHost?.id || 'Session'}
+                  onSendInput={sendInput}
+                  onResize={resizeTerminal}
+                  onSessionClosed={handleSessionClosed}
+                  onError={(err) => setError(err.message || String(err))}
+                />
+              ) : (
+                <div className="session-empty">
+                  <div className="session-empty-copy">
+                    <h2>终端会话</h2>
+                    <p>选择一个主机并点击「连接」来启动 SSH 会话。</p>
+                  </div>
+                  <div className="session-empty-grid">
+                    <div className="session-empty-card">
+                      <span className="panel-kicker">01</span>
+                      <div>
+                        <strong>解锁保险箱</strong>
+                        <p>首次使用需要解锁本地加密存储的密码保险箱。</p>
+                      </div>
+                    </div>
+                    <div className="session-empty-card">
+                      <span className="panel-kicker">02</span>
+                      <div>
+                        <strong>选择主机</strong>
+                        <p>从左侧列表选择一个已配置的 SSH 主机。</p>
+                      </div>
+                    </div>
+                    <div className="session-empty-card accent">
+                      <span className="panel-kicker">03</span>
+                      <div>
+                        <strong>开始连接</strong>
+                        <p>点击连接按钮，终端将自动建立安全连接。</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+          </main>
+        </div>
+
+        {error && (
+          <div className="modal-backdrop">
+            <div className="hostkey-modal">
+              <h2>发生错误</h2>
+              <p>{error}</p>
+              <div className="hostkey-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setError(null)}
+                >
+                  确定
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddHost && (
+          <div className="modal-backdrop">
             <HostForm
               value={hostForm}
               onChange={setHostForm}
-              onSubmit={(event) => void handleAddHost(event)}
-              disabled={busy}
-              busy={savingHost}
+              onSubmit={handleAddHost}
+              disabled={!vaultUnlocked}
+              busy={isAddingHost}
+              expanded={showAddHost}
+              onToggle={() => setShowAddHost(false)}
             />
-          </aside>
-
-          <div className="terminal-column">
-            <Suspense
-              fallback={
-                <section className="panel terminal-panel terminal-loading">
-                  <span className="panel-kicker">Preparing Terminal</span>
-                  <strong>正在加载终端渲染器...</strong>
-                </section>
-              }
-            >
-              <TerminalPane
-                sessionId={sessionId}
-                hostLabel={selectedHost ? `${selectedHost.username}@${selectedHost.address}` : 'Zen Console'}
-                onSendInput={sendInput}
-                onResize={resizeTerminal}
-                onSessionClosed={() => {
-                  setSessionId('')
-                  setConnectedHostId('')
-                  setStatus('远端会话已结束。')
-                }}
-                onError={(error) => {
-                  setErrorMessage(String(error))
-                }}
-              />
-            </Suspense>
-
-            <div className="terminal-footer">
-              <div>
-                <span className="panel-kicker">Session</span>
-                <strong>{sessionId || '未连接'}</strong>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => void handleDisconnect()}
-                disabled={!sessionId}
-              >
-                断开连接
-              </button>
-            </div>
           </div>
-        </section>
-      </main>
+        )}
 
-      <HostKeyModal
-        prompt={hostKeyPrompt}
-        busy={hostKeyBusy}
-        onAccept={() => void handleAcceptHostKey()}
-        onReject={() => void handleRejectHostKey()}
-      />
+        <HostKeyModal
+          prompt={hostKeyPrompt}
+          busy={isAcceptingKey}
+          onAccept={handleAcceptHostKey}
+          onReject={handleRejectHostKey}
+        />
+      </div>
     </div>
   )
 }

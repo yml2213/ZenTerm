@@ -10,18 +10,20 @@ export default function HostList({
 }) {
   if (hosts.length === 0) {
     return (
-      <div className="empty-card">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>还没有主机</strong>
-          <p>先在下方添加一台主机，然后解锁保险箱并发起连接。</p>
+      <div className="host-grid">
+        <div className="empty-card">
+          <ShieldCheck size={18} />
+          <div>
+            <strong>还没有主机</strong>
+            <p>先从右上角新建主机，然后解锁保险箱并发起连接。</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="host-list">
+    <div className="host-grid">
       {hosts.map((host) => {
         const active = host.id === selectedHostId
         const connected = host.id === connectedHostId
@@ -42,8 +44,7 @@ export default function HostList({
             </div>
 
             <div className="host-card-meta">
-              <span>{host.username}@{host.address}</span>
-              <span>:{host.port || 22}</span>
+              <span>{host.username}@{host.address}:{host.port || 22}</span>
             </div>
 
             <div className="host-card-footer">

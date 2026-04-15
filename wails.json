@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ZenTerm",
+  "outputfilename": "ZenTerm",
+  "frontend:dir": "frontend",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "assetdir": "frontend/dist",
+  "wailsjsdir": "frontend/src/wailsjs",
+  "build:dir": "build",
+  "author": {
+    "name": "yml",
+    "email": ""
+  },
+  "info": {
+    "companyName": "ZenTerm",
+    "productName": "ZenTerm",
+    "productVersion": "0.1.0"
+  }
+}

@@ -53,13 +53,13 @@ export default function TerminalPane({
     const terminal = new Terminal({
       cursorBlink: true,
       fontFamily: '"JetBrains Mono", "IBM Plex Mono", "SF Mono", monospace',
-      fontSize: 14,
+      fontSize: 13,
       lineHeight: 1.2,
       theme: {
-        background: '#07141a',
-        foreground: '#d9f7f2',
-        cursor: '#8ef4d6',
-        black: '#0d2229',
+        background: 'var(--terminal-bg)',
+        foreground: 'var(--terminal-fg)',
+        cursor: 'var(--terminal-cursor)',
+        black: '#000000',
         blue: '#53c6ff',
         brightBlue: '#8be0ff',
         brightCyan: '#8ef4d6',
@@ -156,11 +156,6 @@ export default function TerminalPane({
         <div>
           <span className="panel-kicker">Live Session</span>
           <h2>{sessionId ? hostLabel : 'Zen Console'}</h2>
-        </div>
-        <div className="traffic-lights" aria-hidden="true">
-          <span />
-          <span />
-          <span />
         </div>
       </div>
 
