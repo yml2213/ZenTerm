@@ -1,10 +1,11 @@
-import { Plus, Sun, Moon, Monitor, Terminal, Server } from 'lucide-react'
+import { Plus, Sun, Moon, Monitor, Terminal, Server, Lock, FolderOpen, Database, Folder, HardDrive, Tag } from 'lucide-react'
 import { useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
 import TerminalPane from './components/TerminalPane.jsx'
 import HostKeyModal from './components/HostKeyModal.jsx'
 import { useTheme } from './contexts/ThemeProvider.jsx'
+import { useLanguage } from './contexts/LanguageProvider.jsx'
 import {
   listHosts,
   addHost,
@@ -25,6 +26,7 @@ const STATUS = {
 
 export default function App() {
   const { theme, resolvedTheme, setTheme } = useTheme()
+  const { t } = useLanguage()
   const [hosts, setHosts] = useState([])
   const [selectedHostId, setSelectedHostId] = useState(null)
   const [connectedHostId, setConnectedHostId] = useState(null)
@@ -161,14 +163,28 @@ export default function App() {
             className="toolbar-btn active"
           >
             <Server size={16} />
-            主机
+            {t('hosts')}
+          </button>
+          <button
+            type="button"
+            className="toolbar-btn"
+          >
+            <Lock size={16} />
+            {t('vaults')}
+          </button>
+          <button
+            type="button"
+            className="toolbar-btn"
+          >
+            <FolderOpen size={16} />
+            {t('sftp')}
           </button>
         </div>
 
         <div className="toolbar-center">
           <div className="search-bar">
             <span className="search-icon">⌘</span>
-            <span className="search-placeholder">搜索主机...</span>
+            <span className="search-placeholder">{t('searchPlaceholder')}</span>
           </div>
         </div>
 
@@ -187,7 +203,7 @@ export default function App() {
             onClick={() => setShowAddHost(true)}
           >
             <Plus size={16} />
-            新建主机
+            {t('newHost')}
           </button>
         </div>
       </header>
@@ -199,7 +215,31 @@ export default function App() {
           <nav className="sidebar-nav">
             <button type="button" className="sidebar-item active">
               <Server size={18} />
-              <span>主机</span>
+              <span>{t('hosts')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <Lock size={18} />
+              <span>{t('vaults')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <Database size={18} />
+              <span>{t('databases')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <FolderOpen size={18} />
+              <span>{t('snippets')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <Folder size={18} />
+              <span>{t('portForwarding')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <HardDrive size={18} />
+              <span>{t('amazonVaults')}</span>
+            </button>
+            <button type="button" className="sidebar-item">
+              <Tag size={18} />
+              <span>{t('tags')}</span>
             </button>
           </nav>
           <div className="sidebar-footer">
@@ -209,7 +249,7 @@ export default function App() {
               onClick={() => {}}
             >
               <Monitor size={18} />
-              <span>设置</span>
+              <span>{t('settings')}</span>
             </button>
           </div>
         </aside>
@@ -218,13 +258,13 @@ export default function App() {
         <main className="content-area">
           {!vaultUnlocked && (
             <div className="unlock-banner">
-              <span>首次使用需要解锁本地加密存储的密码保险箱</span>
+              <span>{t('unlockVault')}</span>
               <button
                 type="button"
                 className="btn-unlock"
                 onClick={handleUnlock}
               >
-                解锁保险箱
+                {t('unlockButton')}
               </button>
             </div>
           )}
@@ -257,14 +297,14 @@ export default function App() {
       {error && (
         <div className="modal-backdrop">
           <div className="modal-content">
-            <h2>发生错误</h2>
+            <h2>{t('errorTitle')}</h2>
             <p>{error}</p>
             <button
               type="button"
               className="btn-primary"
               onClick={() => setError(null)}
             >
-              确定
+              {t('confirm')}
             </button>
           </div>
         </div>
