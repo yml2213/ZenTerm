@@ -87,6 +87,24 @@ func (a *App) Connect(hostID string) (string, error) {
 	return sessionID, nil
 }
 
+// AcceptHostKey 接受待确认的主机指纹并继续连接 / accepts a pending host fingerprint and resumes the SSH connection.
+func (a *App) AcceptHostKey(hostID, key string) error {
+	if err := a.service.AcceptHostKey(hostID, key); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
+// RejectHostKey 拒绝待确认的主机指纹并中止连接 / rejects a pending host fingerprint and aborts the SSH connection.
+func (a *App) RejectHostKey(hostID string) error {
+	if err := a.service.RejectHostKey(hostID); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
 // SendInput 将前端按键输入写入对应会话 / writes frontend keystrokes into the target session.
 func (a *App) SendInput(sessionID, data string) error {
 	if err := a.service.SendInput(sessionID, data); err != nil {
@@ -162,6 +180,16 @@ func normalizeFrontendError(err error) error {
 		return service.ErrInvalidTerminalSize
 	case errors.Is(err, service.ErrSessionNotFound):
 		return service.ErrSessionNotFound
+	case errors.Is(err, service.ErrHostKeyRejected):
+		return service.ErrHostKeyRejected
+	case errors.Is(err, service.ErrHostKeyConfirmationPending):
+		return service.ErrHostKeyConfirmationPending
+	case errors.Is(err, service.ErrHostKeyConfirmationNotFound):
+		return service.ErrHostKeyConfirmationNotFound
+	case errors.Is(err, service.ErrHostKeyMismatch):
+		return service.ErrHostKeyMismatch
+	case errors.Is(err, service.ErrHostKeyConfirmationTimeout):
+		return service.ErrHostKeyConfirmationTimeout
 	default:
 		return err
 	}

@@ -139,3 +139,56 @@ func TestStoreGetHostReturnsRequestedHost(t *testing.T) {
 		t.Fatalf("GetHost() = %#v, want %#v", got, host)
 	}
 }
+
+func TestStoreUpdateKnownHostsPreservesIdentity(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-known-hosts",
+		Name:     "Known Hosts",
+		Address:  "known.example.com",
+		Port:     22,
+		Username: "zen",
+	}
+	identity := model.Identity{
+		Password: "secret-password",
+	}
+
+	if err := store.AddHost(host, identity, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	const knownHosts = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKnownHostKeyValue"
+	if err := store.UpdateKnownHosts(host.ID, knownHosts); err != nil {
+		t.Fatalf("UpdateKnownHosts() error = %v", err)
+	}
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if updatedHost.KnownHosts != knownHosts {
+		t.Fatalf("GetHost().KnownHosts = %q, want %q", updatedHost.KnownHosts, knownHosts)
+	}
+
+	loadedIdentity, err := store.GetIdentity(host.ID, vault)
+	if err != nil {
+		t.Fatalf("GetIdentity() error = %v", err)
+	}
+	if loadedIdentity != identity {
+		t.Fatalf("GetIdentity() = %#v, want %#v", loadedIdentity, identity)
+	}
+}

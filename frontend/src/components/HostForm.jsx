@@ -103,6 +103,10 @@ export default function HostForm({ value, onChange, onSubmit, disabled, busy }) 
       <button type="submit" className="primary-button" disabled={disabled || busy}>
         {busy ? '保存中...' : '加密保存'}
       </button>
+
+      <p className="form-hint">
+        首次连接未知主机时，ZenTerm 会弹出指纹确认框；信任后会自动写入本地 `config.zen`。
+      </p>
     </form>
   )
 }

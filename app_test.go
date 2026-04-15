@@ -103,6 +103,18 @@ func TestAppResizeTerminalValidatesSize(t *testing.T) {
 	}
 }
 
+func TestAppAcceptHostKeyPropagatesPendingError(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	err = app.AcceptHostKey("missing-host", "ssh-ed25519 AAAA")
+	if !errors.Is(err, service.ErrHostKeyConfirmationNotFound) {
+		t.Fatalf("AcceptHostKey() error = %v, want %v", err, service.ErrHostKeyConfirmationNotFound)
+	}
+}
+
 func TestNormalizeFrontendErrorUnwrapsKnownBackendErrors(t *testing.T) {
 	err := normalizeFrontendError(errors.Join(
 		errors.New("wrapped"),

@@ -64,6 +64,14 @@ export async function connect(hostID) {
   return callApp('Connect', hostID)
 }
 
+export async function acceptHostKey(hostID, key) {
+  return callApp('AcceptHostKey', hostID, key)
+}
+
+export async function rejectHostKey(hostID) {
+  return callApp('RejectHostKey', hostID)
+}
+
 export async function sendInput(sessionID, data) {
   return callApp('SendInput', sessionID, data)
 }

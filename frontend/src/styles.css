@@ -359,6 +359,13 @@ textarea {
   margin-bottom: 0.85rem;
 }
 
+.form-hint {
+  margin: 1rem 0 0;
+  color: rgba(215, 249, 240, 0.72);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
 .terminal-panel {
   display: grid;
   min-height: 620px;
@@ -429,6 +436,83 @@ textarea {
   border: 1px solid rgba(161, 229, 213, 0.14);
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(3, 10, 14, 0.58);
+  backdrop-filter: blur(16px);
+  z-index: 30;
+}
+
+.hostkey-modal {
+  width: min(100%, 34rem);
+  padding: 1.4rem;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(95, 214, 192, 0.18), transparent 35%),
+    rgba(7, 18, 24, 0.95);
+  border: 1px solid rgba(154, 241, 217, 0.18);
+  box-shadow: 0 24px 120px rgba(0, 0, 0, 0.35);
+}
+
+.hostkey-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hostkey-modal h2 {
+  margin: 1rem 0 0.6rem;
+}
+
+.hostkey-modal p {
+  margin: 0;
+  color: rgba(231, 255, 250, 0.76);
+  line-height: 1.6;
+}
+
+.hostkey-meta,
+.hostkey-fingerprint {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.hostkey-meta strong,
+.hostkey-meta small {
+  display: block;
+}
+
+.hostkey-meta small {
+  color: rgba(231, 255, 250, 0.56);
+  margin-top: 0.35rem;
+}
+
+.hostkey-fingerprint label {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.hostkey-fingerprint code {
+  display: block;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: rgba(10, 25, 31, 0.88);
+  color: #d9f7f2;
+  word-break: break-all;
+  border: 1px solid rgba(154, 241, 217, 0.1);
+}
+
+.hostkey-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 @media (max-width: 1100px) {
   .hero,
   .workspace {
@@ -461,6 +545,10 @@ textarea {
 
   .terminal-footer {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hostkey-actions {
     flex-direction: column;
   }
 }

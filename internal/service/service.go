@@ -1,13 +1,17 @@
 package service
 
 import (
+	"bytes"
+	"crypto/md5"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,23 +23,38 @@ import (
 )
 
 var (
-	ErrNilDependency        = errors.New("service dependencies cannot be nil")
-	ErrNoIdentityAuth       = errors.New("no supported ssh authentication method configured")
-	ErrHostAddressRequired  = errors.New("host address is required")
-	ErrHostUsernameRequired = errors.New("host username is required")
-	ErrInvalidTerminalSize  = errors.New("invalid terminal size")
-	ErrSessionNotFound      = errors.New("session not found")
+	ErrNilDependency               = errors.New("service dependencies cannot be nil")
+	ErrNoIdentityAuth              = errors.New("no supported ssh authentication method configured")
+	ErrHostAddressRequired         = errors.New("host address is required")
+	ErrHostUsernameRequired        = errors.New("host username is required")
+	ErrInvalidTerminalSize         = errors.New("invalid terminal size")
+	ErrSessionNotFound             = errors.New("session not found")
+	ErrHostKeyRejected             = errors.New("host key was rejected")
+	ErrHostKeyConfirmationPending  = errors.New("host key confirmation already pending")
+	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
+	ErrHostKeyMismatch             = errors.New("host key does not match the pending confirmation")
+	ErrHostKeyConfirmationTimeout  = errors.New("host key confirmation timed out")
 )
 
 const (
-	defaultSSHPort = 22
-	defaultTerm    = "xterm-256color"
-	defaultRows    = 24
-	defaultCols    = 80
+	defaultSSHPort        = 22
+	defaultTerm           = "xterm-256color"
+	defaultRows           = 24
+	defaultCols           = 80
+	hostKeyConfirmTimeout = 2 * time.Minute
 )
 
 // EventEmitter 用于将会话事件转发给应用层 / forwards session events to the application layer.
 type EventEmitter func(event string, payload any)
+
+// HostKeyPrompt 表示发送给前端的主机指纹确认请求 / represents a host fingerprint confirmation request emitted to the frontend.
+type HostKeyPrompt struct {
+	HostID     string `json:"hostID"`
+	RemoteAddr string `json:"remoteAddr"`
+	Key        string `json:"key"`
+	SHA256     string `json:"sha256"`
+	MD5        string `json:"md5"`
+}
 
 type sshDialer interface {
 	Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error)
@@ -135,6 +154,8 @@ type ZenService interface {
 	GetHosts() ([]model.Host, error)
 	AddHost(host model.Host, identity model.Identity) error
 	Connect(hostID string) (string, error)
+	AcceptHostKey(hostID, key string) error
+	RejectHostKey(hostID string) error
 	SendInput(sessionID, data string) error
 	ResizeTerminal(sessionID string, cols, rows int) error
 	Disconnect(sessionID string) error
@@ -143,13 +164,15 @@ type ZenService interface {
 
 // Service 负责把 Vault 生命周期与 JSON 存储连接起来 / wires the vault lifecycle to the JSON-backed store.
 type Service struct {
-	store     *db.Store
-	vault     *security.Vault
-	dialer    sshDialer
-	emitter   EventEmitter
-	emitterMu sync.RWMutex
-	sessionMu sync.RWMutex
-	sessions  map[string]*managedSession
+	store           *db.Store
+	vault           *security.Vault
+	dialer          sshDialer
+	emitter         EventEmitter
+	emitterMu       sync.RWMutex
+	sessionMu       sync.RWMutex
+	sessions        map[string]*managedSession
+	hostKeyMu       sync.Mutex
+	pendingHostKeys map[string]*pendingHostKeyConfirmation
 }
 
 // New 使用显式依赖创建服务实现 / creates a service implementation with explicit dependencies.
@@ -166,11 +189,12 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 	}
 
 	return &Service{
-		store:    store,
-		vault:    vault,
-		dialer:   dialer,
-		emitter:  func(string, any) {},
-		sessions: make(map[string]*managedSession),
+		store:           store,
+		vault:           vault,
+		dialer:          dialer,
+		emitter:         func(string, any) {},
+		sessions:        make(map[string]*managedSession),
+		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
 	}, nil
 }
 
@@ -205,6 +229,53 @@ func (s *Service) AddHost(host model.Host, identity model.Identity) error {
 	return s.store.AddHost(host, identity, s.vault)
 }
 
+// AcceptHostKey 接受待确认的主机公钥并将其持久化 / accepts a pending host public key confirmation and persists it.
+func (s *Service) AcceptHostKey(hostID, key string) error {
+	s.hostKeyMu.Lock()
+	pending, ok := s.pendingHostKeys[hostID]
+	if !ok {
+		s.hostKeyMu.Unlock()
+		return ErrHostKeyConfirmationNotFound
+	}
+	if subtle.ConstantTimeCompare([]byte(pending.key), []byte(strings.TrimSpace(key))) != 1 {
+		s.hostKeyMu.Unlock()
+		return ErrHostKeyMismatch
+	}
+	delete(s.pendingHostKeys, hostID)
+	s.hostKeyMu.Unlock()
+
+	host, err := s.store.GetHost(hostID)
+	if err != nil {
+		pending.respond(false)
+		return err
+	}
+
+	if err := s.store.UpdateKnownHosts(hostID, mergeKnownHosts(host.KnownHosts, pending.key)); err != nil {
+		pending.respond(false)
+		return err
+	}
+
+	pending.respond(true)
+	return nil
+}
+
+// RejectHostKey 拒绝待确认的主机公钥 / rejects a pending host public key confirmation.
+func (s *Service) RejectHostKey(hostID string) error {
+	s.hostKeyMu.Lock()
+	pending, ok := s.pendingHostKeys[hostID]
+	if ok {
+		delete(s.pendingHostKeys, hostID)
+	}
+	s.hostKeyMu.Unlock()
+
+	if !ok {
+		return ErrHostKeyConfirmationNotFound
+	}
+
+	pending.respond(false)
+	return nil
+}
+
 // Connect 解密指定主机的身份信息并建立 SSH 连接，返回用于后续会话管理的 sessionID / decrypts the identity for a host, establishes an SSH connection, and returns a sessionID for later session management.
 func (s *Service) Connect(hostID string) (string, error) {
 	host, err := s.store.GetHost(hostID)
@@ -217,7 +288,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		return "", err
 	}
 
-	config, err := newClientConfig(host, identity)
+	config, err := s.newClientConfig(host, identity)
 	if err != nil {
 		return "", err
 	}
@@ -380,12 +451,23 @@ func (s *Service) CloseAll() error {
 	s.sessions = make(map[string]*managedSession)
 	s.sessionMu.Unlock()
 
+	s.hostKeyMu.Lock()
+	pending := make([]*pendingHostKeyConfirmation, 0, len(s.pendingHostKeys))
+	for hostID, confirmation := range s.pendingHostKeys {
+		delete(s.pendingHostKeys, hostID)
+		pending = append(pending, confirmation)
+	}
+	s.hostKeyMu.Unlock()
+
 	var closeErr error
 	for sessionID, session := range sessions {
 		if err := session.close(); err != nil && closeErr == nil {
 			closeErr = err
 		}
 		s.emit("term:closed:"+sessionID, nil)
+	}
+	for _, confirmation := range pending {
+		confirmation.respond(false)
 	}
 
 	return closeErr
@@ -397,6 +479,13 @@ type managedSession struct {
 	ssh       sshSession
 	stdin     io.WriteCloser
 	closeOnce sync.Once
+}
+
+type pendingHostKeyConfirmation struct {
+	hostID string
+	key    string
+	result chan bool
+	once   sync.Once
 }
 
 func (m *managedSession) close() error {
@@ -423,7 +512,7 @@ func (m *managedSession) close() error {
 	return closeErr
 }
 
-func newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
+func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
 	if host.Address == "" {
 		return nil, ErrHostAddressRequired
 	}
@@ -449,7 +538,7 @@ func newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfi
 	return &ssh.ClientConfig{
 		User:            host.Username,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: s.hostKeyCallback(host),
 		Timeout:         10 * time.Second,
 	}, nil
 }
@@ -522,4 +611,125 @@ func (s *Service) emit(event string, payload any) {
 	emitter := s.emitter
 	s.emitterMu.RUnlock()
 	emitter(event, payload)
+}
+
+func (s *Service) hostKeyCallback(host model.Host) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		if isKnownHostTrusted(host.KnownHosts, key) {
+			return nil
+		}
+
+		prompt := HostKeyPrompt{
+			HostID:     host.ID,
+			RemoteAddr: remoteAddressString(remote, hostname),
+			Key:        strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))),
+			SHA256:     ssh.FingerprintSHA256(key),
+			MD5:        md5Fingerprint(key),
+		}
+
+		pending, err := s.registerHostKeyConfirmation(prompt)
+		if err != nil {
+			return err
+		}
+
+		s.emit("ssh:host-key:confirm", prompt)
+
+		select {
+		case accepted := <-pending.result:
+			if accepted {
+				return nil
+			}
+			return ErrHostKeyRejected
+		case <-time.After(hostKeyConfirmTimeout):
+			s.clearHostKeyConfirmation(host.ID)
+			return ErrHostKeyConfirmationTimeout
+		}
+	}
+}
+
+func (s *Service) registerHostKeyConfirmation(prompt HostKeyPrompt) (*pendingHostKeyConfirmation, error) {
+	s.hostKeyMu.Lock()
+	defer s.hostKeyMu.Unlock()
+
+	if _, exists := s.pendingHostKeys[prompt.HostID]; exists {
+		return nil, ErrHostKeyConfirmationPending
+	}
+
+	pending := &pendingHostKeyConfirmation{
+		hostID: prompt.HostID,
+		key:    prompt.Key,
+		result: make(chan bool, 1),
+	}
+	s.pendingHostKeys[prompt.HostID] = pending
+	return pending, nil
+}
+
+func (s *Service) clearHostKeyConfirmation(hostID string) {
+	s.hostKeyMu.Lock()
+	defer s.hostKeyMu.Unlock()
+	delete(s.pendingHostKeys, hostID)
+}
+
+func (p *pendingHostKeyConfirmation) respond(accepted bool) {
+	p.once.Do(func() {
+		p.result <- accepted
+		close(p.result)
+	})
+}
+
+func isKnownHostTrusted(knownHosts string, key ssh.PublicKey) bool {
+	for _, line := range strings.Split(knownHosts, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parsed, _, _, _, err := ssh.ParseAuthorizedKey([]byte(line))
+		if err != nil {
+			continue
+		}
+		if bytes.Equal(parsed.Marshal(), key.Marshal()) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func mergeKnownHosts(knownHosts, key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return strings.TrimSpace(knownHosts)
+	}
+
+	parsed, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
+	if err != nil {
+		return strings.TrimSpace(knownHosts)
+	}
+	if isKnownHostTrusted(knownHosts, parsed) {
+		return strings.TrimSpace(knownHosts)
+	}
+	if strings.TrimSpace(knownHosts) == "" {
+		return key
+	}
+
+	return strings.TrimSpace(knownHosts) + "\n" + key
+}
+
+func remoteAddressString(remote net.Addr, fallback string) string {
+	if remote != nil && remote.String() != "" {
+		return remote.String()
+	}
+
+	return fallback
+}
+
+func md5Fingerprint(key ssh.PublicKey) string {
+	sum := md5.Sum(key.Marshal())
+	parts := make([]string, 0, len(sum))
+	for _, value := range sum {
+		parts = append(parts, fmt.Sprintf("%02x", value))
+	}
+
+	return strings.Join(parts, ":")
 }

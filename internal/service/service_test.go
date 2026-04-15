@@ -2,8 +2,11 @@ package service
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	cryptorand "crypto/rand"
 	"errors"
 	"io"
+	"net"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -453,6 +456,169 @@ func TestCloseAllClosesEverySession(t *testing.T) {
 	if len(svc.ListSessions()) != 0 {
 		t.Fatalf("len(ListSessions()) = %d, want 0", len(svc.ListSessions()))
 	}
+}
+
+func TestHostKeyCallbackAcceptPersistsKnownHost(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-key-accept", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	remoteKey := newTestPublicKey(t)
+	callback := svc.hostKeyCallback(host)
+
+	promptCh := make(chan HostKeyPrompt, 1)
+	svc.SetEventEmitter(func(event string, payload any) {
+		if event != "ssh:host-key:confirm" {
+			return
+		}
+		prompt, ok := payload.(HostKeyPrompt)
+		if ok {
+			promptCh <- prompt
+		}
+	})
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- callback(host.Address, &net.TCPAddr{IP: net.ParseIP("203.0.113.8"), Port: 22}, remoteKey)
+	}()
+
+	var prompt HostKeyPrompt
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive host key prompt")
+	}
+
+	if prompt.HostID != host.ID {
+		t.Fatalf("prompt.HostID = %q, want %q", prompt.HostID, host.ID)
+	}
+	if prompt.Key == "" || prompt.SHA256 == "" || prompt.MD5 == "" {
+		t.Fatalf("prompt = %#v, want populated fingerprints and key", prompt)
+	}
+
+	if err := svc.AcceptHostKey(host.ID, prompt.Key); err != nil {
+		t.Fatalf("AcceptHostKey() error = %v", err)
+	}
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("hostKeyCallback() error = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("hostKeyCallback() did not resume after accept")
+	}
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if !strings.Contains(updatedHost.KnownHosts, prompt.Key) {
+		t.Fatalf("GetHost().KnownHosts = %q, want to contain %q", updatedHost.KnownHosts, prompt.Key)
+	}
+
+	trustedCallback := svc.hostKeyCallback(updatedHost)
+	if err := trustedCallback(host.Address, nil, remoteKey); err != nil {
+		t.Fatalf("hostKeyCallback() with trusted key error = %v", err)
+	}
+}
+
+func TestHostKeyCallbackRejectStopsConnection(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-key-reject", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	remoteKey := newTestPublicKey(t)
+	callback := svc.hostKeyCallback(host)
+
+	promptCh := make(chan HostKeyPrompt, 1)
+	svc.SetEventEmitter(func(event string, payload any) {
+		if event == "ssh:host-key:confirm" {
+			promptCh <- payload.(HostKeyPrompt)
+		}
+	})
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- callback(host.Address, nil, remoteKey)
+	}()
+
+	select {
+	case <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive host key prompt")
+	}
+
+	if err := svc.RejectHostKey(host.ID); err != nil {
+		t.Fatalf("RejectHostKey() error = %v", err)
+	}
+
+	select {
+	case err := <-resultCh:
+		if !errors.Is(err, ErrHostKeyRejected) {
+			t.Fatalf("hostKeyCallback() error = %v, want %v", err, ErrHostKeyRejected)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("hostKeyCallback() did not resume after reject")
+	}
+}
+
+func newTestPublicKey(t *testing.T) ssh.PublicKey {
+	t.Helper()
+
+	publicKey, _, err := ed25519.GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+
+	sshKey, err := ssh.NewPublicKey(publicKey)
+	if err != nil {
+		t.Fatalf("NewPublicKey() error = %v", err)
+	}
+
+	return sshKey
 }
 
 type stubDialer struct {

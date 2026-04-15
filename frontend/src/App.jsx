@@ -2,13 +2,17 @@ import { lazy, Suspense, useEffect, useMemo, useState, startTransition } from 'r
 import { KeyRound, LaptopMinimal, Lock, RefreshCcw, TriangleAlert } from 'lucide-react'
 
 import HostForm, { createInitialHostForm } from './components/HostForm'
+import HostKeyModal from './components/HostKeyModal'
 import HostList from './components/HostList'
 import {
   addHost,
+  acceptHostKey,
   connect,
   disconnect,
   isBackendAvailable,
   listHosts,
+  onRuntimeEvent,
+  rejectHostKey,
   resizeTerminal,
   sendInput,
   unlock,
@@ -44,6 +48,8 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [savingHost, setSavingHost] = useState(false)
+  const [hostKeyPrompt, setHostKeyPrompt] = useState(null)
+  const [hostKeyBusy, setHostKeyBusy] = useState(false)
 
   const selectedHost = useMemo(
     () => hosts.find((host) => host.id === selectedHostId) ?? null,
@@ -67,6 +73,15 @@ export default function App() {
 
   useEffect(() => {
     void refreshHosts()
+  }, [])
+
+  useEffect(() => {
+    return onRuntimeEvent('ssh:host-key:confirm', (payload) => {
+      startTransition(() => {
+        setHostKeyPrompt(payload)
+        setStatus(`等待确认 ${payload?.hostID ?? '远端主机'} 的指纹...`)
+      })
+    })
   }, [])
 
   async function handleUnlock(event) {
@@ -136,6 +151,45 @@ export default function App() {
       setSessionId('')
       setConnectedHostId('')
       setStatus('会话已断开。')
+    }
+  }
+
+  async function handleAcceptHostKey() {
+    if (!hostKeyPrompt) {
+      return
+    }
+
+    setHostKeyBusy(true)
+    setErrorMessage('')
+
+    try {
+      await acceptHostKey(hostKeyPrompt.hostID, hostKeyPrompt.key)
+      setHostKeyPrompt(null)
+      setStatus(`已信任 ${hostKeyPrompt.hostID} 的主机指纹，连接继续建立中。`)
+      await refreshHosts()
+    } catch (error) {
+      setErrorMessage(String(error))
+    } finally {
+      setHostKeyBusy(false)
+    }
+  }
+
+  async function handleRejectHostKey() {
+    if (!hostKeyPrompt) {
+      return
+    }
+
+    setHostKeyBusy(true)
+    setErrorMessage('')
+
+    try {
+      await rejectHostKey(hostKeyPrompt.hostID)
+      setStatus(`已取消 ${hostKeyPrompt.hostID} 的连接。`)
+      setHostKeyPrompt(null)
+    } catch (error) {
+      setErrorMessage(String(error))
+    } finally {
+      setHostKeyBusy(false)
     }
   }
 
@@ -262,6 +316,13 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      <HostKeyModal
+        prompt={hostKeyPrompt}
+        busy={hostKeyBusy}
+        onAccept={() => void handleAcceptHostKey()}
+        onReject={() => void handleRejectHostKey()}
+      />
     </div>
   )
 }

@@ -211,6 +211,28 @@ func (s *Store) GetIdentity(hostID string, vault *security.Vault) (model.Identit
 	return model.Identity{}, ErrHostNotFound
 }
 
+// UpdateKnownHosts 更新指定主机保存的可信 Host Key 列表 / updates the trusted host key list stored for the target host.
+func (s *Store) UpdateKnownHosts(hostID, knownHosts string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Hosts {
+		if data.Hosts[i].Host.ID != hostID {
+			continue
+		}
+
+		data.Hosts[i].Host.KnownHosts = knownHosts
+		return s.saveLocked(data)
+	}
+
+	return ErrHostNotFound
+}
+
 func (s *Store) loadLocked() (fileData, error) {
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
