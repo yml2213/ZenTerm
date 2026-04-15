@@ -62,6 +62,22 @@ func TestAppPreservesVaultLockedErrorForFrontend(t *testing.T) {
 	}
 }
 
+func TestAppConnectPropagatesHostLookupError(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	if err := app.Unlock("master-password"); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	_, err = app.Connect("missing-host")
+	if !errors.Is(err, db.ErrHostNotFound) {
+		t.Fatalf("Connect() error = %v, want %v", err, db.ErrHostNotFound)
+	}
+}
+
 func TestNormalizeFrontendErrorUnwrapsKnownBackendErrors(t *testing.T) {
 	err := normalizeFrontendError(errors.Join(
 		errors.New("wrapped"),

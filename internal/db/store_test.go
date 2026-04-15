@@ -101,3 +101,41 @@ func TestStoreEnsureSaltPersistsAcrossRestarts(t *testing.T) {
 		t.Fatal("EnsureSalt() returned different salts for the same store")
 	}
 }
+
+func TestStoreGetHostReturnsRequestedHost(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-lookup",
+		Name:     "Lookup",
+		Address:  "lookup.example.com",
+		Port:     22,
+		Username: "zen",
+	}
+
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	got, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+
+	if got != host {
+		t.Fatalf("GetHost() = %#v, want %#v", got, host)
+	}
+}

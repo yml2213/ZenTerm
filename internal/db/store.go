@@ -158,6 +158,25 @@ func (s *Store) GetHosts() ([]model.Host, error) {
 	return hosts, nil
 }
 
+// GetHost 返回指定 ID 的主机元数据 / returns the host metadata for the given host ID.
+func (s *Store) GetHost(hostID string) (model.Host, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return model.Host{}, err
+	}
+
+	for _, entry := range data.Hosts {
+		if entry.Host.ID == hostID {
+			return entry.Host, nil
+		}
+	}
+
+	return model.Host{}, ErrHostNotFound
+}
+
 // GetIdentity 解密并返回指定主机的身份凭据 / decrypts the stored identity for a specific host.
 func (s *Store) GetIdentity(hostID string, vault *security.Vault) (model.Identity, error) {
 	s.mu.RLock()

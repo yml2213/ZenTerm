@@ -70,6 +70,16 @@ func (a *App) AddHost(host model.Host, identity model.Identity) error {
 	return nil
 }
 
+// Connect 为前端创建 SSH 会话，并返回可用于后续通信的 sessionID / creates an SSH session for the frontend and returns the sessionID for later communication.
+func (a *App) Connect(hostID string) (string, error) {
+	sessionID, err := a.service.Connect(hostID)
+	if err != nil {
+		return "", normalizeFrontendError(err)
+	}
+
+	return sessionID, nil
+}
+
 // ListHosts 返回列表页所需的主机元数据 / returns the host metadata needed by the frontend list view.
 func (a *App) ListHosts() ([]model.Host, error) {
 	hosts, err := a.service.GetHosts()
@@ -100,6 +110,14 @@ func normalizeFrontendError(err error) error {
 		return db.ErrStorePathEmpty
 	case errors.Is(err, service.ErrNilDependency):
 		return service.ErrNilDependency
+	case errors.Is(err, service.ErrNoIdentityAuth):
+		return service.ErrNoIdentityAuth
+	case errors.Is(err, service.ErrHostAddressRequired):
+		return service.ErrHostAddressRequired
+	case errors.Is(err, service.ErrHostUsernameRequired):
+		return service.ErrHostUsernameRequired
+	case errors.Is(err, service.ErrSessionNotFound):
+		return service.ErrSessionNotFound
 	default:
 		return err
 	}
