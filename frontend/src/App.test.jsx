@@ -19,16 +19,6 @@ import {
   updateHost,
 } from './lib/backend.js'
 
-vi.mock('./components/TerminalPane.jsx', () => ({
-  default: function MockTerminalPane({ activeSessionId, activeSessionTitle }) {
-    return (
-      <div data-testid="terminal-pane">
-        {activeSessionId ? `active:${activeSessionTitle}` : 'empty'}
-      </div>
-    )
-  },
-}))
-
 vi.mock('./lib/backend.js', () => ({
   listHosts: vi.fn(),
   addHost: vi.fn(),
@@ -161,7 +151,7 @@ describe('App', () => {
 
     await unlockVault(user)
 
-    expect(screen.getByText('主机工作台')).toBeInTheDocument()
+    expect(screen.getByText('全部主机')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
 
     expect(screen.getByText('先选择一个主机')).toBeInTheDocument()
@@ -254,14 +244,19 @@ describe('App', () => {
 
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ })).toBeInTheDocument())
-    expect(screen.getByTestId('terminal-pane')).toHaveTextContent('active:Beta')
 
-    await user.click(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ }))
-    expect(screen.getByTestId('terminal-pane')).toHaveTextContent('active:Alpha')
+    const alphaTab = screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })
+    const betaTab = screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ })
+
+    expect(betaTab.closest('.session-tab')).toHaveClass('active')
+
+    await user.click(alphaTab)
+    expect(alphaTab.closest('.session-tab')).toHaveClass('active')
+    expect(betaTab.closest('.session-tab')).not.toHaveClass('active')
 
     await user.click(screen.getByRole('button', { name: '关闭 Alpha' }))
     await waitFor(() => expect(disconnect).toHaveBeenCalledWith('session-1'))
-    expect(screen.getByTestId('terminal-pane')).toHaveTextContent('active:Beta')
+    expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ }).closest('.session-tab')).toHaveClass('active')
   })
 
   it('通过运行时事件驱动 Host Key 确认流程', async () => {

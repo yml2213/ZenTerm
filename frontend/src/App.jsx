@@ -18,7 +18,6 @@ import {
 import { startTransition, useEffect, useRef, useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createHostFormFromHost, createInitialHostForm } from './components/HostForm.jsx'
-import TerminalPane from './components/TerminalPane.jsx'
 import HostKeyModal from './components/HostKeyModal.jsx'
 import UnlockModal from './components/UnlockModal.jsx'
 import SessionTabs from './components/SessionTabs.jsx'
@@ -36,8 +35,6 @@ import {
   listSessions,
   acceptHostKey,
   rejectHostKey,
-  sendInput,
-  resizeTerminal,
   onRuntimeEvent,
 } from './lib/backend.js'
 
@@ -157,9 +154,7 @@ export default function App() {
     acc[session.hostID] = (acc[session.hostID] || 0) + 1
     return acc
   }, {})
-  const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
   const selectedSftpHost = hosts.find((host) => host.id === selectedSftpHostId) || null
-  const trustedHostsCount = hosts.filter((host) => Boolean(host.known_hosts)).length
   const onlineHostsCount = Object.keys(sessionCountByHost).length
   const navigationItems = [
     { label: '主机', icon: LayoutGrid, active: true },
@@ -168,26 +163,6 @@ export default function App() {
     { label: '代码片段', icon: FolderKanban, muted: true },
     { label: '已知主机', icon: ShieldCheck, muted: true },
     { label: '日志', icon: Activity, muted: true },
-  ]
-  const overviewCards = [
-    {
-      label: '全部主机',
-      value: `${hosts.length} 台主机`,
-      icon: LayoutGrid,
-      tone: 'cyan',
-    },
-    {
-      label: '可信主机',
-      value: `${trustedHostsCount} 台已信任`,
-      icon: ShieldCheck,
-      tone: 'green',
-    },
-    {
-      label: '在线会话',
-      value: `${sessionTabs.length} 个标签`,
-      icon: TerminalSquare,
-      tone: 'violet',
-    },
   ]
 
   function closeHostDialog() {
@@ -409,19 +384,6 @@ export default function App() {
       .catch((err) => setError(err.message || String(err)))
   }
 
-  function handleSessionClosed(sessionID) {
-    setSessionTabs((currentTabs) => {
-      const nextTabs = currentTabs.filter((session) => session.sessionId !== sessionID)
-      setActiveSessionId((currentActive) => {
-        if (currentActive !== sessionID) {
-          return currentActive
-        }
-        return nextTabs.at(-1)?.sessionId || null
-      })
-      return nextTabs
-    })
-  }
-
   function handleAcceptHostKey() {
     if (!hostKeyPrompt) {
       return
@@ -590,51 +552,11 @@ export default function App() {
             </header>
 
             <main className="content-area">
-              <section className="content-header">
-                <div>
-                  <span className="panel-kicker">全部主机</span>
-                  <h1>主机工作台</h1>
-                </div>
-                <div className="section-head-meta">
-                  <span>{hosts.length} 台主机</span>
-                  <span className="pill subtle">{onlineHostsCount} 台在线</span>
-                </div>
-              </section>
-
-              <section className="groups-stage panel" aria-label="主机概览">
-                <div className="section-head section-head-tight">
-                  <div>
-                    <span className="panel-kicker">分组</span>
-                  </div>
-                  <div className="section-head-meta">
-                    <span>共 {overviewCards.length} 组</span>
-                  </div>
-                </div>
-
-                <div className="group-strip">
-                  {overviewCards.map((item) => {
-                    const Icon = item.icon
-
-                    return (
-                      <article key={item.label} className="group-card">
-                        <div className={`group-card-icon ${item.tone}`}>
-                          <Icon size={16} />
-                        </div>
-                        <div>
-                          <strong>{item.label}</strong>
-                          <span>{item.value}</span>
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-              </section>
-
               <section className="hosts-stage panel">
-                <div className="section-head">
+                <div className="section-head hosts-stage-head">
                   <div>
-                    <span className="panel-kicker">主机</span>
-                    <h2>主机列表</h2>
+                    <span className="panel-kicker">Vaults</span>
+                    <h1>全部主机</h1>
                   </div>
                   <div className="section-head-meta">
                     <span>{filteredHosts.length} 条</span>
@@ -656,19 +578,6 @@ export default function App() {
                   disabled={!vaultUnlocked}
                 />
               </section>
-
-              <div className="terminal-wrapper">
-                <TerminalPane
-                  sessions={sessionTabs}
-                  activeSessionId={activeSessionId}
-                  activeSessionTitle={activeSession?.title || 'Zen Console'}
-                  activeSessionMeta={activeSession}
-                  onSendInput={sendInput}
-                  onResize={resizeTerminal}
-                  onSessionClosed={handleSessionClosed}
-                  onError={(err) => setError(err.message || String(err))}
-                />
-              </div>
             </main>
           </section>
         </div>

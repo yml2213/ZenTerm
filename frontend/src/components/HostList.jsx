@@ -19,9 +19,11 @@ export default function HostList({
     const isSearching = Boolean(searchQuery?.trim())
 
     return (
-      <div className="host-grid">
+      <div className="host-grid host-grid-empty">
         <div className="empty-card panel">
-          {isSearching ? <SearchX size={18} /> : <ShieldCheck size={18} />}
+          <div className="empty-card-icon">
+            {isSearching ? <SearchX size={20} /> : <ShieldCheck size={20} />}
+          </div>
           <div>
             <strong>{isSearching && hasAnyHosts ? '没有匹配的主机' : '还没有主机'}</strong>
             <p>

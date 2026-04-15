@@ -185,12 +185,10 @@ textarea {
 .sidebar,
 .host-card,
 .hosts-stage,
-.terminal-wrapper,
 .empty-card,
 .form-panel,
 .modal-content,
 .hostkey-modal,
-.group-card,
 .session-tab,
 .session-tabs-empty {
   background: var(--panel-bg);
@@ -655,47 +653,21 @@ textarea {
 
 .content-area {
   min-width: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) minmax(250px, 0.82fr);
-  gap: 0.9rem;
+  display: flex;
+  flex-direction: column;
   padding: 1rem;
   overflow: auto;
   background: var(--content-bg);
 }
 
-.content-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.1rem 0.15rem 0;
-}
-
-.content-header h1 {
-  margin-top: 0.24rem;
-  font-size: 1.28rem;
-  line-height: 1.15;
-}
-
-.content-breadcrumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--accent-primary);
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.groups-stage,
 .hosts-stage,
-.terminal-wrapper,
 .terminal-panel {
   border-radius: 18px;
 }
 
-.groups-stage,
 .hosts-stage {
-  padding: 0.95rem;
+  min-height: 100%;
+  padding: 1rem;
 }
 
 .section-head {
@@ -706,13 +678,20 @@ textarea {
   margin-bottom: 0.8rem;
 }
 
-.section-head-tight {
-  margin-bottom: 0.55rem;
-}
-
 .section-head h2 {
   margin-top: 0.14rem;
   font-size: 1.08rem;
+}
+
+.hosts-stage-head {
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.hosts-stage-head h1 {
+  margin-top: 0.18rem;
+  font-size: 1.16rem;
+  line-height: 1.1;
 }
 
 .section-head-meta {
@@ -723,59 +702,15 @@ textarea {
   font-size: 0.76rem;
 }
 
-.group-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.group-card {
-  display: flex;
-  align-items: center;
-  gap: 0.78rem;
-  min-height: 88px;
-  padding: 1rem;
-  border-radius: 16px;
-  background: var(--card-bg);
-}
-
-.group-card strong {
-  display: block;
-  font-size: 0.98rem;
-}
-
-.group-card span {
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-}
-
-.group-card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-inverse);
-  flex: 0 0 auto;
-}
-
-.group-card-icon.cyan {
-  background: linear-gradient(135deg, var(--accent-cyan), #0e85a9);
-}
-
-.group-card-icon.green {
-  background: linear-gradient(135deg, var(--accent-primary), #2ac45a);
-}
-
-.group-card-icon.violet {
-  background: linear-gradient(135deg, var(--accent-violet), #7c3aed);
-}
-
 .host-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 0.8rem;
+}
+
+.host-grid-empty {
+  flex: 1;
+  min-height: clamp(320px, 58vh, 560px);
 }
 
 .host-card,
@@ -936,21 +871,38 @@ textarea {
 
 .empty-card {
   grid-column: 1 / -1;
-  min-height: 8rem;
+  min-height: 100%;
   display: grid;
-  grid-template-columns: auto 1fr;
+  justify-items: center;
+  align-content: center;
+  gap: 1rem;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  text-align: center;
+  background:
+    radial-gradient(circle at top, rgba(24, 149, 194, 0.08), transparent 46%),
+    var(--panel-bg);
+}
+
+.empty-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: inline-flex;
   align-items: center;
-  gap: 0.9rem;
+  justify-content: center;
+  color: var(--accent-cyan);
+  background: rgba(24, 149, 194, 0.1);
 }
 
 .empty-card strong {
   display: block;
-  font-size: 1rem;
+  font-size: 1.08rem;
 }
 
 .empty-card p {
   color: var(--text-secondary);
   margin-top: 0.3rem;
+  max-width: 26rem;
 }
 
 .pill {
@@ -973,7 +925,6 @@ textarea {
   background: var(--pill-subtle-bg);
 }
 
-.terminal-wrapper,
 .terminal-panel {
   min-height: 0;
   overflow: hidden;
@@ -1451,10 +1402,6 @@ textarea {
 }
 
 @media (max-width: 1180px) {
-  .group-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .host-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
@@ -1478,10 +1425,6 @@ textarea {
     flex-wrap: wrap;
   }
 
-  .content-area {
-    grid-template-rows: auto auto auto minmax(250px, 0.72fr);
-  }
-
   .sftp-browser {
     grid-template-columns: 1fr;
   }
@@ -1497,13 +1440,13 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .group-strip,
   .host-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }
 
-  .content-header {
+  .section-head,
+  .hosts-stage-head {
     align-items: flex-start;
     flex-direction: column;
   }
