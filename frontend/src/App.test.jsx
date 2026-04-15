@@ -123,6 +123,19 @@ describe('App', () => {
     expect(screen.getByText('保险箱已解锁')).toBeInTheDocument()
   })
 
+  it('默认打开 Vaults，并支持切换到 SFTP 工作区', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await unlockVault(user)
+
+    expect(screen.getByText('主机工作台')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+
+    expect(screen.getByText('先选择一个主机')).toBeInTheDocument()
+    expect(screen.getByText('Local')).toBeInTheDocument()
+  })
+
   it('新增主机时会拆分 host 和 identity 参数', async () => {
     const user = userEvent.setup()
     renderApp()

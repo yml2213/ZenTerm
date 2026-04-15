@@ -254,6 +254,10 @@ textarea {
   -webkit-app-region: no-drag;
 }
 
+.workspace-strip-spacer {
+  min-height: 1px;
+}
+
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -1044,6 +1048,265 @@ textarea {
   height: 100%;
 }
 
+.sftp-shell {
+  flex: 1;
+  min-height: 0;
+  background: var(--content-bg);
+}
+
+.sftp-browser {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.15fr) minmax(360px, 1fr);
+  height: 100%;
+}
+
+.sftp-pane {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.sftp-pane-local {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.sftp-pane-topbar,
+.sftp-local-toolbar,
+.sftp-pane-footer {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sftp-pane-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 46px;
+}
+
+.sftp-source-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0.85rem;
+  border-bottom: 2px solid var(--accent-secondary);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sftp-close-tab,
+.sftp-add-tab,
+.sftp-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+
+.sftp-add-tab {
+  margin-left: auto;
+  font-size: 1.3rem;
+}
+
+.sftp-close-tab:hover,
+.sftp-add-tab:hover,
+.sftp-toolbar-btn:hover {
+  background: var(--panel-muted);
+  color: var(--text-primary);
+}
+
+.sftp-local-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sftp-breadcrumb,
+.sftp-toolbar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.sftp-breadcrumb {
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.sftp-breadcrumb strong {
+  color: var(--text-primary);
+}
+
+.sftp-toolbar-actions {
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sftp-file-table {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.sftp-file-head,
+.sftp-file-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) 1fr 90px 100px;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+}
+
+.sftp-file-head {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sftp-file-body {
+  overflow: auto;
+}
+
+.sftp-file-row {
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sftp-file-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sftp-file-name {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.sftp-file-name strong {
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.sftp-file-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-secondary);
+  background: rgba(56, 189, 248, 0.12);
+  flex: 0 0 auto;
+}
+
+.sftp-pane-footer {
+  border-bottom: 0;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.sftp-pane-remote {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.sftp-empty-state {
+  min-height: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.sftp-empty-state.has-host {
+  gap: 1.1rem;
+}
+
+.sftp-empty-icon {
+  width: 74px;
+  height: 74px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-secondary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sftp-empty-copy {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.sftp-empty-copy strong {
+  font-size: 1.55rem;
+}
+
+.sftp-empty-copy p,
+.sftp-empty-copy small {
+  color: var(--text-secondary);
+}
+
+.sftp-empty-copy small {
+  max-width: 34rem;
+  font-size: 0.86rem;
+}
+
+.sftp-empty-actions,
+.sftp-host-meta,
+.sftp-host-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sftp-host-picker {
+  max-width: 36rem;
+}
+
+.sftp-host-chip {
+  min-width: 180px;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-bg-strong);
+  text-align: left;
+}
+
+.sftp-host-chip span {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sftp-host-chip small {
+  color: var(--text-secondary);
+}
+
+.sftp-host-chip:hover {
+  border-color: var(--border-hover);
+  background: var(--panel-muted);
+}
+
 .form-panel {
   width: min(720px, 92vw);
   border-radius: 20px;
@@ -1184,6 +1447,15 @@ textarea {
   .content-area {
     grid-template-rows: auto auto auto minmax(250px, 0.72fr);
   }
+
+  .sftp-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .sftp-pane-local {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
 }
 
 @media (max-width: 720px) {
@@ -1200,6 +1472,25 @@ textarea {
   .content-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .sftp-local-toolbar,
+  .sftp-pane-footer,
+  .sftp-file-head,
+  .sftp-file-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sftp-local-toolbar,
+  .sftp-pane-footer {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .sftp-toolbar-actions,
+  .sftp-host-meta,
+  .sftp-empty-actions {
+    justify-content: flex-start;
   }
 
   .host-card-header,
