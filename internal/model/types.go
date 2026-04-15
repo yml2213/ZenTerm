@@ -4,18 +4,47 @@ import "time"
 
 // Host 保存不包含敏感信息的 SSH 连接元数据 / contains non-sensitive SSH connection metadata.
 type Host struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Address    string `json:"address"`
-	Port       int    `json:"port"`
-	Username   string `json:"username"`
-	KnownHosts string `json:"known_hosts,omitempty"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Address      string `json:"address"`
+	Port         int    `json:"port"`
+	Username     string `json:"username"`
+	KnownHosts   string `json:"known_hosts,omitempty"`
+	CredentialID string `json:"credential_id,omitempty"` // 引用凭据中心的ID，为空则使用内联Identity
 }
 
-// Identity 保存主机认证所需的敏感凭据 / contains the sensitive authentication material for a host.
+// Identity 保存主机认证所需的敏感凭据（内联模式）/ contains the sensitive authentication material for a host (inline mode).
 type Identity struct {
 	Password   string `json:"password,omitempty"`
 	PrivateKey string `json:"private_key,omitempty"`
+}
+
+// CredentialType 定义凭据类型 / defines credential types.
+type CredentialType string
+
+const (
+	CredentialTypeSSHKey    CredentialType = "ssh_key"
+	CredentialTypePassword  CredentialType = "password"
+	CredentialTypeCertificate CredentialType = "certificate"
+)
+
+// Credential 表示凭据中心的一条记录 / represents a single entry in the credential center.
+type Credential struct {
+	ID          string          `json:"id"`
+	Label       string          `json:"label"`
+	Type        CredentialType  `json:"type"`
+	Algorithm   string          `json:"algorithm,omitempty"` // ed25519, rsa, ecdsa (for ssh_key)
+	PublicKey   string          `json:"public_key,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at,omitempty"`
+	LastUsedAt  time.Time       `json:"last_used_at,omitempty"`
+}
+
+// CredentialUsage 记录凭据被哪些主机使用 / tracks which hosts are using this credential.
+type CredentialUsage struct {
+	CredentialID string   `json:"credential_id"`
+	HostIDs      []string `json:"host_ids"`
+	ActiveSessions int    `json:"active_sessions"`
 }
 
 // WindowState 保存窗口尺寸与启动状态 / stores persisted window dimensions and startup state.

@@ -18,9 +18,11 @@ const currentVersion = 1
 const vaultCheckToken = "zenterm:vault-check:v1"
 
 var (
-	ErrHostIDRequired = errors.New("host id is required")
-	ErrStorePathEmpty = errors.New("store path is required")
-	ErrHostNotFound   = errors.New("host not found")
+	ErrHostIDRequired    = errors.New("host id is required")
+	ErrStorePathEmpty    = errors.New("store path is required")
+	ErrHostNotFound      = errors.New("host not found")
+	ErrCredentialIDRequired = errors.New("credential id is required")
+	ErrCredentialNotFound   = errors.New("credential not found")
 )
 
 // Store 将 ZenTerm 数据持久化到本地 JSON 文件 / persists ZenTerm data in a local JSON file.
@@ -31,10 +33,11 @@ type Store struct {
 }
 
 type fileData struct {
-	Version int               `json:"version"`
-	Vault   vaultData         `json:"vault"`
-	Window  model.WindowState `json:"window,omitempty"`
-	Hosts   []hostEntry       `json:"hosts"`
+	Version     int               `json:"version"`
+	Vault       vaultData         `json:"vault"`
+	Window      model.WindowState `json:"window,omitempty"`
+	Hosts       []hostEntry       `json:"hosts"`
+	Credentials []credentialEntry `json:"credentials"`
 }
 
 type vaultData struct {
@@ -45,6 +48,16 @@ type vaultData struct {
 type hostEntry struct {
 	Host     model.Host      `json:"host"`
 	Identity encryptedSecret `json:"identity"`
+}
+
+type credentialEntry struct {
+	Credential model.Credential    `json:"credential"`
+	Secret     encryptedCredential `json:"secret"`
+}
+
+type encryptedCredential struct {
+	PrivateKey *security.Ciphertext `json:"private_key,omitempty"`
+	Password   *security.Ciphertext `json:"password,omitempty"`
 }
 
 type encryptedSecret struct {
@@ -309,6 +322,29 @@ func (s *Store) GetIdentity(hostID string, vault *security.Vault) (model.Identit
 			continue
 		}
 
+		if entry.Host.CredentialID != "" {
+			for _, credEntry := range data.Credentials {
+				if credEntry.Credential.ID == entry.Host.CredentialID {
+					privateKey, err := decryptOptional(credEntry.Secret.PrivateKey, vault)
+					if err != nil {
+						return model.Identity{}, fmt.Errorf("decrypt credential private key: %w", err)
+					}
+
+					password, err := decryptOptional(credEntry.Secret.Password, vault)
+					if err != nil {
+						return model.Identity{}, fmt.Errorf("decrypt credential password: %w", err)
+					}
+
+					return model.Identity{
+						Password:   password,
+						PrivateKey: privateKey,
+					}, nil
+				}
+			}
+
+			return model.Identity{}, fmt.Errorf("credential %s not found", entry.Host.CredentialID)
+		}
+
 		password, err := decryptOptional(entry.Identity.Password, vault)
 		if err != nil {
 			return model.Identity{}, fmt.Errorf("decrypt password: %w", err)
@@ -430,6 +466,9 @@ func (s *Store) loadLocked() (fileData, error) {
 	if data.Hosts == nil {
 		data.Hosts = []hostEntry{}
 	}
+	if data.Credentials == nil {
+		data.Credentials = []credentialEntry{}
+	}
 
 	return data, nil
 }
@@ -510,4 +549,196 @@ func canDecryptExistingSecret(hosts []hostEntry, vault *security.Vault) bool {
 	}
 
 	return false
+}
+
+// AddCredential 保存凭据信息，并加密敏感数据 / stores a credential and encrypts sensitive data.
+func (s *Store) AddCredential(cred model.Credential, privateKey, password string, vault *security.Vault) error {
+	if cred.ID == "" {
+		return ErrCredentialIDRequired
+	}
+
+	encPrivateKey, err := encryptOptional(privateKey, vault)
+	if err != nil {
+		return fmt.Errorf("encrypt private key: %w", err)
+	}
+
+	encPassword, err := encryptOptional(password, vault)
+	if err != nil {
+		return fmt.Errorf("encrypt password: %w", err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	entry := credentialEntry{
+		Credential: cred,
+		Secret: encryptedCredential{
+			PrivateKey: encPrivateKey,
+			Password:   encPassword,
+		},
+	}
+
+	replaced := false
+	for i := range data.Credentials {
+		if data.Credentials[i].Credential.ID == cred.ID {
+			data.Credentials[i] = entry
+			replaced = true
+			break
+		}
+	}
+
+	if !replaced {
+		data.Credentials = append(data.Credentials, entry)
+	}
+
+	return s.saveLocked(data)
+}
+
+// GetCredentials 返回所有凭据的元数据（不含敏感信息）/ returns all credential metadata (without sensitive data).
+func (s *Store) GetCredentials() ([]model.Credential, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	creds := make([]model.Credential, 0, len(data.Credentials))
+	for _, entry := range data.Credentials {
+		creds = append(creds, entry.Credential)
+	}
+
+	return creds, nil
+}
+
+// GetCredential 返回指定ID的凭据元数据 / returns the metadata for a specific credential ID.
+func (s *Store) GetCredential(credentialID string) (model.Credential, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return model.Credential{}, err
+	}
+
+	for _, entry := range data.Credentials {
+		if entry.Credential.ID == credentialID {
+			return entry.Credential, nil
+		}
+	}
+
+	return model.Credential{}, ErrCredentialNotFound
+}
+
+// GetCredentialSecret 解密并返回凭据的敏感数据 / decrypts and returns the sensitive data for a credential.
+func (s *Store) GetCredentialSecret(credentialID string, vault *security.Vault) (string, string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, entry := range data.Credentials {
+		if entry.Credential.ID != credentialID {
+			continue
+		}
+
+		privateKey, err := decryptOptional(entry.Secret.PrivateKey, vault)
+		if err != nil {
+			return "", "", fmt.Errorf("decrypt private key: %w", err)
+		}
+
+		password, err := decryptOptional(entry.Secret.Password, vault)
+		if err != nil {
+			return "", "", fmt.Errorf("decrypt password: %w", err)
+		}
+
+		return privateKey, password, nil
+	}
+
+	return "", "", ErrCredentialNotFound
+}
+
+// UpdateCredentialLastUsed 更新凭据的最后使用时间 / updates the last used timestamp for a credential.
+func (s *Store) UpdateCredentialLastUsed(credentialID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Credentials {
+		if data.Credentials[i].Credential.ID == credentialID {
+			data.Credentials[i].Credential.LastUsedAt = data.Credentials[i].Credential.UpdatedAt
+			return s.saveLocked(data)
+		}
+	}
+
+	return ErrCredentialNotFound
+}
+
+// DeleteCredential 删除指定凭据 / removes a specific credential.
+func (s *Store) DeleteCredential(credentialID string) error {
+	if credentialID == "" {
+		return ErrCredentialIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	filtered := data.Credentials[:0]
+	deleted := false
+	for _, entry := range data.Credentials {
+		if entry.Credential.ID == credentialID {
+			deleted = true
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+
+	if !deleted {
+		return ErrCredentialNotFound
+	}
+
+	data.Credentials = filtered
+	return s.saveLocked(data)
+}
+
+// GetCredentialUsage 获取凭据的使用情况 / gets usage information for a credential.
+func (s *Store) GetCredentialUsage(credentialID string) (model.CredentialUsage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return model.CredentialUsage{}, err
+	}
+
+	var hostIDs []string
+	for _, entry := range data.Hosts {
+		if entry.Host.CredentialID == credentialID {
+			hostIDs = append(hostIDs, entry.Host.ID)
+		}
+	}
+
+	return model.CredentialUsage{
+		CredentialID:    credentialID,
+		HostIDs:         hostIDs,
+		ActiveSessions: 0,
+	}, nil
 }

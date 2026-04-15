@@ -1,4 +1,6 @@
-import { PencilLine, PlusCircle, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { PencilLine, PlusCircle, X, KeyRound } from 'lucide-react'
+import { getCredentials } from '../lib/backend'
 
 const initialState = {
   id: '',
@@ -8,6 +10,7 @@ const initialState = {
   username: '',
   password: '',
   privateKey: '',
+  credentialId: '',
 }
 
 export function createInitialHostForm() {
@@ -23,6 +26,7 @@ export function createHostFormFromHost(host) {
     username: host?.username || '',
     password: '',
     privateKey: '',
+    credentialId: host?.credential_id || '',
   }
 }
 
@@ -36,12 +40,38 @@ export default function HostForm({
   onClose,
 }) {
   const isEdit = mode === 'edit'
+  const [credentials, setCredentials] = useState([])
+  const [loadingCredentials, setLoadingCredentials] = useState(false)
+
+  useEffect(() => {
+    loadCredentials()
+  }, [])
+
+  async function loadCredentials() {
+    setLoadingCredentials(true)
+    try {
+      const creds = await getCredentials()
+      setCredentials(creds || [])
+    } catch (err) {
+      console.error('加载凭据失败:', err)
+    } finally {
+      setLoadingCredentials(false)
+    }
+  }
 
   function update(field, nextValue) {
     onChange({
       ...value,
       [field]: nextValue,
     })
+  }
+
+  function handleCredentialSelect(credentialId) {
+    update('credentialId', credentialId)
+    if (credentialId) {
+      update('password', '')
+      update('privateKey', '')
+    }
   }
 
   return (
@@ -112,29 +142,80 @@ export default function HostForm({
           </label>
 
           <label>
-            密码
-            <input
-              type="password"
-              value={value.password}
-              onChange={(event) => update('password', event.target.value)}
-              placeholder={isEdit ? '留空则保留现有密码' : '可选'}
-            />
+            认证方式
+            <select
+              value={value.credentialId ? 'credential' : value.privateKey ? 'key' : 'password'}
+              onChange={(event) => {
+                const authType = event.target.value
+                if (authType === 'credential') {
+                  handleCredentialSelect(credentials[0]?.id || '')
+                } else if (authType === 'key') {
+                  handleCredentialSelect('')
+                  update('password', '')
+                } else {
+                  handleCredentialSelect('')
+                  update('privateKey', '')
+                }
+              }}
+              disabled={loadingCredentials}
+            >
+              <option value="password">密码认证</option>
+              <option value="key">密钥认证</option>
+              {credentials.length > 0 && (
+                <option value="credential">从凭据中心选择</option>
+              )}
+            </select>
           </label>
-        </div>
 
-        <label>
-          私钥
-          <textarea
-            value={value.privateKey}
-            onChange={(event) => update('privateKey', event.target.value)}
-            placeholder={isEdit ? '留空则保留现有私钥' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
-            rows={5}
-          />
-        </label>
+          {value.credentialId && (
+            <label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <KeyRound size={14} />
+                <span>选择凭据</span>
+              </div>
+              <select
+                value={value.credentialId}
+                onChange={(event) => handleCredentialSelect(event.target.value)}
+                disabled={loadingCredentials}
+              >
+                <option value="">选择凭据...</option>
+                {credentials.map((cred) => (
+                  <option key={cred.id} value={cred.id}>
+                    {cred.label} ({cred.algorithm})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {!value.credentialId && (
+            <>
+              <label>
+                密码
+                <input
+                  type="password"
+                  value={value.password}
+                  onChange={(event) => update('password', event.target.value)}
+                  placeholder={isEdit ? '留空则保留现有密码' : '可选'}
+                />
+              </label>
+
+              <label>
+                私钥
+                <textarea
+                  value={value.privateKey}
+                  onChange={(event) => update('privateKey', event.target.value)}
+                  placeholder={isEdit ? '留空则保留现有私钥' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
+                  rows={5}
+                />
+              </label>
+            </>
+          )}
+        </div>
 
         <p className="form-hint">
           {isEdit
-            ? '编辑时如果密码或私钥留空，后端会保留原有的加密凭据。'
+            ? '编辑时如果密码、私钥或凭据留空，后端会保留原有的加密凭据。'
             : '首次连接未知主机时，ZenTerm 会弹出指纹确认框；信任后会自动写入本地 config.zen。'}
         </p>
 

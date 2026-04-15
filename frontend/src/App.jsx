@@ -57,10 +57,14 @@ function buildHostPayload(form) {
     address: form.address.trim(),
     port: Number.parseInt(form.port, 10) || 22,
     username: form.username.trim(),
+    credential_id: form.credentialId || undefined,
   }
 }
 
 function buildIdentityPayload(form) {
+  if (form.credentialId) {
+    return {}
+  }
   return {
     password: form.password,
     private_key: form.privateKey,

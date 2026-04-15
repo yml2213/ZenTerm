@@ -25,6 +25,10 @@ var (
 	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
 	ErrHostKeyMismatch             = errors.New("host key does not match the pending confirmation")
 	ErrHostKeyConfirmationTimeout  = errors.New("host key confirmation timed out")
+	ErrCredentialIDRequired        = errors.New("credential id is required")
+	ErrCredentialLabelRequired     = errors.New("credential label is required")
+	ErrCredentialInUse             = errors.New("credential is in use by one or more hosts")
+	ErrInvalidAlgorithm            = errors.New("invalid key algorithm")
 )
 
 const (
@@ -76,6 +80,14 @@ type ZenService interface {
 	ResizeTerminal(sessionID string, cols, rows int) error
 	Disconnect(sessionID string) error
 	CloseAll() error
+
+	// Credential Center API
+	GenerateCredential(label, algorithm, passphrase string) (string, error)
+	ImportCredential(label, privateKeyPEM, passphrase string) (string, error)
+	GetCredentials() ([]model.Credential, error)
+	GetCredential(credentialID string) (model.Credential, error)
+	GetCredentialUsage(credentialID string) (model.CredentialUsage, error)
+	DeleteCredential(credentialID string) error
 }
 
 type managedSession struct {

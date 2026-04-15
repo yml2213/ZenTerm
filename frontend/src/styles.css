@@ -1185,6 +1185,117 @@ textarea {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.keychain-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.keychain-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.keychain-list-header h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.keychain-items {
+  display: grid;
+  gap: 0.65rem;
+  overflow: auto;
+}
+
+.keychain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.keychain-item:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgba(2, 8, 18, 0.06);
+}
+
+.keychain-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.keychain-item-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+
+.keychain-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.keychain-item-algorithm {
+  padding: 0.15rem 0.45rem;
+  background: var(--pill-subtle-bg);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.keychain-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.icon-button:hover {
+  background: var(--card-hover);
+  color: var(--text-primary);
+}
+
+.icon-button.danger:hover {
+  background: rgba(226, 77, 77, 0.1);
+  color: var(--accent-danger);
+  border-color: rgba(226, 77, 77, 0.2);
+}
+
 .keychain-empty-state {
   display: grid;
   justify-items: center;
@@ -1299,6 +1410,26 @@ textarea {
   justify-content: stretch;
   padding: 1rem 1.1rem 1.1rem;
   border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.keychain-drawer-actions .ghost-button {
+  flex: 1;
+}
+
+.keychain-drawer-actions .primary-button {
+  flex: 2;
+}
+
+.error-message {
+  padding: 0.75rem 0.85rem;
+  background: rgba(226, 77, 77, 0.08);
+  border: 1px solid rgba(226, 77, 77, 0.2);
+  border-radius: 6px;
+  color: var(--accent-danger);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .keychain-submit {

@@ -176,3 +176,27 @@ export async function windowMaximise() {
 export async function windowToggleMaximise() {
   return callRuntime('WindowToggleMaximise', undefined)
 }
+
+export async function generateCredential(label, algorithm, passphrase) {
+  return callApp('GenerateCredential', label, algorithm, passphrase)
+}
+
+export async function importCredential(label, privateKeyPEM, passphrase) {
+  return callApp('ImportCredential', label, privateKeyPEM, passphrase)
+}
+
+export async function getCredentials() {
+  return callApp('GetCredentials')
+}
+
+export async function getCredential(credentialID) {
+  return callApp('GetCredential', credentialID)
+}
+
+export async function getCredentialUsage(credentialID) {
+  return callApp('GetCredentialUsage', credentialID)
+}
+
+export async function deleteCredential(credentialID) {
+  return callApp('DeleteCredential', credentialID)
+}
