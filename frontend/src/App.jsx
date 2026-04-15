@@ -1,4 +1,4 @@
-import { Plus, Sun, Moon, Monitor } from 'lucide-react'
+import { Plus, Sun, Moon, Monitor, Terminal, Server } from 'lucide-react'
 import { useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
@@ -24,7 +24,7 @@ const STATUS = {
 }
 
 export default function App() {
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   const [hosts, setHosts] = useState([])
   const [selectedHostId, setSelectedHostId] = useState(null)
   const [connectedHostId, setConnectedHostId] = useState(null)
@@ -130,163 +130,149 @@ export default function App() {
   }
 
   function cycleTheme() {
-    const themes = ['light', 'dark', 'auto']
-    const current = themes.indexOf(theme)
-    const next = themes[(current + 1) % themes.length]
-    setTheme(next)
+    // Cycle: auto -> light -> dark -> auto
+    if (theme === 'auto') {
+      setTheme('light')
+    } else if (theme === 'light') {
+      setTheme('dark')
+    } else {
+      setTheme('auto')
+    }
   }
 
-  const themeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
-  const ThemeIcon = themeIcon
+  // Show icon based on current theme mode
+  const getThemeIcon = () => {
+    if (theme === 'auto') return Monitor
+    if (theme === 'light') return Sun
+    return Moon
+  }
+  const ThemeIcon = getThemeIcon()
 
   return (
-    <div className="shell">
-      <div className="workspace-shell">
-        <header className="panel topbar">
-          <div className="desktop-lights">
-            <div className="traffic-lights">
-              <span />
-              <span />
-              <span />
-            </div>
+    <div className="app-shell">
+      {/* Top Toolbar */}
+      <header className="toolbar">
+        <div className="toolbar-left">
+          <div className="toolbar-logo">
+            <Terminal size={18} />
           </div>
-
-          <div className="topbar-tabs">
-            <button type="button" className="topbar-tab active">
-              主机
-            </button>
-          </div>
-
-          <div className="topbar-actions">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={cycleTheme}
-              aria-label="切换主题"
-            >
-              <ThemeIcon size={16} />
-            </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => setShowAddHost(true)}
-            >
-              <Plus size={16} />
-              新建主机
-            </button>
-          </div>
-        </header>
-
-        <div className="workspace-body">
-          <nav className="panel app-nav">
-            <div className="app-nav-header">
-              <span className="panel-kicker">Navigation</span>
-              <strong>ZenTerm</strong>
-            </div>
-            <div className="nav-list">
-              <button type="button" className="nav-item active">
-                主机列表
-              </button>
-            </div>
-            <div className="nav-footer">
-              <p>安全终端 · 本地加密存储</p>
-            </div>
-          </nav>
-
-          <main className="main-stage panel">
-            <section className="hosts-board">
-              <div className="section-header">
-                <span className="panel-title">
-                  主机列表
-                </span>
-                {!vaultUnlocked && (
-                  <div className="section-header-actions">
-                    <button
-                      type="button"
-                      className="section-action"
-                      onClick={handleUnlock}
-                    >
-                      解锁保险箱
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <HostList
-                hosts={hosts}
-                selectedHostId={selectedHostId}
-                connectedHostId={connectedHostId}
-                onSelect={handleSelectHost}
-                onConnect={handleConnect}
-                disabled={!vaultUnlocked}
-              />
-            </section>
-
-            <section className="session-stage panel">
-              {sessionId ? (
-                <TerminalPane
-                  sessionId={sessionId}
-                  hostLabel={connectedHost?.name || connectedHost?.id || 'Session'}
-                  onSendInput={sendInput}
-                  onResize={resizeTerminal}
-                  onSessionClosed={handleSessionClosed}
-                  onError={(err) => setError(err.message || String(err))}
-                />
-              ) : (
-                <div className="session-empty">
-                  <div className="session-empty-copy">
-                    <h2>终端会话</h2>
-                    <p>选择一个主机并点击「连接」来启动 SSH 会话。</p>
-                  </div>
-                  <div className="session-empty-grid">
-                    <div className="session-empty-card">
-                      <span className="panel-kicker">01</span>
-                      <div>
-                        <strong>解锁保险箱</strong>
-                        <p>首次使用需要解锁本地加密存储的密码保险箱。</p>
-                      </div>
-                    </div>
-                    <div className="session-empty-card">
-                      <span className="panel-kicker">02</span>
-                      <div>
-                        <strong>选择主机</strong>
-                        <p>从左侧列表选择一个已配置的 SSH 主机。</p>
-                      </div>
-                    </div>
-                    <div className="session-empty-card accent">
-                      <span className="panel-kicker">03</span>
-                      <div>
-                        <strong>开始连接</strong>
-                        <p>点击连接按钮，终端将自动建立安全连接。</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-          </main>
+          <button
+            type="button"
+            className="toolbar-btn active"
+          >
+            <Server size={16} />
+            主机
+          </button>
         </div>
 
-        {error && (
-          <div className="modal-backdrop">
-            <div className="hostkey-modal">
-              <h2>发生错误</h2>
-              <p>{error}</p>
-              <div className="hostkey-actions">
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => setError(null)}
-                >
-                  确定
-                </button>
-              </div>
-            </div>
+        <div className="toolbar-center">
+          <div className="search-bar">
+            <span className="search-icon">⌘</span>
+            <span className="search-placeholder">搜索主机...</span>
           </div>
-        )}
+        </div>
 
-        {showAddHost && (
-          <div className="modal-backdrop">
+        <div className="toolbar-right">
+          <button
+            type="button"
+            className="toolbar-icon-btn"
+            onClick={cycleTheme}
+            aria-label="切换主题"
+          >
+            <ThemeIcon size={16} />
+          </button>
+          <button
+            type="button"
+            className="toolbar-btn primary"
+            onClick={() => setShowAddHost(true)}
+          >
+            <Plus size={16} />
+            新建主机
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="app-content">
+        {/* Sidebar */}
+        <aside className="sidebar">
+          <nav className="sidebar-nav">
+            <button type="button" className="sidebar-item active">
+              <Server size={18} />
+              <span>主机</span>
+            </button>
+          </nav>
+          <div className="sidebar-footer">
+            <button
+              type="button"
+              className="sidebar-item"
+              onClick={() => {}}
+            >
+              <Monitor size={18} />
+              <span>设置</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Content Area */}
+        <main className="content-area">
+          {!vaultUnlocked && (
+            <div className="unlock-banner">
+              <span>首次使用需要解锁本地加密存储的密码保险箱</span>
+              <button
+                type="button"
+                className="btn-unlock"
+                onClick={handleUnlock}
+              >
+                解锁保险箱
+              </button>
+            </div>
+          )}
+
+          <HostList
+            hosts={hosts}
+            selectedHostId={selectedHostId}
+            connectedHostId={connectedHostId}
+            onSelect={handleSelectHost}
+            onConnect={handleConnect}
+            disabled={!vaultUnlocked}
+          />
+
+          {sessionId && (
+            <div className="terminal-wrapper">
+              <TerminalPane
+                sessionId={sessionId}
+                hostLabel={connectedHost?.name || connectedHost?.id || 'Session'}
+                onSendInput={sendInput}
+                onResize={resizeTerminal}
+                onSessionClosed={handleSessionClosed}
+                onError={(err) => setError(err.message || String(err))}
+              />
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Modals */}
+      {error && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <h2>发生错误</h2>
+            <p>{error}</p>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setError(null)}
+            >
+              确定
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAddHost && (
+        <div className="modal-backdrop" onClick={() => setShowAddHost(false)}>
+          <div className="modal-form" onClick={(e) => e.stopPropagation()}>
             <HostForm
               value={hostForm}
               onChange={setHostForm}
@@ -297,15 +283,15 @@ export default function App() {
               onToggle={() => setShowAddHost(false)}
             />
           </div>
-        )}
+        </div>
+      )}
 
-        <HostKeyModal
-          prompt={hostKeyPrompt}
-          busy={isAcceptingKey}
-          onAccept={handleAcceptHostKey}
-          onReject={handleRejectHostKey}
-        />
-      </div>
+      <HostKeyModal
+        prompt={hostKeyPrompt}
+        busy={isAcceptingKey}
+        onAccept={handleAcceptHostKey}
+        onReject={handleRejectHostKey}
+      />
     </div>
   )
 }
