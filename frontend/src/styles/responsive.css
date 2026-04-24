@@ -1,0 +1,126 @@
+@media (max-width: 920px) {
+  .app-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .page-toolbar {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 104px;
+  }
+
+  .page-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .page-toolbar-actions.hosts {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .page-toolbar-meta,
+  .page-toolbar-meta.hosts {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .sftp-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .page-intro,
+  .keychain-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-intro-side,
+  .keychain-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .keychain-workbench.drawer-open {
+    grid-template-columns: 1fr;
+  }
+
+  .keychain-drawer {
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -18px 36px rgba(2, 8, 18, 0.12);
+  }
+
+  .sftp-pane-local {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-strip {
+    grid-template-columns: 1fr;
+    padding: 0.95rem 1rem;
+  }
+
+  .host-grid,
+  .form-grid,
+  .known-hosts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hosts-stage-head,
+  .known-host-entry-main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .keychain-algorithm-group {
+    grid-template-columns: 1fr;
+  }
+
+  .keychain-empty-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .keychain-empty-actions .ghost-button,
+  .keychain-empty-actions .primary-button {
+    width: 100%;
+  }
+
+  .sftp-pane-topbar,
+  .sftp-pane-toolbar,
+  .sftp-pane-footer,
+  .sftp-file-head,
+  .sftp-file-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sftp-pane-topbar,
+  .sftp-pane-toolbar,
+  .sftp-pane-footer {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .sftp-pane-topbar-main,
+  .sftp-toolbar-actions,
+  .sftp-empty-actions {
+    justify-content: flex-start;
+  }
+
+  .host-card-header,
+  .host-card-footer,
+  .terminal-toolbar {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .host-card-actions,
+  .terminal-toolbar-side {
+    justify-content: flex-start;
+  }
+}
