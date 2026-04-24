@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"zenterm/internal/model"
 	"zenterm/internal/security"
@@ -381,6 +382,28 @@ func (s *Store) UpdateKnownHosts(hostID, knownHosts string) error {
 		}
 
 		data.Hosts[i].Host.KnownHosts = knownHosts
+		return s.saveLocked(data)
+	}
+
+	return ErrHostNotFound
+}
+
+// UpdateLastConnectedAt 记录主机最近成功连接时间 / records the most recent successful connection time for a host.
+func (s *Store) UpdateLastConnectedAt(hostID string, connectedAt time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Hosts {
+		if data.Hosts[i].Host.ID != hostID {
+			continue
+		}
+
+		data.Hosts[i].Host.LastConnectedAt = connectedAt
 		return s.saveLocked(data)
 	}
 

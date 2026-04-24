@@ -8,6 +8,10 @@ const initialState = {
   address: '',
   port: '22',
   username: '',
+  group: '',
+  tags: '',
+  favorite: false,
+  authType: 'password',
   password: '',
   privateKey: '',
   credentialId: '',
@@ -24,6 +28,10 @@ export function createHostFormFromHost(host) {
     address: host?.address || '',
     port: String(host?.port || 22),
     username: host?.username || '',
+    group: host?.group || '',
+    tags: host?.tags || '',
+    favorite: Boolean(host?.favorite),
+    authType: host?.credential_id ? 'credential' : 'password',
     password: '',
     privateKey: '',
     credentialId: host?.credential_id || '',
@@ -63,6 +71,13 @@ export default function HostForm({
     onChange({
       ...value,
       [field]: nextValue,
+    })
+  }
+
+  function patch(nextFields) {
+    onChange({
+      ...value,
+      ...nextFields,
     })
   }
 
@@ -142,29 +157,92 @@ export default function HostForm({
           </label>
 
           <label>
-            认证方式
-            <select
-              value={value.credentialId ? 'credential' : value.privateKey ? 'key' : 'password'}
-              onChange={(event) => {
-                const authType = event.target.value
-                if (authType === 'credential') {
-                  handleCredentialSelect(credentials[0]?.id || '')
-                } else if (authType === 'key') {
-                  handleCredentialSelect('')
-                  update('password', '')
-                } else {
-                  handleCredentialSelect('')
-                  update('privateKey', '')
-                }
-              }}
-              disabled={loadingCredentials}
+            分组
+            <input
+              value={value.group}
+              onChange={(event) => update('group', event.target.value)}
+              placeholder="生产 / 测试 / 本地"
+            />
+          </label>
+
+          <label>
+            标签
+            <input
+              value={value.tags}
+              onChange={(event) => update('tags', event.target.value)}
+              placeholder="Linux, GPU, DB"
+            />
+          </label>
+
+          <label className="host-favorite-toggle">
+            <span className="field-label">收藏主机</span>
+            <button
+              type="button"
+              className={`toggle-field${value.favorite ? ' active' : ''}`}
+              aria-label="收藏主机"
+              aria-pressed={value.favorite}
+              onClick={() => update('favorite', !value.favorite)}
             >
-              <option value="password">密码认证</option>
-              <option value="key">密钥认证</option>
+              <span className="toggle-field-check" aria-hidden="true" />
+              <span className="toggle-field-copy">
+                <strong>置顶显示</strong>
+              </span>
+            </button>
+          </label>
+
+          <label className="auth-type-field">
+            <span className="field-label">认证方式</span>
+            <div className="auth-type-group" role="radiogroup" aria-label="认证方式">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={(value.authType || 'password') === 'password'}
+                className={(value.authType || 'password') === 'password' ? 'active' : ''}
+                onClick={() => {
+                  patch({
+                    authType: 'password',
+                    credentialId: '',
+                    privateKey: '',
+                  })
+                }}
+              >
+                密码认证
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={value.authType === 'key'}
+                className={value.authType === 'key' ? 'active' : ''}
+                onClick={() => {
+                  patch({
+                    authType: 'key',
+                    credentialId: '',
+                    password: '',
+                  })
+                }}
+              >
+                密钥认证
+              </button>
               {credentials.length > 0 && (
-                <option value="credential">从凭据中心选择</option>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={value.authType === 'credential'}
+                  className={value.authType === 'credential' ? 'active' : ''}
+                  onClick={() => {
+                    patch({
+                      authType: 'credential',
+                      credentialId: credentials[0]?.id || '',
+                      password: '',
+                      privateKey: '',
+                    })
+                  }}
+                  disabled={loadingCredentials}
+                >
+                  凭据中心
+                </button>
               )}
-            </select>
+            </div>
           </label>
 
           {value.credentialId && (
@@ -188,8 +266,7 @@ export default function HostForm({
             </label>
           )}
 
-          {!value.credentialId && (
-            <>
+          {!value.credentialId && (value.authType || 'password') === 'password' && (
               <label>
                 密码
                 <input
@@ -199,7 +276,9 @@ export default function HostForm({
                   placeholder={isEdit ? '留空则保留现有密码' : '可选'}
                 />
               </label>
+          )}
 
+          {!value.credentialId && value.authType === 'key' && (
               <label>
                 私钥
                 <textarea
@@ -209,7 +288,6 @@ export default function HostForm({
                   rows={5}
                 />
               </label>
-            </>
           )}
         </div>
 

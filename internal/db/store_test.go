@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"zenterm/internal/model"
 	"zenterm/internal/security"
@@ -72,6 +73,44 @@ func TestStoreAddHostEncryptsIdentity(t *testing.T) {
 	}
 	if loadedIdentity != identity {
 		t.Fatalf("GetIdentity() = %#v, want %#v", loadedIdentity, identity)
+	}
+}
+
+func TestStoreUpdateLastConnectedAt(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-last", Address: "10.0.0.8", Port: 22, Username: "root"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	connectedAt := time.Date(2026, 4, 24, 9, 30, 0, 0, time.UTC)
+	if err := store.UpdateLastConnectedAt(host.ID, connectedAt); err != nil {
+		t.Fatalf("UpdateLastConnectedAt() error = %v", err)
+	}
+
+	hosts, err := store.GetHosts()
+	if err != nil {
+		t.Fatalf("GetHosts() error = %v", err)
+	}
+	if len(hosts) != 1 {
+		t.Fatalf("len(GetHosts()) = %d, want 1", len(hosts))
+	}
+	if !hosts[0].LastConnectedAt.Equal(connectedAt) {
+		t.Fatalf("LastConnectedAt = %v, want %v", hosts[0].LastConnectedAt, connectedAt)
 	}
 }
 

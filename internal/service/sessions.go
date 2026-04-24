@@ -110,6 +110,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 	go s.forwardOutput(sessionID, stdout)
 	go s.forwardOutput(sessionID, stderr)
 	go s.waitForSession(sessionID, managed)
+	_ = s.store.UpdateLastConnectedAt(hostID, managed.ConnectedAt)
 
 	return sessionID, nil
 }

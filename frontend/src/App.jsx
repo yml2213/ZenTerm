@@ -1,7 +1,9 @@
 import {
+  Clock3,
   FolderLock,
   KeyRound,
   LayoutGrid,
+  List,
   Monitor,
   Moon,
   FolderOpen,
@@ -9,7 +11,9 @@ import {
   Search,
   Settings2,
   Shield,
+  Star,
   Sun,
+  Tags,
   TerminalSquare,
 } from 'lucide-react'
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
@@ -57,6 +61,9 @@ function buildHostPayload(form) {
     address: form.address.trim(),
     port: Number.parseInt(form.port, 10) || 22,
     username: form.username.trim(),
+    group: form.group.trim(),
+    tags: form.tags.trim(),
+    favorite: Boolean(form.favorite),
     credential_id: form.credentialId || undefined,
   }
 }
@@ -177,9 +184,64 @@ function matchesHost(host, query) {
     return true
   }
 
-  return [host.id, host.name, host.address, host.username]
+  return [host.id, host.name, host.address, host.username, host.group, host.tags]
     .filter(Boolean)
     .some((value) => value.toLowerCase().includes(keyword))
+}
+
+function parseHostTags(tags) {
+  return String(tags || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+}
+
+function getHostFilterLabel(filterKey) {
+  if (filterKey === 'favorite') {
+    return '收藏主机'
+  }
+  if (filterKey === 'recent') {
+    return '最近连接'
+  }
+  if (filterKey.startsWith('group:')) {
+    return filterKey.slice('group:'.length)
+  }
+  if (filterKey.startsWith('tag:')) {
+    return filterKey.slice('tag:'.length)
+  }
+  return '全部主机'
+}
+
+function matchesHostFilter(host, filterKey) {
+  if (filterKey === 'favorite') {
+    return Boolean(host.favorite)
+  }
+  if (filterKey === 'recent') {
+    return Boolean(Date.parse(host.last_connected_at || ''))
+  }
+  if (filterKey.startsWith('group:')) {
+    return (host.group || '').trim() === filterKey.slice('group:'.length)
+  }
+  if (filterKey.startsWith('tag:')) {
+    return parseHostTags(host.tags).includes(filterKey.slice('tag:'.length))
+  }
+  return true
+}
+
+function sortHosts(hosts) {
+  return hosts.slice().sort((left, right) => {
+    if (Boolean(left.favorite) !== Boolean(right.favorite)) {
+      return left.favorite ? -1 : 1
+    }
+
+    const leftTime = Date.parse(left.last_connected_at || '') || 0
+    const rightTime = Date.parse(right.last_connected_at || '') || 0
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime
+    }
+
+    return (left.name || left.id).localeCompare(right.name || right.id)
+  })
 }
 
 function createVaultSetupForm() {
@@ -226,7 +288,7 @@ function NewTabPage({
   connectingHostIds,
   vaultUnlocked,
 }) {
-  const filteredHosts = hosts.filter((host) => matchesHost(host, searchQuery))
+  const filteredHosts = sortHosts(hosts.filter((host) => matchesHost(host, searchQuery)))
 
   return (
     <section className="new-tab-surface">
@@ -317,6 +379,8 @@ export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
   const newTabCounterRef = useRef(0)
+  const hostSearchInputRef = useRef(null)
+  const newTabSearchInputRef = useRef(null)
   const [activeWorkspace, setActiveWorkspace] = useState('vaults')
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
   const [hosts, setHosts] = useState([])
@@ -324,6 +388,8 @@ export default function App() {
   const [selectedSftpHostId, setSelectedSftpHostId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [newTabSearchQuery, setNewTabSearchQuery] = useState('')
+  const [hostViewMode, setHostViewMode] = useState('grid')
+  const [hostFilterKey, setHostFilterKey] = useState('all')
   const [vaultInitialized, setVaultInitialized] = useState(false)
   const [vaultUnlocked, setVaultUnlocked] = useState(false)
   const [vaultReady, setVaultReady] = useState(false)
@@ -352,7 +418,14 @@ export default function App() {
 
   const rejectedHostIdsRef = useRef(new Set())
 
-  const filteredHosts = hosts.filter((host) => matchesHost(host, searchQuery))
+  const filteredHosts = sortHosts(hosts.filter((host) => (
+    matchesHost(host, searchQuery) && matchesHostFilter(host, hostFilterKey)
+  )))
+  const hostGroups = Array.from(new Set(hosts.map((host) => host.group?.trim()).filter(Boolean))).sort()
+  const hostTags = Array.from(new Set(hosts.flatMap((host) => parseHostTags(host.tags)))).sort()
+  const favoriteHostCount = hosts.filter((host) => host.favorite).length
+  const recentHostCount = hosts.filter((host) => Date.parse(host.last_connected_at || '')).length
+  const activeHostFilterLabel = getHostFilterLabel(hostFilterKey)
   const sessionCountByHost = sessionTabs.reduce((acc, session) => {
     acc[session.hostID] = (acc[session.hostID] || 0) + 1
     return acc
@@ -590,6 +663,31 @@ export default function App() {
       })
     }
   }, [activeWorkspace, sessionTabs.length])
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') {
+        return
+      }
+
+      event.preventDefault()
+      if (activeWorkspace === 'new-tab') {
+        newTabSearchInputRef.current?.focus()
+        newTabSearchInputRef.current?.select()
+        return
+      }
+
+      setActiveWorkspace('vaults')
+      setActiveSidebarPage('hosts')
+      window.requestAnimationFrame(() => {
+        hostSearchInputRef.current?.focus()
+        hostSearchInputRef.current?.select()
+      })
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [activeWorkspace])
 
   function openCreateHost() {
     if (!vaultUnlocked) {
@@ -865,6 +963,39 @@ export default function App() {
       })
   }
 
+  function handleCopyHostAddress(host) {
+    const address = `${host.username}@${host.address}:${host.port || 22}`
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(address).catch((err) => setError(err.message || String(err)))
+      return
+    }
+
+    setError('当前环境不支持自动复制，请手动复制主机地址。')
+  }
+
+  function handleToggleFavorite(host) {
+    const nextHost = {
+      id: host.id,
+      name: host.name,
+      address: host.address,
+      port: host.port || 22,
+      username: host.username,
+      group: host.group || '',
+      tags: host.tags || '',
+      favorite: !host.favorite,
+      last_connected_at: host.last_connected_at,
+      known_hosts: host.known_hosts,
+      credential_id: host.credential_id,
+    }
+
+    updateHost(nextHost, {})
+      .then(async () => {
+        await refreshHosts()
+        setSelectedHostId(host.id)
+      })
+      .catch((err) => setError(toUserMessage(err)))
+  }
+
   function handleCloseTab(sessionID) {
     disconnect(sessionID)
       .then(() => {
@@ -966,6 +1097,13 @@ export default function App() {
         description: '主密码用于保护本地保存的 SSH 凭据。ZenTerm 会默认交给系统钥匙串保管，日常不再需要手动进入。',
       }
     : currentSidebarPage
+  const resolvedPageHeader = isHostsPage && hostFilterKey !== 'all'
+    ? {
+        ...pageHeader,
+        title: activeHostFilterLabel,
+        description: `当前筛选出 ${filteredHosts.length} / ${hosts.length} 台主机，可继续搜索缩小范围。`,
+      }
+    : pageHeader
 
   return (
     <div className={shellClassName}>
@@ -1053,6 +1191,92 @@ export default function App() {
               })}
             </nav>
 
+            {isHostsPage ? (
+              <section className="sidebar-filter-section" aria-label="主机筛选">
+                <div className="sidebar-filter-head">
+                  <span className="sidebar-label">Views</span>
+                  {hostFilterKey !== 'all' ? (
+                    <button type="button" onClick={() => setHostFilterKey('all')}>清除</button>
+                  ) : null}
+                </div>
+                <div className="sidebar-filter-list">
+                  <button
+                    type="button"
+                    className={`sidebar-filter-item${hostFilterKey === 'all' ? ' active' : ''}`}
+                    onClick={() => setHostFilterKey('all')}
+                  >
+                    <LayoutGrid size={14} />
+                    <span>全部</span>
+                    <small>{hosts.length}</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-filter-item${hostFilterKey === 'favorite' ? ' active' : ''}`}
+                    onClick={() => setHostFilterKey('favorite')}
+                  >
+                    <Star size={14} />
+                    <span>收藏</span>
+                    <small>{favoriteHostCount}</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-filter-item${hostFilterKey === 'recent' ? ' active' : ''}`}
+                    onClick={() => setHostFilterKey('recent')}
+                  >
+                    <Clock3 size={14} />
+                    <span>最近连接</span>
+                    <small>{recentHostCount}</small>
+                  </button>
+                </div>
+
+                {hostGroups.length > 0 ? (
+                  <div className="sidebar-filter-group">
+                    <span className="sidebar-label">Groups</span>
+                    <div className="sidebar-filter-list">
+                      {hostGroups.map((group) => {
+                        const filterKey = `group:${group}`
+                        const count = hosts.filter((host) => host.group === group).length
+                        return (
+                          <button
+                            type="button"
+                            key={filterKey}
+                            className={`sidebar-filter-item${hostFilterKey === filterKey ? ' active' : ''}`}
+                            onClick={() => setHostFilterKey(filterKey)}
+                          >
+                            <FolderOpen size={14} />
+                            <span>{group}</span>
+                            <small>{count}</small>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {hostTags.length > 0 ? (
+                  <div className="sidebar-filter-group">
+                    <span className="sidebar-label">Tags</span>
+                    <div className="sidebar-tag-cloud">
+                      {hostTags.map((tag) => {
+                        const filterKey = `tag:${tag}`
+                        return (
+                          <button
+                            type="button"
+                            key={filterKey}
+                            className={hostFilterKey === filterKey ? 'active' : ''}
+                            onClick={() => setHostFilterKey(filterKey)}
+                          >
+                            <Tags size={12} />
+                            {tag}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
             <div className="sidebar-spacer" />
 
             <div className="sidebar-footer">
@@ -1072,9 +1296,9 @@ export default function App() {
             <header className="page-toolbar">
               <div className="page-toolbar-main">
                 <div className="page-intro-copy page-toolbar-copy">
-                  <span className="panel-kicker">{pageHeader.kicker}</span>
-                  <h1>{pageHeader.title}</h1>
-                  {pageHeader.description ? <p>{pageHeader.description}</p> : null}
+                  <span className="panel-kicker">{resolvedPageHeader.kicker}</span>
+                  <h1>{resolvedPageHeader.title}</h1>
+                  {resolvedPageHeader.description ? <p>{resolvedPageHeader.description}</p> : null}
                 </div>
               </div>
 
@@ -1084,24 +1308,48 @@ export default function App() {
                     <label className="search-bar search-bar-compact">
                       <Search size={15} />
                       <input
+                        ref={hostSearchInputRef}
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
                         placeholder={t('searchPlaceholder')}
                         aria-label="搜索主机"
+                        aria-keyshortcuts="Control+K Meta+K"
                       />
                     </label>
                   </div>
                 ) : null}
                 <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
                   {isHostsPage && (
-                    <button
-                      type="button"
-                      className="toolbar-btn primary"
-                      onClick={openCreateHost}
-                    >
-                      <Plus size={16} />
-                      {t('newHost')}
-                    </button>
+                    <>
+                      <div className="view-toggle" aria-label="主机视图切换">
+                        <button
+                          type="button"
+                          className={hostViewMode === 'grid' ? 'active' : ''}
+                          aria-pressed={hostViewMode === 'grid'}
+                          onClick={() => setHostViewMode('grid')}
+                        >
+                          <LayoutGrid size={15} />
+                          卡片
+                        </button>
+                        <button
+                          type="button"
+                          className={hostViewMode === 'list' ? 'active' : ''}
+                          aria-pressed={hostViewMode === 'list'}
+                          onClick={() => setHostViewMode('list')}
+                        >
+                          <List size={15} />
+                          列表
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="toolbar-btn primary"
+                        onClick={openCreateHost}
+                      >
+                        <Plus size={16} />
+                        {t('newHost')}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -1114,6 +1362,7 @@ export default function App() {
                     hosts={filteredHosts}
                     hasAnyHosts={hosts.length > 0}
                     searchQuery={searchQuery}
+                    viewMode={hostViewMode}
                     selectedHostId={selectedHostId}
                     sessionCountByHost={sessionCountByHost}
                     connectingHostIds={connectingHostIds}
@@ -1121,6 +1370,8 @@ export default function App() {
                     onConnect={handleConnect}
                     onEdit={openEditHost}
                     onDelete={setDeleteCandidate}
+                    onCopyAddress={handleCopyHostAddress}
+                    onToggleFavorite={handleToggleFavorite}
                     disabled={!vaultUnlocked}
                   />
                 </section>
@@ -1194,10 +1445,12 @@ export default function App() {
                 <label className="search-bar search-bar-compact">
                   <Search size={15} />
                   <input
+                    ref={newTabSearchInputRef}
                     value={newTabSearchQuery}
                     onChange={(event) => setNewTabSearchQuery(event.target.value)}
                     placeholder="搜索主机..."
                     aria-label="搜索空白标签主机"
+                    aria-keyshortcuts="Control+K Meta+K"
                   />
                 </label>
               </div>
