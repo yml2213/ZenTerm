@@ -1,0 +1,157 @@
+.known-hosts-stage {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.known-hosts-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.known-hosts-stats-panel {
+  justify-content: flex-start;
+}
+
+.known-hosts-stat {
+  min-width: 112px;
+  padding: 0.72rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong);
+  text-align: left;
+}
+
+.known-hosts-stat strong {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.known-hosts-stat span {
+  display: block;
+  margin-top: 0.28rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.known-hosts-grid,
+.keychain-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.known-hosts-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.known-host-card,
+.keychain-card {
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+  padding: 1rem;
+}
+
+.known-host-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.known-host-card-head,
+.keychain-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.known-host-card-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.known-host-card-icon,
+.keychain-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.known-host-card-icon {
+  color: var(--accent-cyan);
+  background: var(--surface-info-bg);
+}
+
+.known-host-card-head h2,
+.keychain-card-head h2 {
+  font-size: 1rem;
+}
+
+.known-host-card-head p,
+.known-host-card-head small,
+.keychain-card-head p {
+  color: var(--text-secondary);
+}
+
+.known-host-card-head p {
+  margin-top: 0.16rem;
+  font-size: 0.82rem;
+}
+
+.known-host-card-head small {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.72rem;
+}
+
+.known-host-entry-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.known-host-entry {
+  padding: 0.82rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong);
+}
+
+.known-host-entry-main,
+.known-host-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.known-host-entry-main {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.known-host-entry-type {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.known-host-entry-preview {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.known-host-entry-meta {
+  margin-top: 0.42rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}

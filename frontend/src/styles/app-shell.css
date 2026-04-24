@@ -1,0 +1,388 @@
+.app-shell {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--shell-bg);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, rgba(255, 255, 255, 0) 22%);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell-ssh {
+  --terminal-bg: #141526;
+  --terminal-toolbar-bg: #17182b;
+  --terminal-tab-bg: rgba(255, 255, 255, 0.08);
+  --terminal-tab-active-bg: linear-gradient(180deg, rgba(53, 64, 93, 0.96) 0%, rgba(41, 51, 76, 0.96) 100%);
+  --terminal-tab-active-border: rgba(158, 180, 220, 0.24);
+  --terminal-tab-active-text: #f4f8ff;
+  --terminal-tab-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(120, 170, 235, 0.34),
+    0 10px 22px rgba(3, 8, 20, 0.34);
+  --terminal-border: rgba(180, 190, 225, 0.12);
+  --terminal-control: #9aa2b8;
+  background: var(--terminal-bg);
+}
+
+.app-shell-tabbed {
+  --terminal-toolbar-bg: #303a54;
+  --terminal-tab-bg: rgba(255, 255, 255, 0.08);
+  --terminal-tab-active-bg: linear-gradient(180deg, rgba(71, 83, 113, 0.96) 0%, rgba(53, 64, 92, 0.96) 100%);
+  --terminal-tab-active-border: rgba(173, 191, 226, 0.22);
+  --terminal-tab-active-text: #f4f7ff;
+  --terminal-tab-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(122, 166, 232, 0.34),
+    0 10px 22px rgba(7, 12, 24, 0.28);
+  --terminal-border: rgba(180, 190, 225, 0.12);
+  --terminal-control: #a9b1c6;
+}
+
+.app-shell-tabbed.app-shell-ssh {
+  --terminal-toolbar-bg: #17182b;
+  --terminal-control: #9aa2b8;
+}
+
+.app-shell-sftp {
+  background: var(--sftp-page-bg);
+}
+
+.panel,
+.sidebar,
+.host-card,
+.empty-card,
+.form-panel,
+.modal-content,
+.hostkey-modal,
+.session-tab,
+.session-tabs-empty {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-subtle);
+}
+
+.workspace-strip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0 1.25rem 0 7rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--toolbar-bg);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.015);
+  backdrop-filter: blur(14px);
+  --wails-draggable: drag;
+  -webkit-app-region: drag;
+}
+
+.app-shell-tabbed .workspace-strip {
+  border-bottom-color: transparent;
+  background: var(--terminal-toolbar-bg);
+  color: var(--terminal-control);
+  backdrop-filter: none;
+}
+
+.app-shell-sftp .workspace-strip {
+  border-bottom-color: var(--sftp-window-top-border);
+  background: var(--sftp-window-top-bg);
+  color: var(--text-secondary);
+  backdrop-filter: none;
+}
+
+.workspace-modules {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  justify-self: start;
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.workspace-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.52rem 0.82rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-muted);
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: var(--shadow-sm);
+  opacity: 0.76;
+}
+
+.workspace-module:hover {
+  background: var(--panel-bg-strong);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+.workspace-module.active {
+  color: var(--text-primary);
+  background: var(--card-active);
+  border-color: var(--border-strong);
+  opacity: 1;
+  box-shadow:
+    inset 0 -2px 0 var(--accent-secondary),
+    var(--shadow-sm);
+}
+
+.app-shell-tabbed .workspace-module {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(255, 255, 255, 0.03);
+  background: var(--terminal-tab-bg);
+  color: var(--terminal-control);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(12, 18, 34, 0.08);
+  opacity: 0.72;
+}
+
+.app-shell-tabbed .workspace-module:hover {
+  border-color: var(--terminal-border);
+  background: var(--terminal-tab-hover-bg);
+  color: var(--terminal-tab-hover-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(6, 10, 20, 0.16);
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.app-shell-tabbed .workspace-module.active {
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+  color: var(--terminal-tab-active-text);
+  box-shadow: var(--terminal-tab-active-shadow);
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+.workspace-tabs {
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.workspace-tab-strip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  --wails-draggable: drag;
+  -webkit-app-region: drag;
+}
+
+.workspace-tab-strip.has-tabs::before {
+  content: "";
+  width: 1px;
+  height: 32px;
+  margin-right: 0.22rem;
+  background: var(--terminal-divider);
+}
+
+.workspace-strip-spacer {
+  min-height: 1px;
+}
+
+.workspace-new-tab-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  transition: all 0.18s ease;
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.app-shell-tabbed .workspace-new-tab-btn {
+  color: var(--terminal-control);
+}
+
+.workspace-new-tab-btn:hover {
+  background: var(--terminal-tab-hover-bg);
+  color: var(--terminal-tab-hover-text);
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  justify-self: end;
+  box-shadow: 0 6px 14px rgba(21, 31, 44, 0.05);
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--panel-bg-strong);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.app-shell-tabbed .theme-toggle-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--terminal-control);
+  box-shadow: none;
+}
+
+.app-shell-tabbed .theme-toggle-btn:hover {
+  border-color: var(--terminal-border);
+  background: var(--terminal-tab-hover-bg);
+  color: var(--terminal-tab-hover-text);
+}
+
+.session-tabs {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  overflow: auto hidden;
+}
+
+.session-tabs-empty {
+  border-style: dashed;
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--panel-muted);
+}
+
+.session-tabs-empty strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.session-tabs-empty span {
+  font-size: 0.72rem;
+}
+
+.session-tabs-empty-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-info-bg);
+  color: var(--accent-cyan);
+}
+
+.session-tab {
+  min-width: 136px;
+  max-width: 184px;
+  height: 36px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-radius: 11px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  opacity: 0.78;
+}
+
+.session-tab.active {
+  background: var(--card-active);
+  border-color: var(--border-strong);
+  opacity: 1;
+  box-shadow:
+    inset 0 -2px 0 var(--accent-secondary),
+    0 8px 18px rgba(79, 116, 160, 0.12);
+}
+
+.app-shell-tabbed .session-tab {
+  border-color: transparent;
+  background: var(--terminal-tab-bg);
+  color: var(--terminal-control);
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.app-shell-tabbed .session-tab.active {
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.app-shell-ssh .session-tab.ssh-tab.active {
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+}
+
+.session-tab-main,
+.session-tab-close {
+  padding: 0 0.56rem;
+}
+
+.session-tab-main {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.app-shell-tabbed .session-tab-main {
+  color: var(--terminal-tab-hover-text);
+}
+
+.app-shell-ssh .session-tab.ssh-tab .session-tab-main {
+  color: #2ed58b;
+}
+
+.session-tab-icon {
+  flex: 0 0 auto;
+}
+
+.session-tab-main strong {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-tertiary);
+  padding-left: 0.18rem;
+  padding-right: 0.44rem;
+}
+
+.app-shell-tabbed .session-tab-close {
+  color: var(--terminal-control);
+}

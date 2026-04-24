@@ -133,19 +133,19 @@
 [data-theme="dark"] {
   --bg-body: #05070b;
   --bg-body-accent: radial-gradient(circle at top, rgba(79, 110, 156, 0.18) 0%, transparent 24%), linear-gradient(180deg, #090c12 0%, #05070b 100%);
-  --shell-bg: #141925;
+  --shell-bg: #101521;
   --shell-border: rgba(148, 163, 184, 0.18);
-  --panel-bg: #171d2a;
-  --panel-bg-strong: #1b2230;
-  --panel-muted: #202737;
-  --card-bg: #1a2231;
-  --card-hover: #20293a;
-  --card-active: #223249;
-  --sidebar-bg: #151b28;
-  --toolbar-bg: rgba(20, 25, 37, 0.94);
-  --content-bg: #151a27;
-  --input-bg: #1c2331;
-  --input-focus: #222b3c;
+  --panel-bg: #18202d;
+  --panel-bg-strong: #1d2634;
+  --panel-muted: #242e3f;
+  --card-bg: #1c2533;
+  --card-hover: #233041;
+  --card-active: #29384b;
+  --sidebar-bg: #182130;
+  --toolbar-bg: rgba(24, 33, 48, 0.96);
+  --content-bg: #131a28;
+  --input-bg: #212b3a;
+  --input-focus: #273345;
   --text-primary: #ecf1f8;
   --text-secondary: #b0c0d2;
   --text-tertiary: #8596aa;
@@ -160,8 +160,8 @@
   --accent-cyan: #8eb4de;
   --accent-violet: #a78bfa;
   --accent-amber: #f59e0b;
-  --border-default: rgba(148, 163, 184, 0.15);
-  --border-subtle: rgba(148, 163, 184, 0.09);
+  --border-default: rgba(148, 163, 184, 0.16);
+  --border-subtle: rgba(148, 163, 184, 0.08);
   --border-strong: rgba(142, 180, 222, 0.32);
   --border-hover: rgba(142, 180, 222, 0.24);
   --shadow-sm: 0 10px 24px rgba(2, 8, 18, 0.22);
@@ -171,7 +171,7 @@
   --pill-subtle-bg: rgba(148, 163, 184, 0.12);
   --pill-subtle-text: #c9d6e2;
   --focus-ring: 0 0 0 3px rgba(142, 180, 222, 0.18);
-  --sidebar-filter-bg: rgba(27, 34, 48, 0.88);
+  --sidebar-filter-bg: rgba(29, 38, 52, 0.9);
   --favorite-btn-bg: rgba(148, 163, 184, 0.14);
   --favorite-btn-hover-bg: rgba(245, 158, 11, 0.14);
   --favorite-btn-active-bg: rgba(245, 158, 11, 0.18);
@@ -197,8 +197,8 @@
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.08);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.22);
-  --panel-grid-line: rgba(148, 163, 184, 0.04);
-  --panel-grid-glow: rgba(142, 180, 222, 0.08);
+  --panel-grid-line: rgba(148, 163, 184, 0.022);
+  --panel-grid-glow: rgba(142, 180, 222, 0.038);
   --terminal-bg: #0d1522;
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;
@@ -362,4 +362,3 @@ textarea {
   min-height: 7.5rem;
   resize: vertical;
 }
-

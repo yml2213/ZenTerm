@@ -1,0 +1,250 @@
+.hosts-stage,
+.terminal-panel {
+  border-radius: 18px;
+}
+
+.hosts-stage {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.ssh-stage {
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+}
+
+.ssh-page .content-area-terminal {
+  background-color: var(--terminal-bg);
+  background-image: none;
+}
+
+.sftp-page .content-area-flush {
+  overflow: hidden;
+  background-color: var(--sftp-page-bg);
+  background-image: none;
+}
+
+.hosts-stage-grid {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(340px, 0.92fr) minmax(420px, 1.25fr);
+  gap: 1rem;
+}
+
+.hosts-stage.focus-mode,
+.hosts-stage-grid.focus-mode {
+  min-height: 100%;
+}
+
+.hosts-stage-grid.focus-mode {
+  grid-template-columns: 1fr;
+}
+
+.settings-stage {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.page-intro {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 80px;
+  padding: 0.2rem 0;
+}
+
+.page-intro-split {
+  justify-content: space-between;
+}
+
+.page-intro-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.page-intro-copy h1 {
+  margin-top: 0.08rem;
+  font-size: 1.42rem;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+.page-intro-copy p {
+  max-width: 42rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.page-intro-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+}
+
+.settings-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+}
+
+.settings-card.danger {
+  background:
+    linear-gradient(180deg, var(--surface-danger-bg-soft) 0%, transparent 100%),
+    var(--panel-bg);
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.settings-card-head h2 {
+  font-size: 1.02rem;
+}
+
+.settings-card-head p {
+  margin-top: 0.24rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.settings-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.settings-card-icon.success {
+  background: var(--surface-success-bg);
+  color: var(--accent-success);
+}
+
+.settings-card-icon.info {
+  background: var(--surface-info-bg);
+  color: var(--accent-cyan);
+}
+
+.settings-card-icon.danger {
+  background: var(--surface-danger-tint);
+  color: var(--accent-danger);
+}
+
+.settings-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.92rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong);
+}
+
+.settings-list-row strong {
+  display: block;
+  font-size: 0.94rem;
+}
+
+.settings-list-row p {
+  margin-top: 0.22rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.settings-danger-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: var(--surface-danger-bg);
+  color: var(--accent-danger);
+}
+
+.settings-danger-copy span {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.section-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.placeholder-stage {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.placeholder-card {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+}
+
+.placeholder-card h2 {
+  font-size: 1rem;
+}
+
+.placeholder-card p {
+  margin-top: 0.28rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}

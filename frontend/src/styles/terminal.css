@@ -1,0 +1,25 @@
+.terminal-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal-panel {
+  height: 100%;
+  display: block;
+  border-radius: 0;
+  background: var(--terminal-bg);
+  box-shadow: none;
+  border: 0;
+}
+
+.terminal-surface {
+  min-height: 0;
+  height: 100%;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--terminal-bg);
+  border-top: 0;
+}
+
+.terminal-surface .xterm {
+  height: 100%;
+}

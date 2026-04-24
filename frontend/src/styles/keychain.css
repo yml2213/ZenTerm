@@ -1,0 +1,345 @@
+.keychain-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.keychain-stage {
+  min-height: 100%;
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 1rem;
+}
+
+.keychain-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.keychain-sections,
+.keychain-toolbar-actions,
+.keychain-empty-actions,
+.keychain-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.keychain-sections {
+  flex-wrap: wrap;
+}
+
+.keychain-section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.62rem 0.82rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.keychain-section-tab small {
+  min-width: 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.keychain-section-tab:hover {
+  background: var(--panel-muted);
+  color: var(--text-primary);
+}
+
+.keychain-section-tab.active {
+  color: var(--accent-secondary);
+  background: var(--surface-info-bg);
+  border-color: var(--surface-info-border);
+}
+
+.keychain-section-tab.active small {
+  color: var(--accent-secondary);
+}
+
+.keychain-toolbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.keychain-workbench {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.keychain-workbench.drawer-open {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+}
+
+.keychain-canvas {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.keychain-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.keychain-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.keychain-list-header h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.keychain-items {
+  display: grid;
+  gap: 0.65rem;
+  overflow: auto;
+}
+
+.keychain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.keychain-item:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgba(2, 8, 18, 0.06);
+}
+
+.keychain-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.keychain-item-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+
+.keychain-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.keychain-item-algorithm {
+  padding: 0.15rem 0.45rem;
+  background: var(--pill-subtle-bg);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.keychain-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.icon-button:hover {
+  background: var(--card-hover);
+  color: var(--text-primary);
+}
+
+.icon-button.danger:hover {
+  background: var(--surface-danger-bg);
+  color: var(--accent-danger);
+  border-color: var(--surface-danger-border-strong);
+}
+
+.keychain-empty-state {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 1rem;
+  padding: clamp(2rem, 6vw, 4rem) 1.5rem;
+  text-align: center;
+}
+
+.keychain-empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  background: var(--surface-neutral-bg);
+}
+
+.keychain-empty-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.keychain-empty-copy strong {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.keychain-empty-copy p {
+  max-width: 36rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.keychain-drawer {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+  box-shadow: -18px 0 36px rgba(2, 8, 18, 0.12);
+}
+
+.keychain-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.keychain-drawer-head h3 {
+  font-size: 1.06rem;
+}
+
+.keychain-drawer-head p {
+  margin-top: 0.28rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.keychain-drawer-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1.05rem 1.1rem;
+  overflow: auto;
+}
+
+.keychain-drawer-body label,
+.keychain-form-block {
+  display: grid;
+  gap: 0.42rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.keychain-form-block span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.keychain-algorithm-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.keychain-algorithm-chip {
+  padding: 0.92rem 0.8rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-bg-strong);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.keychain-algorithm-chip.active {
+  background: var(--surface-info-strong-bg);
+  border-color: var(--surface-info-strong-border);
+  color: var(--accent-secondary);
+}
+
+.keychain-drawer-actions {
+  justify-content: stretch;
+  padding: 1rem 1.1rem 1.1rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.keychain-drawer-actions .ghost-button {
+  flex: 1;
+}
+
+.keychain-drawer-actions .primary-button {
+  flex: 2;
+}
+
+.error-message {
+  padding: 0.75rem 0.85rem;
+  background: var(--surface-danger-bg);
+  border: 1px solid var(--surface-danger-border-strong);
+  border-radius: 6px;
+  color: var(--accent-danger);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.keychain-submit {
+  width: 100%;
+}
