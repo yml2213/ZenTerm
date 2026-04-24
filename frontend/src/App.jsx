@@ -1075,6 +1075,7 @@ export default function App() {
     'app-shell',
     activeWorkspace === 'ssh' ? 'app-shell-tabbed' : '',
     activeWorkspace === 'ssh' ? 'app-shell-ssh' : '',
+    activeWorkspace === 'sftp' ? 'app-shell-sftp' : '',
   ].filter(Boolean).join(' ')
   const pageHeader = activeWorkspace === 'ssh'
     ? {

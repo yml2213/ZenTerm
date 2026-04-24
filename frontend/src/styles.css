@@ -87,23 +87,47 @@
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;
   --sftp-page-bg: var(--content-bg);
-  --sftp-shell-bg:
-    radial-gradient(circle at top center, rgba(124, 174, 218, 0.08) 0%, transparent 28%),
-    linear-gradient(180deg, rgba(251, 252, 254, 1) 0%, rgba(244, 247, 251, 1) 100%);
-  --sftp-banner-bg: rgba(255, 255, 255, 0.78);
+  --sftp-shell-bg: var(--content-bg);
+  --sftp-banner-bg: var(--toolbar-bg);
   --sftp-banner-border: var(--border-subtle);
-  --sftp-pane-bg: rgba(255, 255, 255, 0.5);
-  --sftp-pane-topbar-bg: rgba(248, 250, 253, 0.94);
-  --sftp-pane-toolbar-bg: rgba(252, 253, 255, 0.94);
-  --sftp-pane-footer-bg: rgba(248, 250, 253, 0.96);
-  --sftp-divider: rgba(74, 93, 118, 0.14);
-  --sftp-divider-glow: rgba(255, 255, 255, 0.72);
-  --sftp-source-icon-bg: rgba(24, 149, 194, 0.12);
-  --sftp-control-bg: rgba(255, 255, 255, 0.72);
-  --sftp-control-hover-bg: rgba(255, 255, 255, 0.94);
-  --sftp-table-head-bg: rgba(255, 255, 255, 0.62);
-  --sftp-row-hover-bg: rgba(124, 174, 218, 0.08);
-  --sftp-row-selected-bg: rgba(34, 164, 71, 0.14);
+  --sftp-pane-bg: var(--panel-bg-strong);
+  --sftp-pane-topbar-bg: var(--content-bg);
+  --sftp-pane-topbar-border: var(--border-subtle);
+  --sftp-pane-topbar-shadow: none;
+  --sftp-pane-toolbar-bg: var(--content-bg);
+  --sftp-pane-toolbar-border: var(--border-subtle);
+  --sftp-pane-toolbar-shadow: none;
+  --sftp-pane-footer-bg: var(--panel-bg-strong);
+  --sftp-divider: var(--border-default);
+  --sftp-divider-glow: transparent;
+  --sftp-source-icon-bg: var(--surface-info-bg);
+  --sftp-source-icon-border: var(--surface-info-border);
+  --sftp-control-bg: var(--panel-bg);
+  --sftp-control-hover-bg: var(--panel-muted);
+  --sftp-table-head-bg: var(--sftp-pane-bg);
+  --sftp-table-head-border: var(--border-subtle);
+  --sftp-head-hover-bg: var(--panel-muted);
+  --sftp-head-active-bg: transparent;
+  --sftp-head-outline: var(--border-default);
+  --sftp-head-active-outline: var(--border-strong);
+  --sftp-row-border: var(--border-subtle);
+  --sftp-row-hover-bg: var(--card-bg);
+  --sftp-row-selected-bg: color-mix(in srgb, var(--accent-primary) 84%, white 16%);
+  --sftp-row-selected-edge: var(--accent-primary-hover);
+  --sftp-row-selected-text: var(--text-inverse);
+  --sftp-row-selected-muted: color-mix(in srgb, var(--text-inverse) 78%, transparent);
+  --sftp-icon-file-bg: var(--surface-neutral-bg);
+  --sftp-icon-file-border: var(--border-default);
+  --sftp-icon-dir-bg: var(--surface-info-bg);
+  --sftp-icon-dir-border: var(--surface-info-border);
+  --sftp-selected-icon-bg: color-mix(in srgb, var(--accent-primary-hover) 26%, white 74%);
+  --sftp-selected-icon-border: color-mix(in srgb, var(--accent-primary) 48%, white 52%);
+  --sftp-window-top-bg: var(--toolbar-bg);
+  --sftp-window-top-border: var(--border-subtle);
+  --scrollbar-track: rgba(116, 137, 168, 0.12);
+  --scrollbar-thumb: rgba(101, 129, 168, 0.42);
+  --scrollbar-thumb-hover: rgba(88, 118, 160, 0.58);
+  --scrollbar-thumb-border: rgba(255, 255, 255, 0.78);
 }
 
 [data-theme="dark"] {
@@ -179,23 +203,47 @@
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;
   --sftp-page-bg: var(--terminal-bg);
-  --sftp-shell-bg:
-    radial-gradient(circle at top center, rgba(142, 180, 222, 0.05) 0%, transparent 26%),
-    linear-gradient(180deg, rgba(22, 29, 42, 0.98) 0%, rgba(13, 21, 34, 1) 100%);
-  --sftp-banner-bg: rgba(17, 23, 35, 0.92);
+  --sftp-shell-bg: var(--terminal-bg);
+  --sftp-banner-bg: var(--toolbar-bg);
   --sftp-banner-border: var(--border-subtle);
-  --sftp-pane-bg: rgba(13, 21, 34, 0.42);
-  --sftp-pane-topbar-bg: rgba(22, 29, 42, 0.96);
-  --sftp-pane-toolbar-bg: rgba(17, 23, 35, 0.92);
-  --sftp-pane-footer-bg: rgba(11, 18, 29, 0.92);
+  --sftp-pane-bg: var(--terminal-bg);
+  --sftp-pane-topbar-bg: var(--panel-bg);
+  --sftp-pane-topbar-border: var(--border-subtle);
+  --sftp-pane-topbar-shadow: none;
+  --sftp-pane-toolbar-bg: var(--panel-bg);
+  --sftp-pane-toolbar-border: var(--border-subtle);
+  --sftp-pane-toolbar-shadow: none;
+  --sftp-pane-footer-bg: var(--terminal-bg);
   --sftp-divider: var(--terminal-divider);
-  --sftp-divider-glow: rgba(255, 255, 255, 0.02);
-  --sftp-source-icon-bg: rgba(142, 180, 222, 0.12);
-  --sftp-control-bg: rgba(255, 255, 255, 0.04);
-  --sftp-control-hover-bg: rgba(255, 255, 255, 0.06);
-  --sftp-table-head-bg: rgba(255, 255, 255, 0.02);
-  --sftp-row-hover-bg: rgba(255, 255, 255, 0.035);
-  --sftp-row-selected-bg: rgba(49, 191, 108, 0.14);
+  --sftp-divider-glow: transparent;
+  --sftp-source-icon-bg: var(--surface-info-bg);
+  --sftp-source-icon-border: var(--surface-info-border);
+  --sftp-control-bg: var(--panel-muted);
+  --sftp-control-hover-bg: var(--card-hover);
+  --sftp-table-head-bg: var(--sftp-pane-bg);
+  --sftp-table-head-border: var(--border-subtle);
+  --sftp-head-hover-bg: var(--panel-bg);
+  --sftp-head-active-bg: transparent;
+  --sftp-head-outline: var(--border-default);
+  --sftp-head-active-outline: var(--border-strong);
+  --sftp-row-border: var(--border-subtle);
+  --sftp-row-hover-bg: var(--card-bg);
+  --sftp-row-selected-bg: color-mix(in srgb, var(--accent-primary) 82%, var(--panel-bg-strong) 18%);
+  --sftp-row-selected-edge: color-mix(in srgb, var(--accent-primary) 92%, white 8%);
+  --sftp-row-selected-text: var(--text-inverse);
+  --sftp-row-selected-muted: color-mix(in srgb, var(--text-inverse) 76%, transparent);
+  --sftp-icon-file-bg: var(--surface-neutral-bg);
+  --sftp-icon-file-border: var(--border-default);
+  --sftp-icon-dir-bg: var(--surface-info-bg);
+  --sftp-icon-dir-border: var(--surface-info-border);
+  --sftp-selected-icon-bg: color-mix(in srgb, var(--accent-primary-hover) 24%, var(--panel-bg) 76%);
+  --sftp-selected-icon-border: color-mix(in srgb, var(--accent-primary) 54%, var(--panel-bg) 46%);
+  --sftp-window-top-bg: var(--toolbar-bg);
+  --sftp-window-top-border: var(--border-subtle);
+  --scrollbar-track: rgba(141, 163, 196, 0.08);
+  --scrollbar-thumb: rgba(123, 151, 196, 0.34);
+  --scrollbar-thumb-hover: rgba(142, 174, 224, 0.5);
+  --scrollbar-thumb-border: rgba(13, 21, 34, 0.9);
 }
 
 * {
@@ -218,6 +266,45 @@ body {
   background-image: var(--bg-body-accent);
   background-repeat: no-repeat;
   background-attachment: fixed;
+}
+
+html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-thumb-border);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 button,
@@ -292,8 +379,13 @@ textarea {
   --terminal-bg: #141526;
   --terminal-toolbar-bg: #17182b;
   --terminal-tab-bg: rgba(255, 255, 255, 0.08);
-  --terminal-tab-active-bg: rgba(27, 184, 111, 0.22);
-  --terminal-tab-active-border: rgba(46, 213, 139, 0.22);
+  --terminal-tab-active-bg: linear-gradient(180deg, rgba(53, 64, 93, 0.96) 0%, rgba(41, 51, 76, 0.96) 100%);
+  --terminal-tab-active-border: rgba(158, 180, 220, 0.24);
+  --terminal-tab-active-text: #f4f8ff;
+  --terminal-tab-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(120, 170, 235, 0.34),
+    0 10px 22px rgba(3, 8, 20, 0.34);
   --terminal-border: rgba(180, 190, 225, 0.12);
   --terminal-control: #9aa2b8;
   background: var(--terminal-bg);
@@ -302,8 +394,13 @@ textarea {
 .app-shell-tabbed {
   --terminal-toolbar-bg: #303a54;
   --terminal-tab-bg: rgba(255, 255, 255, 0.08);
-  --terminal-tab-active-bg: rgba(255, 255, 255, 0.11);
-  --terminal-tab-active-border: rgba(255, 255, 255, 0.08);
+  --terminal-tab-active-bg: linear-gradient(180deg, rgba(71, 83, 113, 0.96) 0%, rgba(53, 64, 92, 0.96) 100%);
+  --terminal-tab-active-border: rgba(173, 191, 226, 0.22);
+  --terminal-tab-active-text: #f4f7ff;
+  --terminal-tab-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(122, 166, 232, 0.34),
+    0 10px 22px rgba(7, 12, 24, 0.28);
   --terminal-border: rgba(180, 190, 225, 0.12);
   --terminal-control: #a9b1c6;
 }
@@ -311,6 +408,10 @@ textarea {
 .app-shell-tabbed.app-shell-ssh {
   --terminal-toolbar-bg: #17182b;
   --terminal-control: #9aa2b8;
+}
+
+.app-shell-sftp {
+  background: var(--sftp-page-bg);
 }
 
 .panel,
@@ -344,6 +445,13 @@ textarea {
   border-bottom-color: transparent;
   background: var(--terminal-toolbar-bg);
   color: var(--terminal-control);
+  backdrop-filter: none;
+}
+
+.app-shell-sftp .workspace-strip {
+  border-bottom-color: var(--sftp-window-top-border);
+  background: var(--sftp-window-top-bg);
+  color: var(--text-secondary);
   backdrop-filter: none;
 }
 
@@ -391,18 +499,34 @@ textarea {
 }
 
 .app-shell-tabbed .workspace-module {
-  border-color: transparent;
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(255, 255, 255, 0.03);
   background: var(--terminal-tab-bg);
   color: var(--terminal-control);
-  box-shadow: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(12, 18, 34, 0.08);
   opacity: 0.72;
 }
 
-.app-shell-tabbed .workspace-module:hover,
-.app-shell-tabbed .workspace-module.active {
+.app-shell-tabbed .workspace-module:hover {
   border-color: var(--terminal-border);
   background: var(--terminal-tab-hover-bg);
   color: var(--terminal-tab-hover-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(6, 10, 20, 0.16);
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.app-shell-tabbed .workspace-module.active {
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+  color: var(--terminal-tab-active-text);
+  box-shadow: var(--terminal-tab-active-shadow);
+  transform: translateY(-1px);
   opacity: 1;
 }
 
@@ -420,8 +544,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.42rem;
-  --wails-draggable: no-drag;
-  -webkit-app-region: no-drag;
+  --wails-draggable: drag;
+  -webkit-app-region: drag;
 }
 
 .workspace-tab-strip.has-tabs::before {
@@ -445,6 +569,8 @@ textarea {
   border-radius: 10px;
   color: var(--text-secondary);
   transition: all 0.18s ease;
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 .app-shell-tabbed .workspace-new-tab-btn {
@@ -2488,6 +2614,7 @@ textarea {
 }
 
 .sftp-browser {
+  grid-row: 2;
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2513,22 +2640,26 @@ textarea {
 .sftp-pane-topbar,
 .sftp-pane-toolbar,
 .sftp-pane-footer {
-  padding: 0.8rem 1.1rem;
+  padding: 0.78rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .sftp-pane-topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  min-height: 54px;
+  gap: 0.9rem;
+  min-height: 52px;
   background: var(--sftp-pane-topbar-bg);
+  border-bottom-color: transparent;
+  box-shadow: var(--sftp-pane-topbar-shadow);
 }
 
 .sftp-pane-toolbar {
-  min-height: 40px;
+  min-height: 44px;
   background: var(--sftp-pane-toolbar-bg);
+  border-bottom-color: var(--sftp-pane-toolbar-border);
+  box-shadow: var(--sftp-pane-toolbar-shadow);
 }
 
 .sftp-pane-topbar-main,
@@ -2540,43 +2671,52 @@ textarea {
 }
 
 .sftp-pane-topbar-main {
-  gap: 0.9rem;
+  gap: 0.8rem;
   min-width: 0;
 }
 
 .sftp-pane-topbar-actions {
-  gap: 0.55rem;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
+  gap: 0.45rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  overflow: auto hidden;
+  scrollbar-width: none;
+}
+
+.sftp-pane-topbar-actions::-webkit-scrollbar {
+  display: none;
 }
 
 .sftp-pane-source {
   min-width: 0;
-  gap: 0.78rem;
+  gap: 0.72rem;
 }
 
 .sftp-pane-source-icon {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 11px;
+  border-radius: 9px;
   flex: 0 0 auto;
   background: var(--sftp-source-icon-bg);
+  border: 1px solid var(--sftp-source-icon-border);
   color: var(--accent-cyan);
 }
 
 .sftp-pane-source-copy {
   min-width: 0;
   display: grid;
-  gap: 0.16rem;
+  gap: 0.12rem;
 }
 
 .sftp-pane-source-copy strong {
   color: var(--text-primary);
-  font-size: 1.02rem;
+  font-size: 0.98rem;
+  font-weight: 640;
   line-height: 1.1;
 }
 
@@ -2584,21 +2724,32 @@ textarea {
 .sftp-pane-host-meta,
 .sftp-toolbar-hint {
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .sftp-pane-host-meta {
   min-width: 0;
   max-width: 18rem;
+  padding: 0.26rem 0.56rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--sftp-control-bg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sftp-pane-refresh {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.sftp-pane-refresh:hover {
+  border-color: var(--border-default);
   background: var(--sftp-control-bg);
 }
 
@@ -2607,46 +2758,50 @@ textarea {
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  padding: 0.2rem 0.24rem 0.2rem 0.62rem;
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  background: var(--sftp-control-bg);
+  min-height: 32px;
+  padding: 0.14rem 0.24rem 0.14rem 0.56rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
 }
 
 .sftp-host-switcher span {
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .sftp-host-switcher select {
   min-width: min(17rem, 42vw);
   max-width: 20rem;
-  padding: 0.36rem 1.8rem 0.36rem 0.1rem;
+  padding: 0.3rem 1.7rem 0.3rem 0.08rem;
   border: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   outline: none;
   cursor: pointer;
 }
 
+.sftp-host-switcher:focus-within,
 .sftp-host-switcher:hover {
-  border-color: var(--border-hover);
-  background: var(--sftp-control-hover-bg);
+  border-color: var(--border-default);
+  background: var(--sftp-control-bg);
 }
 
 .sftp-pane-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 0.9rem;
 }
 
 .sftp-breadcrumb-scroll {
   min-width: 0;
+  width: 100%;
   overflow: auto hidden;
   scrollbar-width: none;
 }
@@ -2667,8 +2822,10 @@ textarea {
   align-items: center;
   gap: 0.38rem;
   max-width: 14rem;
-  padding: 0.2rem 0.08rem;
+  padding: 0.24rem 0.42rem;
+  border-radius: 9px;
   color: var(--text-secondary);
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .sftp-breadcrumb-link span {
@@ -2677,9 +2834,15 @@ textarea {
   white-space: nowrap;
 }
 
+.sftp-breadcrumb-link:hover {
+  color: var(--text-primary);
+  background: var(--sftp-control-bg);
+}
+
 .sftp-breadcrumb-link.active {
   color: var(--text-primary);
   font-weight: 700;
+  background: var(--sftp-control-bg);
 }
 
 .sftp-toolbar-actions {
@@ -2691,6 +2854,9 @@ textarea {
 .sftp-selection-pill {
   max-width: min(20rem, 100%);
   gap: 0.35rem;
+  padding: 0.26rem 0.58rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--sftp-control-bg);
 }
 
 .sftp-selection-pill strong {
@@ -2701,21 +2867,64 @@ textarea {
 }
 
 .sftp-toolbar-actions .ghost-button {
-  min-height: 36px;
-  padding: 0.52rem 0.72rem;
-  font-size: 0.8rem;
+  min-height: 32px;
+  padding: 0.42rem 0.68rem;
+  font-size: 0.78rem;
+  border-radius: 10px;
+  border-color: transparent;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.sftp-toolbar-actions .ghost-button:hover:not(:disabled) {
+  border-color: var(--border-default);
   background: var(--sftp-control-bg);
+  color: var(--text-primary);
 }
 
 .sftp-toolbar-actions .ghost-button.danger-outline {
   color: var(--accent-danger);
-  border-color: var(--surface-danger-border);
-  background: var(--surface-danger-bg-soft);
+  border-color: transparent;
+  background: transparent;
 }
 
 .sftp-toolbar-actions .ghost-button.danger-outline:hover:not(:disabled) {
-  background: var(--surface-danger-bg);
-  border-color: var(--surface-danger-border-strong);
+  background: var(--surface-danger-bg-soft);
+  border-color: var(--surface-danger-border);
+}
+
+.sftp-pane-topbar-actions > .ghost-button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0.42rem 0.68rem;
+  font-size: 0.78rem;
+  border-radius: 10px;
+  border-color: transparent;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.sftp-pane-topbar-actions > .pill,
+.sftp-pane-topbar-actions > .icon-button,
+.sftp-pane-topbar-actions > .sftp-host-switcher {
+  flex: 0 0 auto;
+}
+
+.sftp-pane-topbar-actions > .ghost-button:hover:not(:disabled) {
+  border-color: var(--border-default);
+  background: var(--sftp-control-bg);
+  color: var(--text-primary);
+}
+
+.sftp-pane-topbar-actions > .ghost-button.danger-outline {
+  color: var(--accent-danger);
+  border-color: transparent;
+  background: transparent;
+}
+
+.sftp-pane-topbar-actions > .ghost-button.danger-outline:hover:not(:disabled) {
+  background: var(--surface-danger-bg-soft);
+  border-color: var(--surface-danger-border);
 }
 
 .sftp-file-table {
@@ -2724,60 +2933,80 @@ textarea {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+  background: var(--sftp-pane-bg);
 }
 
 .sftp-file-head,
 .sftp-file-row {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(136px, 0.9fr) minmax(92px, 0.42fr) minmax(88px, 0.4fr);
-  gap: 0.9rem;
+  gap: 0.8rem;
   align-items: center;
-  padding: 0.8rem 1rem;
+  padding: 0.58rem 0.9rem;
 }
 
 .sftp-file-head.has-selection,
 .sftp-file-row.has-selection {
   display: grid;
   grid-template-columns: 34px minmax(0, 1.8fr) minmax(136px, 0.9fr) minmax(92px, 0.42fr) minmax(88px, 0.4fr);
-  gap: 0.9rem;
+  gap: 0.8rem;
   align-items: center;
-  padding: 0.8rem 1rem;
+  padding: 0.58rem 0.9rem;
 }
 
 .sftp-file-head {
+  position: relative;
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid var(--border-subtle);
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--sftp-table-head-border);
   background: var(--sftp-table-head-bg);
+  padding: 0;
+}
+
+.sftp-file-head.has-selection {
+  padding: 0;
 }
 
 .sftp-head-sort {
   width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  padding: 0.18rem 0.22rem;
-  border-radius: 9px;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-height: 24px;
+  padding: 0.08rem 0;
+  border: 0;
+  border-radius: 0;
   color: inherit;
   font-weight: inherit;
   letter-spacing: inherit;
-  transition: background 160ms ease, color 160ms ease;
+  transition: color 160ms ease, opacity 160ms ease;
+  padding: 0.58rem 0.9rem;
+  align-self: stretch;
+}
+
+.sftp-file-head > .sftp-head-sort:not(.sftp-col-name) {
+  border-left: 1px solid var(--sftp-table-head-border);
+}
+
+.sftp-file-head.has-selection > .sftp-head-sort.sftp-col-name {
+  border-left: 1px solid var(--sftp-table-head-border);
 }
 
 .sftp-head-sort:hover {
-  background: var(--panel-muted);
+  background: transparent;
   color: var(--text-primary);
 }
 
 .sftp-head-sort.active {
   color: var(--text-primary);
-  background: var(--panel-muted);
+  background: transparent;
 }
 
 .sftp-sort-indicator {
-  opacity: 0.5;
+  opacity: 0.72;
   transition: transform 150ms ease, opacity 150ms ease;
 }
 
@@ -2796,6 +3025,9 @@ textarea {
   flex-direction: column;
   overflow: auto;
   overscroll-behavior: contain;
+  background: var(--sftp-pane-bg);
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-gutter: stable;
 }
 
 .sftp-file-body::after {
@@ -2827,10 +3059,11 @@ textarea {
 .sftp-file-row {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 0;
   width: 100%;
   text-align: left;
   cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .sftp-file-row:hover {
@@ -2839,7 +3072,18 @@ textarea {
 
 .sftp-file-row.selected {
   background: var(--sftp-row-selected-bg);
-  box-shadow: inset 3px 0 0 var(--accent-success);
+  box-shadow: inset 2px 0 0 var(--sftp-row-selected-edge);
+}
+
+.sftp-file-row.selected .sftp-file-name strong,
+.sftp-file-row.selected .sftp-col-time,
+.sftp-file-row.selected .sftp-col-size,
+.sftp-file-row.selected .sftp-col-type {
+  color: var(--sftp-row-selected-text);
+}
+
+.sftp-file-row.selected .sftp-file-copy small {
+  color: var(--sftp-row-selected-muted);
 }
 
 .sftp-file-row.focused {
@@ -2867,23 +3111,30 @@ textarea {
   text-overflow: ellipsis;
 }
 
+.sftp-file-row .sftp-col-time,
+.sftp-file-row .sftp-col-size,
+.sftp-file-row .sftp-col-type {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
 .sftp-file-name {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.62rem;
   min-width: 0;
 }
 
 .sftp-file-copy {
   min-width: 0;
   display: grid;
-  gap: 0.08rem;
+  gap: 0.04rem;
 }
 
 .sftp-file-name strong {
   color: var(--text-primary);
-  font-size: 0.96rem;
-  font-weight: 650;
+  font-size: 0.9rem;
+  font-weight: 640;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2891,32 +3142,42 @@ textarea {
 
 .sftp-file-copy small {
   color: var(--text-tertiary);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sftp-file-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--accent-secondary);
-  background: var(--surface-info-bg);
+  background: var(--sftp-icon-dir-bg);
+  border: 1px solid var(--sftp-icon-dir-border);
   flex: 0 0 auto;
+}
+
+.sftp-file-row.selected .sftp-file-icon {
+  border-color: var(--sftp-selected-icon-border);
+  background: var(--sftp-selected-icon-bg);
+  color: var(--sftp-row-selected-text);
 }
 
 .sftp-file-icon.is-file {
   color: var(--accent-cyan);
-  background: var(--surface-neutral-bg);
+  background: var(--sftp-icon-file-bg);
+  border-color: var(--sftp-icon-file-border);
 }
 
 .sftp-file-icon.is-dir {
   color: var(--accent-secondary);
-  background: var(--surface-info-bg);
+  background: var(--sftp-icon-dir-bg);
+  border-color: var(--sftp-icon-dir-border);
 }
 
 .sftp-select-all,
@@ -2966,13 +3227,13 @@ textarea {
 
 .sftp-pane-footer {
   border-bottom: 0;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--sftp-pane-toolbar-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   background: var(--sftp-pane-footer-bg);
 }
 

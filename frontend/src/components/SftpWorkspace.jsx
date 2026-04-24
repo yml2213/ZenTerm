@@ -167,6 +167,14 @@ function getEntryKindLabel(entry) {
   return '文件'
 }
 
+function getEntryPermissionLabel(entry) {
+  if (entry?.parent) {
+    return '双击返回上级目录'
+  }
+
+  return entry?.mode || getEntryTypeLabel(entry)
+}
+
 function isTransferConflictError(error) {
   const message = error?.message || String(error || '')
   return message === 'transfer target already exists'
@@ -412,7 +420,9 @@ function SortButton({ columnKey, label, sort, onSortChange, className = '' }) {
       onClick={() => onSortChange(columnKey)}
     >
       <span>{label}</span>
-      <ChevronDown size={13} className={`sftp-sort-indicator${isActive && sort.direction === 'desc' ? ' desc' : ''}`} />
+      {isActive ? (
+        <ChevronDown size={13} className={`sftp-sort-indicator${sort.direction === 'desc' ? ' desc' : ''}`} />
+      ) : null}
     </button>
   )
 }
@@ -664,47 +674,15 @@ function FilePane({
   const transferActionLabel = !transferLabel
     ? null
     : selectedTransferableEntries.length > 1
+      ? `${transferLabel.includes('上传') ? '上传所选' : '下载所选'}`
+      : transferLabel.includes('上传')
+        ? '上传'
+        : '下载'
+  const transferActionAriaLabel = !transferLabel
+    ? null
+    : selectedTransferableEntries.length > 1
       ? `${transferLabel.includes('上传') ? '上传所选' : '下载所选'} (${selectedTransferableEntries.length})`
       : transferLabel
-
-  function renderSelectionSummary() {
-    if (selectedEntries.length === 0) {
-      return <span className="sftp-toolbar-hint">按 Ctrl/Cmd 点击多选，Shift 连续选择</span>
-    }
-
-    if (selectedEntries.length === 1 && selectedTransferableEntries.length === 1) {
-      return (
-        <span className="pill subtle sftp-selection-pill" title={selectedTransferableEntries[0].name}>
-          已选文件
-          <strong>{selectedTransferableEntries[0].name}</strong>
-        </span>
-      )
-    }
-
-    if (selectedTransferableEntries.length === 0) {
-      return (
-        <span className="pill subtle sftp-selection-pill">
-          已选 {selectedEntries.length} 项
-          <strong>目录不可直接传输</strong>
-        </span>
-      )
-    }
-
-    if (selectedTransferableEntries.length === selectedEntries.length) {
-      return (
-        <span className="pill subtle sftp-selection-pill">
-          已选 {selectedTransferableEntries.length} 个文件
-        </span>
-      )
-    }
-
-    return (
-      <span className="pill subtle sftp-selection-pill">
-        已选 {selectedEntries.length} 项
-        <strong>{selectedTransferableEntries.length} 个文件可传输</strong>
-      </span>
-    )
-  }
 
   function handleRowClick(event, entry) {
     if (entry.parent) {
@@ -750,44 +728,11 @@ function FilePane({
         <div className="sftp-pane-topbar-actions">
           {headerActions}
 
-          {loading ? (
-            <span className="pill subtle">
-              <LoaderCircle size={13} className="spin" />
-              加载中
+          {selectedEntries.length > 0 ? (
+            <span className="visually-hidden">
+              {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
             </span>
           ) : null}
-
-          <button
-            type="button"
-            className="icon-button sftp-pane-refresh"
-            aria-label={`刷新 ${sourceLabel}`}
-            title={`刷新 ${sourceLabel}`}
-            onClick={onRefresh}
-          >
-            <RefreshCw size={15} />
-          </button>
-        </div>
-      </header>
-
-      <div className="sftp-pane-toolbar">
-        <div className="sftp-breadcrumb-scroll">
-          <nav className="sftp-breadcrumb" aria-label={`${sourceLabel} 路径`}>
-            {breadcrumbItems.map((item, index) => (
-              <button
-                key={`${item.path}-${index}`}
-                type="button"
-                className={`sftp-breadcrumb-link${index === breadcrumbItems.length - 1 ? ' active' : ''}`}
-                onClick={() => onNavigate(item.path)}
-              >
-                {index === 0 && item.label === '/' ? <Home size={14} /> : <span>{item.label}</span>}
-                {index < breadcrumbItems.length - 1 ? <ChevronRight size={14} /> : null}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="sftp-toolbar-actions">
-          {renderSelectionSummary()}
 
           {selectedEntries.length > 1 ? (
             <button type="button" className="ghost-button" onClick={onClearSelection}>
@@ -826,6 +771,7 @@ function FilePane({
             <button
               type="button"
               className="ghost-button"
+              aria-label={transferActionAriaLabel}
               disabled={transferDisabled}
               onClick={onTransfer}
             >
@@ -833,6 +779,41 @@ function FilePane({
               {transferActionLabel}
             </button>
           ) : null}
+
+          {loading ? (
+            <span className="pill subtle">
+              <LoaderCircle size={13} className="spin" />
+              加载中
+            </span>
+          ) : null}
+
+          <button
+            type="button"
+            className="icon-button sftp-pane-refresh"
+            aria-label={`刷新 ${sourceLabel}`}
+            title={`刷新 ${sourceLabel}`}
+            onClick={onRefresh}
+          >
+            <RefreshCw size={15} />
+          </button>
+        </div>
+      </header>
+
+      <div className="sftp-pane-toolbar">
+        <div className="sftp-breadcrumb-scroll">
+          <nav className="sftp-breadcrumb" aria-label={`${sourceLabel} 路径`}>
+            {breadcrumbItems.map((item, index) => (
+              <button
+                key={`${item.path}-${index}`}
+                type="button"
+                className={`sftp-breadcrumb-link${index === breadcrumbItems.length - 1 ? ' active' : ''}`}
+                onClick={() => onNavigate(item.path)}
+              >
+                {index === 0 && item.label === '/' ? <Home size={14} /> : <span>{item.label}</span>}
+                {index < breadcrumbItems.length - 1 ? <ChevronRight size={14} /> : null}
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
 
@@ -946,7 +927,7 @@ function FilePane({
                   </span>
                   <div className="sftp-file-copy">
                     <strong>{entry.name}</strong>
-                    <small>{entry.parent ? '双击返回上级目录' : getEntryTypeLabel(entry)}</small>
+                    <small title={getEntryPermissionLabel(entry)}>{getEntryPermissionLabel(entry)}</small>
                   </div>
                 </div>
                 <span className="sftp-col-time" title={entry.modTime || '--'}>{formatTime(entry.modTime)}</span>
