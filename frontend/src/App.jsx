@@ -153,7 +153,7 @@ function createNewWorkspaceTab(index) {
   return {
     tabId: `new-tab-${index}`,
     type: 'new',
-    title: 'New Tab',
+    title: '新标签页',
   }
 }
 
@@ -1017,7 +1017,7 @@ export default function App() {
           onClick={cycleTheme}
           aria-label="切换主题"
         >
-          <ThemeIcon size={16} />
+          <ThemeIcon size={15} />
         </button>
       </section>
 

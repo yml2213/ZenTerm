@@ -318,7 +318,7 @@ describe('App', () => {
     renderApp()
 
     await continueWithMasterPassword(user)
-    expect(screen.queryByRole('button', { name: 'New Tab' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '新标签页' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '新增标签页' }))
 
@@ -339,10 +339,10 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: '新增标签页' }))
 
-    expect(await screen.findByRole('button', { name: 'New Tab' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '关闭 New Tab' }))
+    expect(await screen.findByRole('button', { name: '新标签页' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '关闭 新标签页' }))
 
-    expect(screen.queryByRole('button', { name: 'New Tab' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '新标签页' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '新增标签页' })).toBeInTheDocument()
     expect(await screen.findByText('全部主机')).toBeInTheDocument()
   })

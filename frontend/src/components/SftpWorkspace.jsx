@@ -117,6 +117,7 @@ function pickTransferableEntry(listing, selectedPath) {
 }
 
 function FilePane({
+  className = '',
   sourceLabel,
   sourceIcon: SourceIcon,
   listing,
@@ -134,9 +135,10 @@ function FilePane({
 }) {
   const rows = buildRows(listing)
   const selectedEntry = pickTransferableEntry(listing, selectedPath)
+  const paneClassName = ['sftp-pane', className].filter(Boolean).join(' ')
 
   return (
-    <section className="sftp-pane">
+    <section className={paneClassName}>
       <header className="sftp-pane-topbar">
         <button type="button" className="sftp-source-tab active">
           <SourceIcon size={14} />
@@ -401,6 +403,7 @@ export default function SftpWorkspace({
       ) : null}
       <div className="sftp-browser">
         <FilePane
+          className="sftp-pane-local"
           sourceLabel="Local"
           sourceIcon={MonitorSmartphone}
           listing={localListing}
@@ -419,6 +422,7 @@ export default function SftpWorkspace({
         {selectedHost ? (
           vaultUnlocked ? (
             <FilePane
+              className="sftp-pane-remote"
               sourceLabel="Remote"
               sourceIcon={Server}
               listing={remoteListing}

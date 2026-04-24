@@ -267,18 +267,24 @@ textarea {
   cursor: pointer;
   transition: all 0.18s ease;
   box-shadow: var(--shadow-sm);
+  opacity: 0.76;
 }
 
 .workspace-module:hover {
   background: var(--panel-bg-strong);
   border-color: var(--border-hover);
   transform: translateY(-1px);
+  opacity: 1;
 }
 
 .workspace-module.active {
   color: var(--text-primary);
-  background: var(--panel-bg-strong);
+  background: var(--card-active);
   border-color: var(--border-strong);
+  opacity: 1;
+  box-shadow:
+    inset 0 -2px 0 var(--accent-secondary),
+    var(--shadow-sm);
 }
 
 .app-shell-tabbed .workspace-module {
@@ -286,6 +292,7 @@ textarea {
   background: var(--terminal-tab-bg);
   color: var(--terminal-control);
   box-shadow: none;
+  opacity: 0.72;
 }
 
 .app-shell-tabbed .workspace-module:hover,
@@ -293,6 +300,7 @@ textarea {
   border-color: var(--terminal-border);
   background: rgba(255, 255, 255, 0.1);
   color: #d3dbef;
+  opacity: 1;
 }
 
 .workspace-tabs {
@@ -349,16 +357,16 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
   border: 1px solid var(--border-default);
   background: var(--panel-muted);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.18s ease;
   justify-self: end;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 6px 14px rgba(21, 31, 44, 0.05);
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
@@ -433,12 +441,16 @@ textarea {
   border-radius: 11px;
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
+  opacity: 0.78;
 }
 
 .session-tab.active {
   background: var(--card-active);
   border-color: var(--border-strong);
-  box-shadow: 0 8px 18px rgba(79, 116, 160, 0.12);
+  opacity: 1;
+  box-shadow:
+    inset 0 -2px 0 var(--accent-secondary),
+    0 8px 18px rgba(79, 116, 160, 0.12);
 }
 
 .app-shell-tabbed .session-tab {
@@ -446,12 +458,14 @@ textarea {
   background: var(--terminal-tab-bg);
   color: var(--terminal-control);
   box-shadow: none;
+  opacity: 0.72;
 }
 
 .app-shell-tabbed .session-tab.active {
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
   box-shadow: none;
+  opacity: 1;
 }
 
 .app-shell-ssh .session-tab.ssh-tab.active {
@@ -675,8 +689,8 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
-  min-height: 126px;
+  padding: 0.85rem 1.25rem;
+  min-height: 92px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--toolbar-bg);
 }
@@ -701,7 +715,7 @@ textarea {
 
 .page-toolbar-actions.hosts {
   display: grid;
-  grid-template-columns: minmax(220px, 248px) auto;
+  grid-template-columns: minmax(240px, 320px) auto;
   align-items: center;
   justify-content: end;
 }
@@ -829,6 +843,7 @@ textarea {
 
 .content-area {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 1.15rem 1.25rem 1.25rem;
@@ -1038,19 +1053,13 @@ textarea {
   padding: 0;
 }
 
-.ssh-page .content-area-terminal,
-.sftp-page .content-area-flush {
-  background-image:
-    linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px),
-    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 34%);
-  background-size: 76px 76px, 76px 76px, auto;
-  background-position: center center, center center, center top;
-}
-
 .ssh-page .content-area-terminal {
   background-color: var(--terminal-bg);
   background-image: none;
+}
+
+.sftp-page .content-area-flush {
+  overflow: hidden;
 }
 
 .hosts-stage-grid {
@@ -1090,22 +1099,22 @@ textarea {
 
 .page-intro-copy {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
 .page-intro-copy h1 {
-  margin-top: 0.18rem;
-  font-size: 1.7rem;
+  margin-top: 0.08rem;
+  font-size: 1.42rem;
   line-height: 1.06;
   letter-spacing: -0.02em;
 }
 
 .page-intro-copy p {
-  max-width: 44rem;
+  max-width: 42rem;
   color: var(--text-secondary);
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 0.88rem;
+  line-height: 1.42;
 }
 
 .page-intro-side {
@@ -2034,7 +2043,9 @@ textarea {
 .sftp-shell {
   flex: 1;
   min-height: 0;
-  background: var(--content-bg);
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
 }
@@ -2044,15 +2055,19 @@ textarea {
 }
 
 .sftp-browser {
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(520px, 1.15fr) minmax(360px, 1fr);
   height: 100%;
+  overflow: hidden;
 }
 
 .sftp-pane {
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0) 100%);
 }
 
@@ -2152,9 +2167,11 @@ textarea {
 }
 
 .sftp-file-table {
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .sftp-file-head,
@@ -2176,6 +2193,7 @@ textarea {
 
 .sftp-file-body {
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .sftp-file-row {
