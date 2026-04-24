@@ -1,4 +1,6 @@
 import {
+  ArrowDownToLine,
+  ArrowUpToLine,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -10,7 +12,7 @@ import {
   Server,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { listLocalFiles, listRemoteFiles } from '../lib/backend.js'
+import { downloadFile, listLocalFiles, listRemoteFiles, uploadFile } from '../lib/backend.js'
 
 function splitLocalPath(path) {
   const normalized = path || ''
@@ -106,6 +108,14 @@ function buildRows(listing) {
   ]
 }
 
+function pickTransferableEntry(listing, selectedPath) {
+  if (!selectedPath) {
+    return null
+  }
+
+  return (listing?.entries || []).find((entry) => entry.path === selectedPath && !entry.isDir) || null
+}
+
 function FilePane({
   sourceLabel,
   sourceIcon: SourceIcon,
@@ -115,8 +125,15 @@ function FilePane({
   onNavigate,
   onRefresh,
   breadcrumbItems,
+  selectedPath,
+  onSelectPath,
+  transferLabel,
+  transferBusy,
+  transferDisabled,
+  onTransfer,
 }) {
   const rows = buildRows(listing)
+  const selectedEntry = pickTransferableEntry(listing, selectedPath)
 
   return (
     <section className="sftp-pane">
@@ -161,6 +178,20 @@ function FilePane({
               加载中
             </span>
           ) : null}
+          {selectedEntry ? (
+            <span className="pill subtle">已选 {selectedEntry.name}</span>
+          ) : null}
+          {transferLabel ? (
+            <button
+              type="button"
+              className="ghost-button"
+              disabled={transferDisabled}
+              onClick={onTransfer}
+            >
+              {transferBusy ? <LoaderCircle size={14} className="spin" /> : null}
+              {transferLabel}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -177,9 +208,15 @@ function FilePane({
             <button
               key={`${entry.path}-${entry.name}`}
               type="button"
-              className={`sftp-file-row${entry.parent ? ' is-parent' : ''}`}
-              onClick={() => entry.isDir && onNavigate(entry.path)}
-              disabled={!entry.isDir}
+              className={`sftp-file-row${entry.parent ? ' is-parent' : ''}${selectedPath === entry.path ? ' selected' : ''}`}
+              onClick={() => {
+                if (entry.isDir) {
+                  onNavigate(entry.path)
+                  return
+                }
+
+                onSelectPath((current) => current === entry.path ? null : entry.path)
+              }}
             >
               <div className="sftp-file-name">
                 <span className="sftp-file-icon">
@@ -216,6 +253,10 @@ export default function SftpWorkspace({
   const [remoteListing, setRemoteListing] = useState(null)
   const [localLoading, setLocalLoading] = useState(false)
   const [remoteLoading, setRemoteLoading] = useState(false)
+  const [selectedLocalPath, setSelectedLocalPath] = useState(null)
+  const [selectedRemotePath, setSelectedRemotePath] = useState(null)
+  const [transferBusy, setTransferBusy] = useState(null)
+  const [transferMessage, setTransferMessage] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -225,6 +266,7 @@ export default function SftpWorkspace({
       .then((listing) => {
         if (!cancelled) {
           setLocalListing(listing)
+          setSelectedLocalPath(null)
         }
       })
       .catch((error) => {
@@ -249,6 +291,7 @@ export default function SftpWorkspace({
     if (!selectedHost || !vaultUnlocked) {
       setRemoteListing(null)
       setRemoteLoading(false)
+      setSelectedRemotePath(null)
       return () => {
         cancelled = true
       }
@@ -259,6 +302,7 @@ export default function SftpWorkspace({
       .then((listing) => {
         if (!cancelled) {
           setRemoteListing(listing)
+          setSelectedRemotePath(null)
         }
       })
       .catch((error) => {
@@ -282,6 +326,7 @@ export default function SftpWorkspace({
     try {
       const listing = await listLocalFiles(path)
       setLocalListing(listing)
+      setSelectedLocalPath(null)
     } catch (error) {
       onError(error?.message || String(error))
     } finally {
@@ -298,6 +343,7 @@ export default function SftpWorkspace({
     try {
       const listing = await listRemoteFiles(selectedHost.id, path)
       setRemoteListing(listing)
+      setSelectedRemotePath(null)
     } catch (error) {
       onError(error?.message || String(error))
     } finally {
@@ -305,8 +351,54 @@ export default function SftpWorkspace({
     }
   }
 
+  async function handleUpload() {
+    if (!selectedHost || !selectedLocalPath || !remoteListing?.path) {
+      return
+    }
+
+    setTransferBusy('upload')
+    setTransferMessage('')
+    try {
+      const result = await uploadFile(selectedHost.id, selectedLocalPath, remoteListing.path)
+      setTransferMessage(`已上传 ${result.sourcePath.split('/').at(-1)} -> ${result.targetPath}`)
+      await handleRemoteNavigate(remoteListing.path)
+      setSelectedLocalPath(null)
+    } catch (error) {
+      onError(error?.message || String(error))
+    } finally {
+      setTransferBusy(null)
+    }
+  }
+
+  async function handleDownload() {
+    if (!selectedHost || !selectedRemotePath || !localListing?.path) {
+      return
+    }
+
+    setTransferBusy('download')
+    setTransferMessage('')
+    try {
+      const result = await downloadFile(selectedHost.id, selectedRemotePath, localListing.path)
+      setTransferMessage(`已下载 ${result.sourcePath.split('/').at(-1)} -> ${result.targetPath}`)
+      await handleLocalNavigate(localListing.path)
+      setSelectedRemotePath(null)
+    } catch (error) {
+      onError(error?.message || String(error))
+    } finally {
+      setTransferBusy(null)
+    }
+  }
+
+  const selectedLocalEntry = pickTransferableEntry(localListing, selectedLocalPath)
+  const selectedRemoteEntry = pickTransferableEntry(remoteListing, selectedRemotePath)
+
   return (
     <section className="sftp-shell" aria-label="SFTP 工作区">
+      {transferMessage ? (
+        <div className="sftp-transfer-banner">
+          <span className="pill success">{transferMessage}</span>
+        </div>
+      ) : null}
       <div className="sftp-browser">
         <FilePane
           sourceLabel="Local"
@@ -316,6 +408,12 @@ export default function SftpWorkspace({
           onNavigate={handleLocalNavigate}
           onRefresh={() => handleLocalNavigate(localListing?.path || '')}
           breadcrumbItems={splitLocalPath(localListing?.path || '')}
+          selectedPath={selectedLocalPath}
+          onSelectPath={setSelectedLocalPath}
+          transferLabel={selectedHost ? '上传到远端' : null}
+          transferBusy={transferBusy === 'upload'}
+          transferDisabled={!selectedLocalEntry || !selectedHost || !vaultUnlocked || transferBusy !== null}
+          onTransfer={handleUpload}
         />
 
         {selectedHost ? (
@@ -329,6 +427,12 @@ export default function SftpWorkspace({
               onNavigate={handleRemoteNavigate}
               onRefresh={() => handleRemoteNavigate(remoteListing?.path || '')}
               breadcrumbItems={splitRemotePath(remoteListing?.path || '/')}
+              selectedPath={selectedRemotePath}
+              onSelectPath={setSelectedRemotePath}
+              transferLabel="下载到本地"
+              transferBusy={transferBusy === 'download'}
+              transferDisabled={!selectedRemoteEntry || !localListing?.path || transferBusy !== null}
+              onTransfer={handleDownload}
             />
           ) : (
             <section className="sftp-pane sftp-pane-remote">

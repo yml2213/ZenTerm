@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -175,6 +176,10 @@ func TestResetVaultClearsInitializationAndHosts(t *testing.T) {
 		t.Fatalf("AddHost() error = %v", err)
 	}
 
+	if _, err := svc.GenerateCredential("reset-cred", "ed25519", 0, ""); err != nil {
+		t.Fatalf("GenerateCredential() error = %v", err)
+	}
+
 	if err := svc.ResetVault(); err != nil {
 		t.Fatalf("ResetVault() error = %v", err)
 	}
@@ -193,6 +198,14 @@ func TestResetVaultClearsInitializationAndHosts(t *testing.T) {
 	}
 	if len(hosts) != 0 {
 		t.Fatalf("len(GetHosts()) = %d, want 0", len(hosts))
+	}
+
+	creds, err := svc.GetCredentials()
+	if err != nil {
+		t.Fatalf("GetCredentials() error = %v", err)
+	}
+	if len(creds) != 0 {
+		t.Fatalf("len(GetCredentials()) = %d, want 0", len(creds))
 	}
 }
 
@@ -807,6 +820,190 @@ func TestListRemoteFilesReturnsResolvedDirectory(t *testing.T) {
 	}
 }
 
+func TestListRemoteFilesReusesSSHDialPerHost(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-reuse", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{".": "/home/zen", "/srv": "/srv"},
+			dirs: map[string][]os.FileInfo{
+				"/srv": {
+					stubFileInfo{name: "logs", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+				},
+			},
+			stats: map[string]os.FileInfo{
+				"/srv": stubFileInfo{name: "srv", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+			},
+		},
+	}
+	dialer := &stubDialer{client: client}
+
+	svc, err := newWithDialer(store, vault, dialer)
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	if _, err := svc.ListRemoteFiles(host.ID, "/srv"); err != nil {
+		t.Fatalf("ListRemoteFiles() first call error = %v", err)
+	}
+	if _, err := svc.ListRemoteFiles(host.ID, "/srv"); err != nil {
+		t.Fatalf("ListRemoteFiles() second call error = %v", err)
+	}
+
+	if dialer.hits != 1 {
+		t.Fatalf("dialer.hits = %d, want 1", dialer.hits)
+	}
+	if client.newSFTPHits != 2 {
+		t.Fatalf("client.newSFTPHits = %d, want 2", client.newSFTPHits)
+	}
+
+	if err := svc.CloseAll(); err != nil {
+		t.Fatalf("CloseAll() error = %v", err)
+	}
+	if !client.closed {
+		t.Fatal("CloseAll() did not close reusable sftp ssh client")
+	}
+}
+
+func TestUploadFileCopiesLocalFileToRemoteDirectory(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-upload", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	localPath := filepath.Join(dir, "notes.txt")
+	content := []byte("hello upload")
+	if err := os.WriteFile(localPath, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/project": "/srv/project"},
+			dirs:      map[string][]os.FileInfo{"/srv/project": {}},
+			stats: map[string]os.FileInfo{
+				"/srv/project": stubFileInfo{name: "project", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+			},
+			files: map[string][]byte{},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	result, err := svc.UploadFile(host.ID, localPath, "/srv/project")
+	if err != nil {
+		t.Fatalf("UploadFile() error = %v", err)
+	}
+
+	targetPath := "/srv/project/notes.txt"
+	if result.TargetPath != targetPath {
+		t.Fatalf("result.TargetPath = %q, want %q", result.TargetPath, targetPath)
+	}
+	if result.BytesCopied != int64(len(content)) {
+		t.Fatalf("result.BytesCopied = %d, want %d", result.BytesCopied, len(content))
+	}
+	if got := string(client.sftp.files[targetPath]); got != string(content) {
+		t.Fatalf("remote file content = %q, want %q", got, string(content))
+	}
+}
+
+func TestDownloadFileCopiesRemoteFileToLocalDirectory(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-download", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	content := []byte("hello download")
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/app.log": "/srv/app.log"},
+			dirs:      map[string][]os.FileInfo{},
+			stats: map[string]os.FileInfo{
+				"/srv/app.log": stubFileInfo{name: "app.log", size: int64(len(content)), mode: 0o644, modTime: time.Unix(1710000000, 0)},
+			},
+			files: map[string][]byte{
+				"/srv/app.log": content,
+			},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir)
+	if err != nil {
+		t.Fatalf("DownloadFile() error = %v", err)
+	}
+
+	targetPath := filepath.Join(dir, "app.log")
+	if result.TargetPath != targetPath {
+		t.Fatalf("result.TargetPath = %q, want %q", result.TargetPath, targetPath)
+	}
+	downloaded, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(downloaded) != string(content) {
+		t.Fatalf("downloaded content = %q, want %q", string(downloaded), string(content))
+	}
+}
+
 func TestHostKeyCallbackAcceptPersistsKnownHost(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
@@ -976,12 +1173,14 @@ type stubDialer struct {
 	config  *ssh.ClientConfig
 	client  *stubSSHClient
 	err     error
+	hits    int
 }
 
 func (d *stubDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error) {
 	d.network = network
 	d.addr = addr
 	d.config = config
+	d.hits++
 	if d.err != nil {
 		return nil, d.err
 	}
@@ -990,9 +1189,10 @@ func (d *stubDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshCl
 }
 
 type stubSSHClient struct {
-	session *stubSSHSession
-	sftp    *stubSFTPClient
-	closed  bool
+	session     *stubSSHSession
+	sftp        *stubSFTPClient
+	closed      bool
+	newSFTPHits int
 }
 
 func (c *stubSSHClient) NewSession() (sshSession, error) {
@@ -1005,11 +1205,14 @@ func (c *stubSSHClient) NewSession() (sshSession, error) {
 }
 
 func (c *stubSSHClient) NewSFTPClient() (sftpClient, error) {
+	c.newSFTPHits++
 	if c.sftp == nil {
 		c.sftp = &stubSFTPClient{
 			cwd:       "/",
 			realPaths: map[string]string{".": "/"},
 			dirs:      map[string][]os.FileInfo{"/": {}},
+			stats:     map[string]os.FileInfo{"/": stubFileInfo{name: "/", mode: os.ModeDir | 0o755, dir: true}},
+			files:     map[string][]byte{},
 		}
 	}
 
@@ -1025,6 +1228,8 @@ type stubSFTPClient struct {
 	cwd       string
 	realPaths map[string]string
 	dirs      map[string][]os.FileInfo
+	stats     map[string]os.FileInfo
+	files     map[string][]byte
 	closed    bool
 }
 
@@ -1049,8 +1254,68 @@ func (c *stubSFTPClient) Getwd() (string, error) {
 	return c.cwd, nil
 }
 
+func (c *stubSFTPClient) Stat(path string) (os.FileInfo, error) {
+	if info, ok := c.stats[path]; ok {
+		return info, nil
+	}
+	if _, ok := c.dirs[path]; ok {
+		return stubFileInfo{name: pathpkg.Base(path), mode: os.ModeDir | 0o755, dir: true}, nil
+	}
+	if payload, ok := c.files[path]; ok {
+		return stubFileInfo{name: pathpkg.Base(path), size: int64(len(payload)), mode: 0o644}, nil
+	}
+
+	return nil, os.ErrNotExist
+}
+
+func (c *stubSFTPClient) Open(path string) (io.ReadCloser, error) {
+	payload, ok := c.files[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return io.NopCloser(bytes.NewReader(payload)), nil
+}
+
+func (c *stubSFTPClient) Create(path string) (io.WriteCloser, error) {
+	return &stubSFTPWriteCloser{
+		onClose: func(data []byte) {
+			if c.files == nil {
+				c.files = make(map[string][]byte)
+			}
+			if c.stats == nil {
+				c.stats = make(map[string]os.FileInfo)
+			}
+
+			c.files[path] = append([]byte(nil), data...)
+			c.stats[path] = stubFileInfo{
+				name:    pathpkg.Base(path),
+				size:    int64(len(data)),
+				mode:    0o644,
+				modTime: time.Now().UTC(),
+			}
+		},
+	}, nil
+}
+
 func (c *stubSFTPClient) Close() error {
 	c.closed = true
+	return nil
+}
+
+type stubSFTPWriteCloser struct {
+	buffer  bytes.Buffer
+	onClose func(data []byte)
+}
+
+func (w *stubSFTPWriteCloser) Write(p []byte) (int, error) {
+	return w.buffer.Write(p)
+}
+
+func (w *stubSFTPWriteCloser) Close() error {
+	if w.onClose != nil {
+		w.onClose(w.buffer.Bytes())
+	}
 	return nil
 }
 

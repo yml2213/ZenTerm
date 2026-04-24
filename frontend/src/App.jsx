@@ -1,7 +1,4 @@
 import {
-  Activity,
-  Clock3,
-  FolderKanban,
   FolderLock,
   KeyRound,
   LayoutGrid,
@@ -9,24 +6,18 @@ import {
   Moon,
   FolderOpen,
   Plus,
-  PlugZap,
   Search,
   Settings2,
   Shield,
   Sun,
   TerminalSquare,
 } from 'lucide-react'
-import FeaturePlaceholderPanel from './components/FeaturePlaceholderPanel.jsx'
-import { startTransition, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
 import HostList from './components/HostList.jsx'
 import HostForm, { createHostFormFromHost, createInitialHostForm } from './components/HostForm.jsx'
 import HostKeyModal from './components/HostKeyModal.jsx'
 import UnlockModal from './components/UnlockModal.jsx'
 import SessionTabs from './components/SessionTabs.jsx'
-import SftpWorkspace from './components/SftpWorkspace.jsx'
-import VaultSettingsPanel from './components/VaultSettingsPanel.jsx'
-import KnownHostsPanel from './components/KnownHostsPanel.jsx'
-import KeychainPanel from './components/KeychainPanel.jsx'
 import { useTheme } from './contexts/ThemeProvider.jsx'
 import { useLanguage } from './contexts/LanguageProvider.jsx'
 import {
@@ -44,11 +35,20 @@ import {
   connect,
   disconnect,
   listSessions,
+  sendInput,
   acceptHostKey,
   rejectHostKey,
   onRuntimeEvent,
+  persistWindowState,
+  resizeTerminal,
   windowToggleMaximise,
 } from './lib/backend.js'
+
+const SftpWorkspace = lazy(() => import('./components/SftpWorkspace.jsx'))
+const TerminalPane = lazy(() => import('./components/TerminalPane.jsx'))
+const VaultSettingsPanel = lazy(() => import('./components/VaultSettingsPanel.jsx'))
+const KnownHostsPanel = lazy(() => import('./components/KnownHostsPanel.jsx'))
+const KeychainPanel = lazy(() => import('./components/KeychainPanel.jsx'))
 
 function buildHostPayload(form) {
   return {
@@ -157,6 +157,25 @@ function createChangeMasterForm() {
   }
 }
 
+function PanelFallback({
+  className = 'panel',
+  kicker = 'Loading',
+  title = '正在加载面板',
+  description = 'ZenTerm 正在准备当前工作区内容，请稍候。',
+}) {
+  return (
+    <section className={className}>
+      <div className="terminal-toolbar">
+        <div className="terminal-toolbar-main">
+          <span className="panel-kicker">{kicker}</span>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 const sidebarPages = {
   hosts: {
     label: '主机',
@@ -177,30 +196,6 @@ const sidebarPages = {
       { title: '安全操作', description: '为替换、清除、重新同步系统钥匙串预留清晰操作入口。' },
     ],
   },
-  forwarding: {
-    label: '端口转发',
-    icon: PlugZap,
-    title: '端口转发',
-    kicker: 'Forwarding',
-    description: '这里会承载本地、远端和动态端口转发，方便把 SSH 会话扩展成完整的开发入口。',
-    highlights: [
-      { title: '规则列表', description: '展示当前已启用和待启用的转发规则，后续可直接启停。' },
-      { title: '模板创建', description: '预留快速创建常用数据库、内部服务和调试代理转发的入口。' },
-      { title: '运行状态', description: '未来会补充流量、监听端口与失败重试等运行信息。' },
-    ],
-  },
-  snippets: {
-    label: '代码片段',
-    icon: FolderKanban,
-    title: '代码片段',
-    kicker: 'Snippets',
-    description: '把常用命令、部署脚本和排障片段集中管理，减少重复输入和切换工具的成本。',
-    highlights: [
-      { title: '片段分组', description: '后续支持按主机、环境和用途组织命令片段。' },
-      { title: '一键发送', description: '预留直接发送到当前终端标签页的操作入口。' },
-      { title: '变量占位', description: '未来可补主机变量、环境变量和常用模板替换能力。' },
-    ],
-  },
   knownHosts: {
     label: '已知主机',
     icon: Shield,
@@ -211,18 +206,6 @@ const sidebarPages = {
       { title: '指纹审查', description: '展示 SHA256、来源主机和最近使用时间，方便排查变更。' },
       { title: '信任同步', description: '为未来的导入、导出和批量清理 known_hosts 预留位置。' },
       { title: '风险提醒', description: '后续可补主机指纹变化、冲突记录和人工确认轨迹。' },
-    ],
-  },
-  logs: {
-    label: '日志',
-    icon: Activity,
-    title: '日志',
-    kicker: 'Logs',
-    description: '用于汇总连接、SFTP、指纹确认与系统事件，让排查问题时能快速看到完整上下文。',
-    highlights: [
-      { title: '会话事件', description: '未来记录连接建立、断开、失败原因和关键时间点。' },
-      { title: '安全事件', description: '预留主密码变更、指纹确认和本地凭据操作日志。' },
-      { title: '筛选视图', description: '后续会支持按主机、级别与时间范围筛选日志。' },
     ],
   },
 }
@@ -268,15 +251,25 @@ export default function App() {
     return acc
   }, {})
   const selectedSftpHost = hosts.find((host) => host.id === selectedSftpHostId) || null
-  const onlineHostsCount = Object.keys(sessionCountByHost).length
+  const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
   const navigationItems = [
     { id: 'hosts', label: '主机', icon: LayoutGrid },
     { id: 'keychain', label: '钥匙串', icon: KeyRound },
-    { id: 'forwarding', label: '端口转发', icon: PlugZap },
-    { id: 'snippets', label: '代码片段', icon: FolderKanban },
     { id: 'knownHosts', label: '已知主机', icon: Shield },
-    { id: 'logs', label: '日志', icon: Activity },
   ]
+
+  function removeSessionTab(sessionID) {
+    setSessionTabs((currentTabs) => {
+      const nextTabs = currentTabs.filter((session) => session.sessionId !== sessionID)
+      setActiveSessionId((currentActive) => {
+        if (currentActive !== sessionID) {
+          return currentActive
+        }
+        return nextTabs.at(-1)?.sessionId || null
+      })
+      return nextTabs
+    })
+  }
 
   function closeHostDialog() {
     setHostDialogMode(null)
@@ -408,6 +401,30 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    let timerId = null
+
+    function scheduleWindowStatePersist() {
+      if (timerId) {
+        window.clearTimeout(timerId)
+      }
+
+      // 使用防抖避免连续拖拽窗口时频繁写盘 / debounce resize bursts to avoid excessive writes while dragging.
+      timerId = window.setTimeout(() => {
+        persistWindowState().catch((err) => setError(err.message || String(err)))
+      }, 200)
+    }
+
+    window.addEventListener('resize', scheduleWindowStatePersist)
+
+    return () => {
+      window.removeEventListener('resize', scheduleWindowStatePersist)
+      if (timerId) {
+        window.clearTimeout(timerId)
+      }
+    }
+  }, [])
+
   function openCreateHost() {
     if (!vaultUnlocked) {
       setError('请输入主密码后继续保存主机配置。')
@@ -478,7 +495,9 @@ export default function App() {
       return
     }
 
-    windowToggleMaximise().catch((err) => setError(err.message || String(err)))
+    windowToggleMaximise()
+      .then(() => persistWindowState())
+      .catch((err) => setError(err.message || String(err)))
   }
 
   function handleWorkspaceChange(workspace) {
@@ -624,18 +643,21 @@ export default function App() {
   function handleCloseTab(sessionID) {
     disconnect(sessionID)
       .then(() => {
-        setSessionTabs((currentTabs) => {
-          const nextTabs = currentTabs.filter((session) => session.sessionId !== sessionID)
-          setActiveSessionId((currentActive) => {
-            if (currentActive !== sessionID) {
-              return currentActive
-            }
-            return nextTabs.at(-1)?.sessionId || null
-          })
-          return nextTabs
-        })
+        removeSessionTab(sessionID)
       })
       .catch((err) => setError(err.message || String(err)))
+  }
+
+  function handleSessionClosed(sessionID) {
+    removeSessionTab(sessionID)
+  }
+
+  function handleSendInput(sessionID, data) {
+    return sendInput(sessionID, data)
+  }
+
+  function handleResizeTerminal(sessionID, cols, rows) {
+    return resizeTerminal(sessionID, cols, rows)
   }
 
   function handleAcceptHostKey() {
@@ -700,7 +722,6 @@ export default function App() {
         description: '主密码用于保护本地保存的 SSH 凭据。ZenTerm 会默认交给系统钥匙串保管，日常不再需要手动进入。',
       }
     : currentSidebarPage
-  const isPlaceholderPage = !isHostsPage && !isSettingsPage && !isKnownHostsPage && !isKeychainPage
 
   return (
     <div className="app-shell">
@@ -820,12 +841,6 @@ export default function App() {
                   </div>
                 ) : null}
                 <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
-                  {isPlaceholderPage ? (
-                    <span className="pill subtle">
-                      <Clock3 size={14} />
-                      占位中
-                    </span>
-                  ) : null}
                   {isHostsPage && (
                     <button
                       type="button"
@@ -843,64 +858,118 @@ export default function App() {
             <main className="content-area">
               {isHostsPage ? (
                 <section className="hosts-stage">
-                  <HostList
-                    hosts={filteredHosts}
-                    hasAnyHosts={hosts.length > 0}
-                    searchQuery={searchQuery}
-                    selectedHostId={selectedHostId}
-                    sessionCountByHost={sessionCountByHost}
-                    connectingHostIds={connectingHostIds}
-                    onSelect={setSelectedHostId}
-                    onConnect={handleConnect}
-                    onEdit={openEditHost}
-                    onDelete={setDeleteCandidate}
-                    disabled={!vaultUnlocked}
-                  />
+                  <div className="hosts-stage-grid">
+                    <HostList
+                      hosts={filteredHosts}
+                      hasAnyHosts={hosts.length > 0}
+                      searchQuery={searchQuery}
+                      selectedHostId={selectedHostId}
+                      sessionCountByHost={sessionCountByHost}
+                      connectingHostIds={connectingHostIds}
+                      onSelect={setSelectedHostId}
+                      onConnect={handleConnect}
+                      onEdit={openEditHost}
+                      onDelete={setDeleteCandidate}
+                      disabled={!vaultUnlocked}
+                    />
+                    <Suspense
+                      fallback={(
+                        <PanelFallback
+                          className="panel terminal-panel"
+                          kicker="Console"
+                          title="正在加载终端工作区"
+                          description="终端组件会在进入主机页后按需加载，减少应用初始体积。"
+                        />
+                      )}
+                    >
+                      <TerminalPane
+                        sessions={sessionTabs}
+                        activeSessionId={activeSessionId}
+                        activeSessionTitle={activeSession?.title || 'Zen Console'}
+                        activeSessionMeta={activeSession}
+                        onSendInput={handleSendInput}
+                        onResize={handleResizeTerminal}
+                        onSessionClosed={handleSessionClosed}
+                        onError={(err) => setError(err?.message || String(err))}
+                      />
+                    </Suspense>
+                  </div>
                 </section>
               ) : isSettingsPage ? (
-                <VaultSettingsPanel
-                  vaultUnlocked={vaultUnlocked}
-                  changeForm={changeMasterForm}
-                  changeBusy={changeMasterBusy}
-                  resetConfirmed={resetVaultConfirmed}
-                  resetBusy={resetVaultBusy}
-                  onChangeField={handleChangeMasterField}
-                  onChangePassword={handleChangeMasterPassword}
-                  onResetConfirmedChange={setResetVaultConfirmed}
-                  onResetVault={handleResetVault}
-                />
+                <Suspense
+                  fallback={(
+                    <PanelFallback
+                      title="正在加载保险箱设置"
+                      description="设置页会在真正访问时加载，避免主流程跟着一起进入首屏包。"
+                    />
+                  )}
+                >
+                  <VaultSettingsPanel
+                    vaultUnlocked={vaultUnlocked}
+                    changeForm={changeMasterForm}
+                    changeBusy={changeMasterBusy}
+                    resetConfirmed={resetVaultConfirmed}
+                    resetBusy={resetVaultBusy}
+                    onChangeField={handleChangeMasterField}
+                    onChangePassword={handleChangeMasterPassword}
+                    onResetConfirmedChange={setResetVaultConfirmed}
+                    onResetVault={handleResetVault}
+                  />
+                </Suspense>
               ) : isKnownHostsPage ? (
-                <KnownHostsPanel hosts={hosts} />
+                <Suspense
+                  fallback={(
+                    <PanelFallback
+                      title="正在加载已知主机"
+                      description="可信指纹面板会在切换到该页面后再按需加载。"
+                    />
+                  )}
+                >
+                  <KnownHostsPanel hosts={hosts} />
+                </Suspense>
               ) : isKeychainPage ? (
-                <KeychainPanel
-                  status={keychainStatus}
-                  loading={keychainLoading}
-                  vaultInitialized={vaultInitialized}
-                  vaultUnlocked={vaultUnlocked}
-                  hostCount={hosts.length}
-                  onRefresh={refreshKeychainStatus}
-                />
-              ) : (
-                <FeaturePlaceholderPanel
-                  kicker={currentSidebarPage.kicker}
-                  title={currentSidebarPage.title}
-                  description={currentSidebarPage.description}
-                  highlights={currentSidebarPage.highlights}
-                />
-              )}
+                <Suspense
+                  fallback={(
+                    <PanelFallback
+                      title="正在加载钥匙串"
+                      description="凭据中心会在进入对应页面后再拉起，减少主机页初始负担。"
+                    />
+                  )}
+                >
+                  <KeychainPanel
+                    status={keychainStatus}
+                    loading={keychainLoading}
+                    vaultInitialized={vaultInitialized}
+                    vaultUnlocked={vaultUnlocked}
+                    hostCount={hosts.length}
+                    onRefresh={refreshKeychainStatus}
+                  />
+                </Suspense>
+              ) : null}
             </main>
           </section>
         </div>
       ) : (
-        <SftpWorkspace
-          hosts={hosts}
-          selectedHost={selectedSftpHost}
-          vaultUnlocked={vaultUnlocked}
-          onChooseHost={handlePickSftpHost}
-          onCreateHost={openCreateHost}
-          onBackToVaults={() => handleWorkspaceChange('vaults')}
-          onError={(message) => setError(message)}
-        />
+        <Suspense
+          fallback={(
+            <PanelFallback
+              className="panel"
+              kicker="SFTP"
+              title="正在加载文件工作区"
+              description="SFTP 仅在切换到文件工作区时加载，避免首屏携带文件浏览逻辑。"
+            />
+          )}
+        >
+          <SftpWorkspace
+            hosts={hosts}
+            selectedHost={selectedSftpHost}
+            vaultUnlocked={vaultUnlocked}
+            onChooseHost={handlePickSftpHost}
+            onCreateHost={openCreateHost}
+            onBackToVaults={() => handleWorkspaceChange('vaults')}
+            onError={(message) => setError(message)}
+          />
+        </Suspense>
       )}
 
       <UnlockModal

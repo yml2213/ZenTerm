@@ -193,6 +193,9 @@ func (s *Service) CloseAll() error {
 	s.hostKeyMu.Unlock()
 
 	var closeErr error
+	if err := s.closeAllSFTPConnections(); err != nil && closeErr == nil {
+		closeErr = err
+	}
 	for sessionID, session := range sessions {
 		if err := session.close(); err != nil && closeErr == nil {
 			closeErr = err

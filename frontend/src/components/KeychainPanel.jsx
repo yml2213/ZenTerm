@@ -24,15 +24,28 @@ const credentialTypes = [
 ]
 
 const keyAlgorithms = [
-  { id: 'ed25519', label: 'ED25519' },
-  { id: 'rsa', label: 'RSA' },
-  { id: 'ecdsa', label: 'ECDSA' },
+  { id: 'ed25519', label: 'ED25519', bits: null },
+  { id: 'rsa', label: 'RSA', bits: [1024, 2048, 4096] },
+  { id: 'ecdsa', label: 'ECDSA', bits: [256, 384, 521] },
+]
+
+const rsaKeySizes = [
+  { value: 1024, label: '1024 位 (兼容性好)' },
+  { value: 2048, label: '2048 位 (推荐)' },
+  { value: 4096, label: '4096 位 (高安全)' },
+]
+
+const ecdsaCurves = [
+  { value: 256, label: 'P-256 (快速)' },
+  { value: 384, label: 'P-384 (推荐)' },
+  { value: 521, label: 'P-521 (高安全)' },
 ]
 
 function createGenerateKeyForm() {
   return {
     label: '',
     algorithm: 'ed25519',
+    keyBits: 2048,
     passphrase: '',
     rememberPassphrase: false,
   }
@@ -146,6 +159,7 @@ export default function KeychainPanel({
       const credentialID = await generateCredential(
         generateForm.label,
         generateForm.algorithm,
+        generateForm.keyBits,
         generateForm.passphrase
       )
       console.log('凭据生成成功:', credentialID)
@@ -381,7 +395,16 @@ export default function KeychainPanel({
                     key={algo.id}
                     type="button"
                     className={`keychain-algorithm-chip${generateForm.algorithm === algo.id ? ' active' : ''}`}
-                    onClick={() => handleGenerateField('algorithm', algo.id)}
+                    onClick={() => {
+                      handleGenerateField('algorithm', algo.id)
+                      if (algo.id === 'rsa' && !generateForm.keyBits) {
+                        handleGenerateField('keyBits', 2048)
+                      } else if (algo.id === 'ecdsa' && !generateForm.keyBits) {
+                        handleGenerateField('keyBits', 384)
+                      } else if (algo.id === 'ed25519') {
+                        handleGenerateField('keyBits', null)
+                      }
+                    }}
                     disabled={operationLoading}
                   >
                     {algo.label}
@@ -389,6 +412,25 @@ export default function KeychainPanel({
                 ))}
               </div>
             </div>
+
+            {(generateForm.algorithm === 'rsa' || generateForm.algorithm === 'ecdsa') && (
+              <div className="keychain-form-block">
+                <span>密钥长度</span>
+                <div className="keychain-algorithm-group">
+                  {(generateForm.algorithm === 'rsa' ? rsaKeySizes : ecdsaCurves).map((size) => (
+                    <button
+                      key={size.value}
+                      type="button"
+                      className={`keychain-algorithm-chip${generateForm.keyBits === size.value ? ' active' : ''}`}
+                      onClick={() => handleGenerateField('keyBits', size.value)}
+                      disabled={operationLoading}
+                    >
+                      {size.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <label>
               密码短语（可选）

@@ -425,6 +425,15 @@ func TestStoreResetVaultClearsHostsAndInitialization(t *testing.T) {
 		t.Fatalf("AddHost() error = %v", err)
 	}
 
+	if err := store.AddCredential(
+		model.Credential{ID: "cred-1", Label: "reset-me", Type: model.CredentialTypeSSHKey},
+		"PRIVATE KEY",
+		"",
+		vault,
+	); err != nil {
+		t.Fatalf("AddCredential() error = %v", err)
+	}
+
 	if err := store.ResetVault(); err != nil {
 		t.Fatalf("ResetVault() error = %v", err)
 	}
@@ -443,6 +452,14 @@ func TestStoreResetVaultClearsHostsAndInitialization(t *testing.T) {
 	}
 	if len(hosts) != 0 {
 		t.Fatalf("len(GetHosts()) = %d, want 0", len(hosts))
+	}
+
+	creds, err := store.GetCredentials()
+	if err != nil {
+		t.Fatalf("GetCredentials() error = %v", err)
+	}
+	if len(creds) != 0 {
+		t.Fatalf("len(GetCredentials()) = %d, want 0", len(creds))
 	}
 }
 

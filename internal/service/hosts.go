@@ -36,7 +36,11 @@ func (s *Service) UpdateHost(host model.Host, identity model.Identity) error {
 		host.KnownHosts = existingHost.KnownHosts
 	}
 
-	return s.store.AddHost(host, identity, s.vault)
+	if err := s.store.AddHost(host, identity, s.vault); err != nil {
+		return err
+	}
+
+	return s.closeSFTPConnection(host.ID)
 }
 
 // DeleteHost 删除主机；如果仍有活跃会话则拒绝删除 / deletes the host unless there are active sessions still attached to it.
@@ -45,5 +49,9 @@ func (s *Service) DeleteHost(hostID string) error {
 		return ErrHostHasActiveSession
 	}
 
-	return s.store.DeleteHost(hostID)
+	if err := s.store.DeleteHost(hostID); err != nil {
+		return err
+	}
+
+	return s.closeSFTPConnection(hostID)
 }

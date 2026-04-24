@@ -107,6 +107,14 @@ export async function listRemoteFiles(hostID, path = '') {
   return callApp('ListRemoteFiles', hostID, path)
 }
 
+export async function uploadFile(hostID, localPath, remoteDir) {
+  return callApp('UploadFile', hostID, localPath, remoteDir)
+}
+
+export async function downloadFile(hostID, remotePath, localDir) {
+  return callApp('DownloadFile', hostID, remotePath, localDir)
+}
+
 export async function addHost(host, identity) {
   return callApp('AddHost', host, identity)
 }
@@ -177,8 +185,12 @@ export async function windowToggleMaximise() {
   return callRuntime('WindowToggleMaximise', undefined)
 }
 
-export async function generateCredential(label, algorithm, passphrase) {
-  return callApp('GenerateCredential', label, algorithm, passphrase)
+export async function persistWindowState() {
+  return callApp('PersistWindowState')
+}
+
+export async function generateCredential(label, algorithm, keyBits, passphrase) {
+  return callApp('GenerateCredential', label, algorithm, keyBits, passphrase)
 }
 
 export async function importCredential(label, privateKeyPEM, passphrase) {

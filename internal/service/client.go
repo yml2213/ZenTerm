@@ -82,6 +82,18 @@ func (c *realSFTPClient) Getwd() (string, error) {
 	return c.client.Getwd()
 }
 
+func (c *realSFTPClient) Stat(path string) (os.FileInfo, error) {
+	return c.client.Stat(path)
+}
+
+func (c *realSFTPClient) Open(path string) (io.ReadCloser, error) {
+	return c.client.Open(path)
+}
+
+func (c *realSFTPClient) Create(path string) (io.WriteCloser, error) {
+	return c.client.Create(path)
+}
+
 func (c *realSFTPClient) Close() error {
 	return c.client.Close()
 }

@@ -1,8 +1,10 @@
 package service
 
 import (
-	"crypto/rand"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -15,7 +17,7 @@ import (
 )
 
 // GenerateCredential 生成新的 SSH 密钥对凭据 / generates a new SSH key pair credential.
-func (s *Service) GenerateCredential(label, algorithm, passphrase string) (string, error) {
+func (s *Service) GenerateCredential(label, algorithm string, keyBits int, passphrase string) (string, error) {
 	if label == "" {
 		return "", ErrCredentialLabelRequired
 	}
@@ -35,13 +37,35 @@ func (s *Service) GenerateCredential(label, algorithm, passphrase string) (strin
 		}
 		privateKey = priv
 	case "rsa":
-		priv, err := rsa.GenerateKey(rand.Reader, 4096)
+		if keyBits < 1024 {
+			keyBits = 1024
+		}
+		if keyBits > 4096 {
+			keyBits = 4096
+		}
+		priv, err := rsa.GenerateKey(rand.Reader, keyBits)
 		if err != nil {
 			return "", fmt.Errorf("generate rsa key: %w", err)
 		}
 		privateKey = priv
 	case "ecdsa":
-		return "", fmt.Errorf("ecdsa key generation not yet implemented")
+		var curve elliptic.Curve
+		switch keyBits {
+		case 256:
+			curve = elliptic.P256()
+		case 384:
+			curve = elliptic.P384()
+		case 521:
+			curve = elliptic.P521()
+		default:
+			keyBits = 256
+			curve = elliptic.P256()
+		}
+		priv, err := ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
+			return "", fmt.Errorf("generate ecdsa key: %w", err)
+		}
+		privateKey = priv
 	default:
 		return "", ErrInvalidAlgorithm
 	}
@@ -56,9 +80,20 @@ func (s *Service) GenerateCredential(label, algorithm, passphrase string) (strin
 		Bytes: privBytes,
 	})
 
-	pubKey, err := ssh.NewPublicKey(privateKey)
-	if err != nil {
-		return "", fmt.Errorf("create ssh public key: %w", err)
+	var pubKey ssh.PublicKey
+	var err2 error
+	switch key := privateKey.(type) {
+	case ed25519.PrivateKey:
+		pubKey, err2 = ssh.NewPublicKey(key.Public())
+	case *rsa.PrivateKey:
+		pubKey, err2 = ssh.NewPublicKey(key.Public())
+	case *ecdsa.PrivateKey:
+		pubKey, err2 = ssh.NewPublicKey(key.Public())
+	default:
+		return "", fmt.Errorf("unsupported key type: %T", privateKey)
+	}
+	if err2 != nil {
+		return "", fmt.Errorf("create ssh public key: %w", err2)
 	}
 	pubKeyBytes := ssh.MarshalAuthorizedKey(pubKey)
 
@@ -66,7 +101,7 @@ func (s *Service) GenerateCredential(label, algorithm, passphrase string) (strin
 		ID:        time.Now().Format("cred_20060102150405"),
 		Label:     label,
 		Type:      model.CredentialTypeSSHKey,
-		Algorithm: algorithm,
+		Algorithm: formatAlgorithmName(algorithm, keyBits),
 		PublicKey: string(pubKeyBytes),
 		CreatedAt: time.Now().UTC(),
 	}
@@ -76,6 +111,19 @@ func (s *Service) GenerateCredential(label, algorithm, passphrase string) (strin
 	}
 
 	return cred.ID, nil
+}
+
+func formatAlgorithmName(algorithm string, keyBits int) string {
+	switch algorithm {
+	case "ed25519":
+		return "ed25519"
+	case "rsa":
+		return fmt.Sprintf("rsa-%d", keyBits)
+	case "ecdsa":
+		return fmt.Sprintf("ecdsa-p%d", keyBits)
+	default:
+		return algorithm
+	}
 }
 
 // ImportCredential 导入现有的 SSH 密钥凭据 / imports an existing SSH key credential.

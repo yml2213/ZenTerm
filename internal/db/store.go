@@ -18,9 +18,9 @@ const currentVersion = 1
 const vaultCheckToken = "zenterm:vault-check:v1"
 
 var (
-	ErrHostIDRequired    = errors.New("host id is required")
-	ErrStorePathEmpty    = errors.New("store path is required")
-	ErrHostNotFound      = errors.New("host not found")
+	ErrHostIDRequired       = errors.New("host id is required")
+	ErrStorePathEmpty       = errors.New("store path is required")
+	ErrHostNotFound         = errors.New("host not found")
 	ErrCredentialIDRequired = errors.New("credential id is required")
 	ErrCredentialNotFound   = errors.New("credential not found")
 )
@@ -219,6 +219,7 @@ func (s *Store) ResetVault() error {
 
 	data.Vault = vaultData{}
 	data.Hosts = []hostEntry{}
+	data.Credentials = []credentialEntry{}
 	return s.saveLocked(data)
 }
 
@@ -737,8 +738,8 @@ func (s *Store) GetCredentialUsage(credentialID string) (model.CredentialUsage, 
 	}
 
 	return model.CredentialUsage{
-		CredentialID:    credentialID,
-		HostIDs:         hostIDs,
+		CredentialID:   credentialID,
+		HostIDs:        hostIDs,
 		ActiveSessions: 0,
 	}, nil
 }

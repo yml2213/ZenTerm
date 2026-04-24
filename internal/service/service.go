@@ -16,6 +16,8 @@ type Service struct {
 	emitterMu       sync.RWMutex
 	sessionMu       sync.RWMutex
 	sessions        map[string]*managedSession
+	sftpMu          sync.Mutex
+	sftpConnections map[string]*managedSFTPConnection
 	hostKeyMu       sync.Mutex
 	pendingHostKeys map[string]*pendingHostKeyConfirmation
 }
@@ -36,6 +38,7 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		dialer:          dialer,
 		emitter:         func(string, any) {},
 		sessions:        make(map[string]*managedSession),
+		sftpConnections: make(map[string]*managedSFTPConnection),
 		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
 	}, nil
 }

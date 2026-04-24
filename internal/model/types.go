@@ -23,28 +23,28 @@ type Identity struct {
 type CredentialType string
 
 const (
-	CredentialTypeSSHKey    CredentialType = "ssh_key"
-	CredentialTypePassword  CredentialType = "password"
+	CredentialTypeSSHKey      CredentialType = "ssh_key"
+	CredentialTypePassword    CredentialType = "password"
 	CredentialTypeCertificate CredentialType = "certificate"
 )
 
 // Credential 表示凭据中心的一条记录 / represents a single entry in the credential center.
 type Credential struct {
-	ID          string          `json:"id"`
-	Label       string          `json:"label"`
-	Type        CredentialType  `json:"type"`
-	Algorithm   string          `json:"algorithm,omitempty"` // ed25519, rsa, ecdsa (for ssh_key)
-	PublicKey   string          `json:"public_key,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at,omitempty"`
-	LastUsedAt  time.Time       `json:"last_used_at,omitempty"`
+	ID         string         `json:"id"`
+	Label      string         `json:"label"`
+	Type       CredentialType `json:"type"`
+	Algorithm  string         `json:"algorithm,omitempty"` // ed25519, rsa, ecdsa (for ssh_key)
+	PublicKey  string         `json:"public_key,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at,omitempty"`
+	LastUsedAt time.Time      `json:"last_used_at,omitempty"`
 }
 
 // CredentialUsage 记录凭据被哪些主机使用 / tracks which hosts are using this credential.
 type CredentialUsage struct {
-	CredentialID string   `json:"credential_id"`
-	HostIDs      []string `json:"host_ids"`
-	ActiveSessions int    `json:"active_sessions"`
+	CredentialID   string   `json:"credential_id"`
+	HostIDs        []string `json:"host_ids"`
+	ActiveSessions int      `json:"active_sessions"`
 }
 
 // WindowState 保存窗口尺寸与启动状态 / stores persisted window dimensions and startup state.
@@ -84,4 +84,11 @@ type FileListing struct {
 	Path       string      `json:"path"`
 	ParentPath string      `json:"parentPath,omitempty"`
 	Entries    []FileEntry `json:"entries"`
+}
+
+// FileTransferResult 表示一次文件传输的结果 / represents the result of a file transfer.
+type FileTransferResult struct {
+	SourcePath  string `json:"sourcePath"`
+	TargetPath  string `json:"targetPath"`
+	BytesCopied int64  `json:"bytesCopied"`
 }

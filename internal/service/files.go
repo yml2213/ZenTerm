@@ -44,55 +44,38 @@ func (s *Service) ListLocalFiles(targetPath string) (model.FileListing, error) {
 
 // ListRemoteFiles 通过 SFTP 返回远端目录内容 / returns the remote directory contents through SFTP.
 func (s *Service) ListRemoteFiles(hostID, targetPath string) (model.FileListing, error) {
-	host, err := s.store.GetHost(hostID)
+	var listing model.FileListing
+
+	err := s.withReusableSFTPClient(hostID, func(sftpConn sftpClient, remoteAddr string) error {
+		resolvedPath, err := resolveRemotePath(sftpConn, targetPath)
+		if err != nil {
+			return fmt.Errorf("resolve remote path for %s: %w", remoteAddr, err)
+		}
+
+		entries, err := sftpConn.ReadDir(resolvedPath)
+		if err != nil {
+			return fmt.Errorf("read remote directory: %w", err)
+		}
+
+		fileEntries := make([]model.FileEntry, 0, len(entries))
+		for _, entry := range entries {
+			fileEntries = append(fileEntries, buildFileEntry(resolvedPath, entry, true))
+		}
+
+		sortFileEntries(fileEntries)
+		listing = model.FileListing{
+			Path:       resolvedPath,
+			ParentPath: remoteParentPath(resolvedPath),
+			Entries:    fileEntries,
+		}
+
+		return nil
+	})
 	if err != nil {
 		return model.FileListing{}, err
 	}
 
-	identity, err := s.store.GetIdentity(hostID, s.vault)
-	if err != nil {
-		return model.FileListing{}, err
-	}
-
-	config, err := s.newClientConfig(host, identity)
-	if err != nil {
-		return model.FileListing{}, err
-	}
-
-	client, remoteAddr, err := s.openSSHClient(host, config)
-	if err != nil {
-		return model.FileListing{}, err
-	}
-	defer func() { _ = client.Close() }()
-
-	sftpConn, err := client.NewSFTPClient()
-	if err != nil {
-		return model.FileListing{}, fmt.Errorf("create sftp client: %w", err)
-	}
-	defer func() { _ = sftpConn.Close() }()
-
-	resolvedPath, err := resolveRemotePath(sftpConn, targetPath)
-	if err != nil {
-		return model.FileListing{}, fmt.Errorf("resolve remote path for %s: %w", remoteAddr, err)
-	}
-
-	entries, err := sftpConn.ReadDir(resolvedPath)
-	if err != nil {
-		return model.FileListing{}, fmt.Errorf("read remote directory: %w", err)
-	}
-
-	fileEntries := make([]model.FileEntry, 0, len(entries))
-	for _, entry := range entries {
-		fileEntries = append(fileEntries, buildFileEntry(resolvedPath, entry, true))
-	}
-
-	sortFileEntries(fileEntries)
-
-	return model.FileListing{
-		Path:       resolvedPath,
-		ParentPath: remoteParentPath(resolvedPath),
-		Entries:    fileEntries,
-	}, nil
+	return listing, nil
 }
 
 func resolveLocalPath(targetPath string) (string, error) {

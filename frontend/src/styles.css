@@ -723,6 +723,13 @@ textarea {
   gap: 1rem;
 }
 
+.hosts-stage-grid {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(340px, 0.92fr) minmax(420px, 1.25fr);
+  gap: 1rem;
+}
+
 .settings-stage {
   min-height: 100%;
   display: grid;
@@ -1736,6 +1743,12 @@ textarea {
   flex: 1;
   min-height: 0;
   background: var(--content-bg);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.sftp-transfer-banner {
+  padding: 0.85rem 1rem 0;
 }
 
 .sftp-browser {
@@ -1882,6 +1895,11 @@ textarea {
 
 .sftp-file-row:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.sftp-file-row.selected {
+  background: rgba(56, 189, 248, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent-secondary);
 }
 
 .sftp-file-row:disabled {
@@ -2173,6 +2191,10 @@ textarea {
 @media (max-width: 1180px) {
   .host-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+
+  .hosts-stage-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-grid {

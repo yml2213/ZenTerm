@@ -287,14 +287,34 @@ func (a *App) ListRemoteFiles(hostID, path string) (model.FileListing, error) {
 	return listing, nil
 }
 
+// UploadFile 将本地文件上传到远端目录 / uploads a local file into the selected remote directory.
+func (a *App) UploadFile(hostID, localPath, remoteDir string) (model.FileTransferResult, error) {
+	result, err := a.service.UploadFile(hostID, localPath, remoteDir)
+	if err != nil {
+		return model.FileTransferResult{}, normalizeFrontendError(err)
+	}
+
+	return result, nil
+}
+
+// DownloadFile 将远端文件下载到本地目录 / downloads a remote file into the selected local directory.
+func (a *App) DownloadFile(hostID, remotePath, localDir string) (model.FileTransferResult, error) {
+	result, err := a.service.DownloadFile(hostID, remotePath, localDir)
+	if err != nil {
+		return model.FileTransferResult{}, normalizeFrontendError(err)
+	}
+
+	return result, nil
+}
+
 // ListSessions 返回当前活跃 SSH 会话列表 / returns the current active SSH sessions.
 func (a *App) ListSessions() []service.Session {
 	return a.service.ListSessions()
 }
 
 // GenerateCredential 生成新的 SSH 密钥凭据 / generates a new SSH key credential.
-func (a *App) GenerateCredential(label, algorithm, passphrase string) (string, error) {
-	id, err := a.service.GenerateCredential(label, algorithm, passphrase)
+func (a *App) GenerateCredential(label, algorithm string, keyBits int, passphrase string) (string, error) {
+	id, err := a.service.GenerateCredential(label, algorithm, keyBits, passphrase)
 	if err != nil {
 		return "", normalizeFrontendError(err)
 	}
@@ -356,7 +376,13 @@ func (a *App) beforeClose(context.Context) bool {
 }
 
 func (a *App) shutdown(context.Context) {
+	a.persistWindowState()
 	_ = a.service.CloseAll()
+}
+
+// PersistWindowState 主动持久化当前窗口尺寸，供前端在窗口变化后触发保存 / persists the current window metrics on demand for frontend-triggered saves.
+func (a *App) PersistWindowState() {
+	a.persistWindowState()
 }
 
 func (a *App) persistWindowState() {
@@ -424,6 +450,16 @@ func normalizeFrontendError(err error) error {
 		return service.ErrHostKeyMismatch
 	case errors.Is(err, service.ErrHostKeyConfirmationTimeout):
 		return service.ErrHostKeyConfirmationTimeout
+	case errors.Is(err, service.ErrTransferSourceRequired):
+		return service.ErrTransferSourceRequired
+	case errors.Is(err, service.ErrTransferTargetRequired):
+		return service.ErrTransferTargetRequired
+	case errors.Is(err, service.ErrTransferSourceNotFile):
+		return service.ErrTransferSourceNotFile
+	case errors.Is(err, service.ErrTransferTargetNotDirectory):
+		return service.ErrTransferTargetNotDirectory
+	case errors.Is(err, service.ErrTransferTargetExists):
+		return service.ErrTransferTargetExists
 	default:
 		return err
 	}

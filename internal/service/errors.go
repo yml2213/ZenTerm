@@ -29,6 +29,11 @@ var (
 	ErrCredentialLabelRequired     = errors.New("credential label is required")
 	ErrCredentialInUse             = errors.New("credential is in use by one or more hosts")
 	ErrInvalidAlgorithm            = errors.New("invalid key algorithm")
+	ErrTransferSourceRequired      = errors.New("transfer source path is required")
+	ErrTransferTargetRequired      = errors.New("transfer target path is required")
+	ErrTransferSourceNotFile       = errors.New("transfer source must be a file")
+	ErrTransferTargetNotDirectory  = errors.New("transfer target must be a directory")
+	ErrTransferTargetExists        = errors.New("transfer target already exists")
 )
 
 const (
@@ -69,6 +74,8 @@ type ZenService interface {
 	GetHosts() ([]model.Host, error)
 	ListLocalFiles(path string) (model.FileListing, error)
 	ListRemoteFiles(hostID, path string) (model.FileListing, error)
+	UploadFile(hostID, localPath, remoteDir string) (model.FileTransferResult, error)
+	DownloadFile(hostID, remotePath, localDir string) (model.FileTransferResult, error)
 	AddHost(host model.Host, identity model.Identity) error
 	UpdateHost(host model.Host, identity model.Identity) error
 	DeleteHost(hostID string) error
@@ -82,7 +89,7 @@ type ZenService interface {
 	CloseAll() error
 
 	// Credential Center API
-	GenerateCredential(label, algorithm, passphrase string) (string, error)
+	GenerateCredential(label, algorithm string, keyBits int, passphrase string) (string, error)
 	ImportCredential(label, privateKeyPEM, passphrase string) (string, error)
 	GetCredentials() ([]model.Credential, error)
 	GetCredential(credentialID string) (model.Credential, error)
@@ -98,6 +105,13 @@ type managedSession struct {
 	closeOnce sync.Once
 }
 
+type managedSFTPConnection struct {
+	hostID     string
+	remoteAddr string
+	client     sshClient
+	closeOnce  sync.Once
+}
+
 type pendingHostKeyConfirmation struct {
 	hostID string
 	key    string
@@ -109,5 +123,8 @@ type sftpClient interface {
 	ReadDir(path string) ([]os.FileInfo, error)
 	RealPath(path string) (string, error)
 	Getwd() (string, error)
+	Stat(path string) (os.FileInfo, error)
+	Open(path string) (io.ReadCloser, error)
+	Create(path string) (io.WriteCloser, error)
 	Close() error
 }

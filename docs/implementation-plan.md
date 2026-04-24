@@ -1,106 +1,129 @@
-# ZenTerm MVP 计划重构（基于当前代码现状）
+# ZenTerm 当前实现与后续优化计划
 
 ## 摘要
 
-当前仓库已经具备可用的后端基础能力，包括 Vault 解锁、主机加密存储、SSH 会话管理以及 Host Key 确认流程；但前端仍停留在单会话骨架，接口调用和后端签名也没有完全对齐。MVP 的目标因此收敛为五件事：
-
-1. 正确的保险箱解锁流程
-2. 主机管理补全（新增、编辑、删除、搜索）
-3. 事件驱动的 Host Key 确认
-4. 多标签终端与活跃会话管理
-5. 收敛界面，只保留本期真正可用的入口
-
-本文档分为 `MVP 执行计划` 与 `延期路线图` 两部分，避免把未来模块误写成当前架构。
+ZenTerm 当前已经不是“只有骨架的 MVP 草案”，而是一个具备可用主流程的 Wails 桌面应用：本地 Vault、主机管理、SSH 多会话、Host Key 确认、SFTP 双栏浏览、凭据中心与窗口状态持久化都已经落地。本文档的目标不再是描述过时的计划，而是同步当前真实状态，并给出接下来的优化顺序。
 
 ## 当前真实状态
 
-### 已具备
+### 已实现
 
-- 后端 `App` 已暴露 `Unlock`、`AddHost`、`ListHosts`、`Connect`、`AcceptHostKey`、`RejectHostKey`、`SendInput`、`ResizeTerminal`、`Disconnect`
-- `Service` 已支持 SSH 连接、PTY、stdin/stdout/stderr 转发、Host Key 等待确认、多会话管理
-- `Store` 已支持 JSON 持久化以及凭据加密
-- 前端已有主机列表、Host 表单、xterm.js 终端、主题和语言上下文
+- Vault 生命周期：
+  - 初始化主密码
+  - 手动解锁
+  - 基于系统钥匙串的自动解锁
+  - 修改主密码
+  - 重置 Vault
+- 主机管理：
+  - `AddHost / UpdateHost / DeleteHost / ListHosts`
+  - 前端本地搜索
+  - 新增、编辑、删除确认
+  - 删除前拦截活跃会话
+- SSH 会话：
+  - `Connect / Disconnect / ListSessions`
+  - 多标签会话管理
+  - 顶部标签切换与关闭
+  - 终端输入与尺寸同步到后端
+  - 运行时事件驱动的终端输出、错误与关闭回调
+- Host Key 信任：
+  - 通过 `ssh:host-key:confirm` 事件触发确认弹窗
+  - 支持接受或拒绝远端指纹
+- SFTP 工作区：
+  - 本地目录浏览
+  - 远端目录浏览
+  - Vaults / SFTP 工作区切换
+  - 复用 SSH 传输连接的远端浏览
+  - 单文件上传 / 下载
+- 凭据中心：
+  - SSH 密钥生成、导入、删除
+  - 凭据使用情况查看
+  - Keychain 状态刷新
+- 桌面体验：
+  - 主题切换
+  - 中英文本地化上下文
+  - 窗口尺寸与最大化状态持久化
 
-### 本期补齐
+### 已完成但文档曾滞后的点
 
 - `App.UpdateHost(host, identity) error`
 - `App.DeleteHost(hostID string) error`
 - `App.ListSessions() []service.Session`
 - `Store.DeleteHost(hostID string) error`
 - 前端多标签终端状态模型
-- 主机搜索、编辑、删除确认
-- 真正的密码解锁弹窗
+- 真实的 Vault 初始化/解锁弹窗
+- 主机搜索、编辑、删除确认流程
+- `ResetVault()` 同步清空凭据数据
 
-## MVP 执行计划
+## 当前架构概览
 
-### 1. 基线修正
+### 后端
 
-- 启动时立即调用 `ListHosts()` 和 `ListSessions()`，主机元数据不再依赖解锁后才可见
-- 引入独立的 `vaultUnlocked` 状态；是否解锁不再通过连接状态推导
-- 解锁流程改为输入主密码后调用 `Unlock(password string)`，成功后允许保存、编辑和连接
-- 前端调用严格对齐后端签名：
-  - `AddHost(host, identity)`
-  - `UpdateHost(host, identity)`
-  - `AcceptHostKey(hostID, key)`
-- Host Key 不再依赖错误字符串猜测，而是由根组件订阅 `ssh:host-key:confirm` 事件，弹出确认框并回传 key
+- `App` 负责把 Wails 绑定方法暴露给前端，并承接窗口状态持久化、Vault 操作、主机与会话调用。
+- `Service` 负责 Vault 解锁态、主机与凭据编排、SSH 连接生命周期、Host Key 等待确认以及多会话管理。
+- `Store` 负责本地 JSON 持久化、敏感信息加密存储与重置清理。
 
-### 2. 主机管理
+### 前端
 
-- `Host.ID` 作为稳定主键，本期编辑时只读显示，不支持修改
-- 编辑表单允许更新 `name/address/port/username/password/privateKey`
-- 为避免前端拿不到加密后的旧凭据，编辑时如果密码或私钥留空，后端默认保留现有凭据
-- 删除主机前先检查该主机是否仍有活跃会话；如果有，则直接阻止并提示先关闭标签
-- 搜索只做前端本地过滤，不增加 `SearchHosts()` 后端 API
+- `App.jsx` 作为工作台根组件，管理：
+  - Vault 初始化与解锁状态
+  - 主机列表与搜索
+  - 会话标签与当前活跃终端
+  - SFTP 工作区切换
+  - Host Key 弹窗、错误弹窗与主机表单
+- 终端面板基于 `xterm.js`
+- SFTP、钥匙串、已知主机、设置页以独立面板组织
 
-### 3. 多标签终端与会话管理
+## 接下来按顺序优化
 
-- 前端状态从单 `sessionId` 升级为 `sessionTabs[] + activeSessionId`
-- 每次连接都创建一个独立标签，允许同一主机存在多个并发标签
-- 使用单一 xterm 实例承载当前活跃标签，同时为每个 session 维护内存缓冲区，切换标签时重放输出
-- 标签关闭时调用 `Disconnect(sessionID)`；如果关闭的是当前标签，则自动切换到最近的其他标签
-- 收到 `term:closed:{sessionID}` 事件后，前端自动移除对应标签
+### P1 已完成
 
-### 4. 界面收敛
+- 主流程打通与多标签终端接入
+- 布局收敛，主机页改为“列表 + 终端”双栏
+- Reset 行为与测试补齐
 
-- 顶栏保留品牌、主机搜索、主题切换、解锁状态和“新建主机”
-- 侧栏改为状态面板，不再保留未实现模块的伪导航入口
-- 内容区聚焦三块：主机列表、会话标签栏、终端区
-- SFTP、端口转发、代码片段、设置中心仅保留在文档路线图中，不占用主流程 UI
+### P2 当前进行中
 
-## 测试与验收
+- 文档与实现对齐
+- 前端按需加载与构建分包，降低首屏主 chunk 体积
 
-### Go 单元测试
+### P3 下一阶段
 
-- `App.UpdateHost/DeleteHost/ListSessions` 绑定行为
-- `Store.DeleteHost` 删除主机后不可再读取 identity
-- `Service.UpdateHost` 在空凭据输入下保留原有加密数据
-- `Service.DeleteHost` 在存在活跃会话时返回错误
+- SFTP 能力补全：
+  - 覆盖确认、重名冲突处理
+  - 传输进度与批量操作
+  - 文件操作反馈与错误提示
+- 凭据中心与主机表单深度整合：
+  - 直接引用已有凭据
+  - 凭据来源与使用状态联动
+- 已知主机管理增强：
+  - 删除 / 清理
+  - 更完整的信任轨迹与变化提示
+- 日志、文案、空态与错误信息统一整理
 
-### 前端自动化测试
+## 当前已知欠缺
 
-- 解锁弹窗提交主密码
-- HostForm 在新增和编辑模式下正确拆分 `host` 与 `identity`
-- 多标签终端切换与关闭
-- Host Key 事件驱动确认流程
+- SFTP 已支持基础上传 / 下载，但还没有进度、批量与覆盖策略
+- 凭据中心已经可用，但与主机创建/编辑表单仍有进一步整合空间
+- 前端主入口仍偏重，需要继续拆分与懒加载
+- 会话恢复、标签持久化、分组、批量导入导出仍未进入当前实现
 
-### 基线命令
+## 验证基线
 
 - `go test ./...`
-- `npm run test`
-- `npm run build`
+- `cd frontend && npm run test`
+- `cd frontend && npm run build`
 
-## 延期路线图
+## 延后路线图
 
-以下能力明确延期到 MVP 之后，不在本期预埋空接口：
-
-- SFTP 文件浏览与传输
 - SSH 端口转发
 - 代码片段管理
-- 后端持久化设置中心
-- 主机分组、批量导入导出、会话恢复、标签持久化
+- 更完整的设置中心
+- 主机分组
+- 批量导入导出
+- 会话恢复与标签持久化
 
 ## 默认约束
 
-- 本期仍以 Wails 单窗口桌面应用为目标
-- 主机编辑不支持修改 ID
+- 仍以 Wails 单窗口桌面应用为目标
+- 主机编辑不支持修改 `Host.ID`
 - 编辑时留空密码或私钥表示“保留现状”，不是“清空凭据”

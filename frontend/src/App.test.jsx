@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ThemeProvider from './contexts/ThemeProvider.jsx'
 import LanguageProvider from './contexts/LanguageProvider.jsx'
@@ -9,18 +9,28 @@ import {
   addHost,
   changeMasterPassword,
   connect,
+  downloadFile,
   deleteHost,
   disconnect,
+  deleteCredential,
+  generateCredential,
+  getCredentials,
+  getCredentialUsage,
   getKeychainStatus,
   getVaultStatus,
   initializeVaultWithPreferences,
+  importCredential,
   listLocalFiles,
   listHosts,
   listRemoteFiles,
   listSessions,
   onRuntimeEvent,
+  persistWindowState,
   resetVault,
+  resizeTerminal,
+  sendInput,
   tryAutoUnlock,
+  uploadFile,
   unlockWithPreferences,
   updateHost,
   windowToggleMaximise,
@@ -40,7 +50,13 @@ vi.mock('./lib/backend.js', () => ({
   changeMasterPassword: vi.fn(),
   resetVault: vi.fn(),
   connect: vi.fn(),
+  downloadFile: vi.fn(),
   disconnect: vi.fn(),
+  generateCredential: vi.fn(),
+  importCredential: vi.fn(),
+  getCredentials: vi.fn(),
+  getCredentialUsage: vi.fn(),
+  deleteCredential: vi.fn(),
   listLocalFiles: vi.fn(),
   listRemoteFiles: vi.fn(),
   listSessions: vi.fn(),
@@ -49,7 +65,39 @@ vi.mock('./lib/backend.js', () => ({
   sendInput: vi.fn(),
   resizeTerminal: vi.fn(),
   onRuntimeEvent: vi.fn(),
+  persistWindowState: vi.fn(),
+  uploadFile: vi.fn(),
   windowToggleMaximise: vi.fn(),
+}))
+
+vi.mock('./components/TerminalPane.jsx', () => ({
+  default: function MockTerminalPane({
+    sessions,
+    activeSessionId,
+    activeSessionTitle,
+    activeSessionMeta,
+    onSendInput,
+    onResize,
+    onSessionClosed,
+  }) {
+    return (
+      <section data-testid="terminal-pane">
+        <h2>{activeSessionTitle}</h2>
+        <p>{activeSessionMeta?.remoteAddr || '当前没有活跃终端，连接主机后会在这里显示 shell。'}</p>
+        <span>tabs:{sessions.length}</span>
+        <span>active:{activeSessionId || 'none'}</span>
+        <button type="button" onClick={() => onSendInput(activeSessionId, 'pwd\n')}>
+          发送终端输入
+        </button>
+        <button type="button" onClick={() => onResize(activeSessionId, 120, 36)}>
+          调整终端尺寸
+        </button>
+        <button type="button" onClick={() => onSessionClosed(activeSessionId)}>
+          模拟会话关闭
+        </button>
+      </section>
+    )
+  },
 }))
 
 function createDeferred() {
@@ -133,7 +181,29 @@ describe('App', () => {
     changeMasterPassword.mockResolvedValue(undefined)
     resetVault.mockResolvedValue(undefined)
     connect.mockResolvedValue('session-1')
+    downloadFile.mockResolvedValue({
+      sourcePath: '/home/root/app.log',
+      targetPath: '/Users/yml/app.log',
+      bytesCopied: 128,
+    })
     disconnect.mockResolvedValue(undefined)
+    generateCredential.mockResolvedValue('cred-1')
+    importCredential.mockResolvedValue('cred-2')
+    getCredentials.mockResolvedValue([])
+    getCredentialUsage.mockResolvedValue({
+      credential_id: 'cred-1',
+      host_ids: [],
+      active_sessions: 0,
+    })
+    deleteCredential.mockResolvedValue(undefined)
+    persistWindowState.mockResolvedValue(undefined)
+    sendInput.mockResolvedValue(undefined)
+    resizeTerminal.mockResolvedValue(undefined)
+    uploadFile.mockResolvedValue({
+      sourcePath: '/Users/yml/notes.txt',
+      targetPath: '/home/root/notes.txt',
+      bytesCopied: 42,
+    })
     windowToggleMaximise.mockResolvedValue(undefined)
     listLocalFiles.mockResolvedValue({
       path: '/Users/yml',
@@ -146,6 +216,14 @@ describe('App', () => {
           modTime: '2026-04-15T10:31:00Z',
           type: 'dir',
           isDir: true,
+        },
+        {
+          name: 'notes.txt',
+          path: '/Users/yml/notes.txt',
+          size: 42,
+          modTime: '2026-04-15T10:33:00Z',
+          type: 'file',
+          isDir: false,
         },
       ],
     })
@@ -160,6 +238,14 @@ describe('App', () => {
           modTime: '2026-04-15T10:31:00Z',
           type: 'dir',
           isDir: true,
+        },
+        {
+          name: 'app.log',
+          path: '/home/root/app.log',
+          size: 128,
+          modTime: '2026-04-15T10:32:00Z',
+          type: 'file',
+          isDir: false,
         },
       ],
     })
@@ -215,9 +301,35 @@ describe('App', () => {
     expect(screen.getByText('全部主机')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
 
-    expect(screen.getByText('先选择一个主机')).toBeInTheDocument()
-    expect(screen.getByText('Local')).toBeInTheDocument()
+    expect(await screen.findByText('先选择一个主机')).toBeInTheDocument()
+    expect(await screen.findByText('Local')).toBeInTheDocument()
     expect(listLocalFiles).toHaveBeenCalled()
+  })
+
+  it('SFTP 工作区支持上传和下载文件', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+    await user.click(await screen.findByRole('button', { name: '选择主机' }))
+
+    expect(await screen.findByText('notes.txt')).toBeInTheDocument()
+    expect(await screen.findByText('app.log')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /notes.txt/i }))
+    await user.click(screen.getByRole('button', { name: '上传到远端' }))
+
+    await waitFor(() => {
+      expect(uploadFile).toHaveBeenCalledWith('host-1', '/Users/yml/notes.txt', '/home/root')
+    })
+
+    await user.click(screen.getByRole('button', { name: /app.log/i }))
+    await user.click(screen.getByRole('button', { name: '下载到本地' }))
+
+    await waitFor(() => {
+      expect(downloadFile).toHaveBeenCalledWith('host-1', '/home/root/app.log', '/Users/yml')
+    })
   })
 
   it('设置页支持修改主密码', async () => {
@@ -227,7 +339,7 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: '设置' }))
 
-    await user.type(screen.getByLabelText('当前主密码'), 'master-password')
+    await user.type(await screen.findByLabelText('当前主密码'), 'master-password')
     await user.type(screen.getByLabelText('新主密码'), 'next-password')
     await user.type(screen.getByLabelText('确认新主密码'), 'next-password')
     await user.click(screen.getByRole('button', { name: '更新主密码' }))
@@ -245,7 +357,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '已知主机' }))
 
     expect(screen.getAllByRole('heading', { name: '已知主机' }).length).toBeGreaterThan(0)
-    expect(screen.getByText('可信记录')).toBeInTheDocument()
+    expect(await screen.findByText('可信记录')).toBeInTheDocument()
     expect(screen.getByText('Beta')).toBeInTheDocument()
     expect(screen.getByText('1 条已保存')).toBeInTheDocument()
     expect(screen.getByText(/ssh-ed25519/)).toBeInTheDocument()
@@ -258,19 +370,20 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: '钥匙串' }))
 
-    expect(screen.getByText('macOS 钥匙串')).toBeInTheDocument()
-    expect(screen.queryByRole('dialog', { name: '生成密钥' })).not.toBeInTheDocument()
+    await waitFor(() => expect(getCredentials).toHaveBeenCalled())
+    expect(screen.getByText('暂无SSH 密钥')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '生成 SSH 密钥' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '生成' }))
 
-    expect(screen.getByRole('dialog', { name: '生成密钥' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Label')).toBeInTheDocument()
-    expect(screen.getByText('密钥类型')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '关闭生成密钥' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '生成 SSH 密钥' })).toBeInTheDocument()
+    expect(screen.getByLabelText('密钥标签')).toBeInTheDocument()
+    expect(screen.getByText('密钥算法')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '关闭' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '关闭生成密钥' }))
+    await user.click(screen.getByRole('button', { name: '关闭' }))
 
-    expect(screen.queryByRole('dialog', { name: '生成密钥' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '生成 SSH 密钥' })).not.toBeInTheDocument()
   })
 
   it('设置页支持重置 Vault', async () => {
@@ -386,6 +499,42 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ }).closest('.session-tab')).toHaveClass('active')
   })
 
+  it('终端面板会跟随活跃会话并把输入与尺寸同步到后端', async () => {
+    const user = userEvent.setup()
+    listSessions
+      .mockResolvedValueOnce([
+        { ID: 'session-boot', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
+      ])
+      .mockResolvedValueOnce([
+        { ID: 'session-boot', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
+        { ID: 'session-2', HostID: 'host-2', RemoteAddr: '10.0.0.2:2222' },
+      ])
+    connect.mockResolvedValueOnce('session-2')
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    const terminalPane = await screen.findByTestId('terminal-pane')
+    expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
+    expect(within(terminalPane).getByText('10.0.0.1:22')).toBeInTheDocument()
+
+    await user.click(screen.getAllByRole('button', { name: '连接' })[1])
+    await waitFor(() => expect(within(terminalPane).getByText('Beta')).toBeInTheDocument())
+    expect(within(terminalPane).getByText('10.0.0.2:2222')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '发送终端输入' }))
+    await user.click(screen.getByRole('button', { name: '调整终端尺寸' }))
+
+    await waitFor(() => {
+      expect(sendInput).toHaveBeenCalledWith('session-2', 'pwd\n')
+      expect(resizeTerminal).toHaveBeenCalledWith('session-2', 120, 36)
+    })
+
+    await user.click(screen.getByRole('button', { name: '模拟会话关闭' }))
+    expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
+    expect(within(terminalPane).queryByText('Beta')).not.toBeInTheDocument()
+  })
+
   it('通过运行时事件驱动 Host Key 确认流程', async () => {
     const user = userEvent.setup()
     const pendingConnect = createDeferred()
@@ -433,5 +582,15 @@ describe('App', () => {
 
     await user.dblClick(workspaceStrip)
     expect(windowToggleMaximise).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(persistWindowState).toHaveBeenCalled())
+  })
+
+  it('窗口尺寸变化后会防抖保存窗口状态', async () => {
+    renderApp()
+
+    await waitFor(() => expect(listHosts).toHaveBeenCalled())
+
+    window.dispatchEvent(new Event('resize'))
+    await waitFor(() => expect(persistWindowState).toHaveBeenCalledTimes(1))
   })
 })
