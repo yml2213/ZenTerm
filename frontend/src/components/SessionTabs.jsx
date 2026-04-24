@@ -1,4 +1,4 @@
-import { MonitorSmartphone, RadioTower, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 export default function SessionTabs({
   sessions,
@@ -16,37 +16,34 @@ export default function SessionTabs({
   return (
     <section className={`panel session-tabs ${className}`.trim()} aria-label="会话标签栏">
       {sessions.map((session) => {
-        const active = session.sessionId === activeSessionId
+        const tabId = session.tabId || session.sessionId
+        const isNewTab = session.type === 'new'
+        const active = tabId === activeSessionId
+        const label = isNewTab ? session.title : `${session.title} ${session.remoteAddr || session.hostID}`
 
         return (
-          <div
-            key={session.sessionId}
-            className={`session-tab${active ? ' active' : ''}`}
+          <article
+            key={tabId}
+            className={`session-tab ${isNewTab ? 'new-tab' : 'ssh-tab'}${active ? ' active' : ''}`}
           >
             <button
               type="button"
               className="session-tab-main"
-              aria-label={`${session.title} ${session.remoteAddr || session.hostID}`}
-              onClick={() => onSelect(session.sessionId)}
+              aria-label={label}
+              onClick={() => onSelect(session)}
             >
-              <div className="session-tab-row">
-                <strong>{session.title}</strong>
-                <span className="session-tab-pill">
-                  <RadioTower size={11} />
-                  Live
-                </span>
-              </div>
-              <span>{session.remoteAddr || session.hostID}</span>
+              {isNewTab ? <Plus className="session-tab-icon" size={13} /> : null}
+              <strong>{session.title}</strong>
             </button>
             <button
               type="button"
               className="session-tab-close"
               aria-label={`关闭 ${session.title}`}
-              onClick={() => onClose(session.sessionId)}
+              onClick={() => onClose(session)}
             >
               <X size={14} />
             </button>
-          </div>
+          </article>
         )
       })}
     </section>

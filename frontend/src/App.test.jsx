@@ -306,13 +306,37 @@ describe('App', () => {
     expect(listLocalFiles).toHaveBeenCalled()
   })
 
+  it('支持通过加号打开空白标签并从最近连接进入 SSH', async () => {
+    const user = userEvent.setup()
+    connect.mockResolvedValueOnce('session-new-tab')
+    listSessions
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { ID: 'session-new-tab', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
+      ])
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '新增标签页' }))
+
+    expect(await screen.findByText('Recent connections')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search hosts or tabs')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Alpha Personal/ }))
+
+    const terminalPane = await screen.findByTestId('terminal-pane')
+    expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
+    expect(connect).toHaveBeenCalledWith('host-1')
+  })
+
   it('SFTP 工作区支持上传和下载文件', async () => {
     const user = userEvent.setup()
     renderApp()
 
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
-    await user.click(await screen.findByRole('button', { name: '选择主机' }))
+    await user.click((await screen.findAllByRole('button', { name: '选择主机' }))[0])
 
     expect(await screen.findByText('notes.txt')).toBeInTheDocument()
     expect(await screen.findByText('app.log')).toBeInTheDocument()
@@ -498,9 +522,8 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: '显示主机列表' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
+    await user.click(screen.getByRole('button', { name: /Vaults/i }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ })).toBeInTheDocument())
 
@@ -518,7 +541,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ }).closest('.session-tab')).toHaveClass('active')
   })
 
-  it('连接后会自动进入终端专注模式并允许切回主机列表', async () => {
+  it('连接后会进入独立 SSH 界面，并可通过顶部切换 Vaults 和 SFTP', async () => {
     const user = userEvent.setup()
     connect.mockResolvedValueOnce('session-1')
     listSessions
@@ -532,12 +555,20 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
-    expect(await screen.findByRole('button', { name: '显示主机列表' })).toBeInTheDocument()
+    const terminalPane = await screen.findByTestId('terminal-pane')
+    expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '连接' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
+    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    expect(await screen.findByText('全部主机')).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: '连接' })).toHaveLength(2)
-    expect(screen.getByRole('button', { name: '专注终端' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+    expect(await screen.findByText('文件工作区')).toBeInTheDocument()
+    expect(await screen.findByText('先选择一个主机')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ }))
+    expect(await screen.findByTestId('terminal-pane')).toBeInTheDocument()
   })
 
   it('连接缺少认证方式的主机会显示中文错误', async () => {
@@ -571,10 +602,10 @@ describe('App', () => {
     expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(within(terminalPane).getByText('10.0.0.1:22')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
+    await user.click(screen.getByRole('button', { name: /Vaults/i }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
-    await waitFor(() => expect(within(terminalPane).getByText('Beta')).toBeInTheDocument())
-    expect(within(terminalPane).getByText('10.0.0.2:2222')).toBeInTheDocument()
+    await waitFor(() => expect(within(screen.getByTestId('terminal-pane')).getByText('Beta')).toBeInTheDocument())
+    expect(within(screen.getByTestId('terminal-pane')).getByText('10.0.0.2:2222')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '发送终端输入' }))
     await user.click(screen.getByRole('button', { name: '调整终端尺寸' }))
@@ -585,8 +616,8 @@ describe('App', () => {
     })
 
     await user.click(screen.getByRole('button', { name: '模拟会话关闭' }))
-    expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
-    expect(within(terminalPane).queryByText('Beta')).not.toBeInTheDocument()
+    expect(within(screen.getByTestId('terminal-pane')).getByText('Alpha')).toBeInTheDocument()
+    expect(within(screen.getByTestId('terminal-pane')).queryByText('Beta')).not.toBeInTheDocument()
   })
 
   it('通过运行时事件驱动 Host Key 确认流程', async () => {
@@ -606,7 +637,7 @@ describe('App', () => {
     renderApp()
 
     await continueWithMasterPassword(user)
-    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
+    await user.click(screen.getByRole('button', { name: /Vaults/i }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
     runtimeHandlers.get('ssh:host-key:confirm')?.({

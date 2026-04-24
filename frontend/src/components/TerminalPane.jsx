@@ -1,14 +1,12 @@
 import { useEffect, useEffectEvent, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { Activity, Server } from 'lucide-react'
 import { onRuntimeEvent } from '../lib/backend.js'
 
 export default function TerminalPane({
   sessions,
   activeSessionId,
   activeSessionTitle,
-  activeSessionMeta,
   onSendInput,
   onResize,
   onSessionClosed,
@@ -111,11 +109,11 @@ export default function TerminalPane({
       cursorBlink: false,
       cursorStyle: 'bar',
       fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-      fontSize: 13,
+      fontSize: 14,
       theme: {
-        background: '#0a1220',
-        foreground: '#d8e4f0',
-        cursor: '#4fd1c5',
+        background: '#141526',
+        foreground: '#dfe8f2',
+        cursor: '#6ee7b7',
       },
     })
 
@@ -201,24 +199,6 @@ export default function TerminalPane({
 
   return (
     <section className="panel terminal-panel">
-      <div className="terminal-toolbar">
-        <div className="terminal-toolbar-main">
-          <span className="panel-kicker">Live Session</span>
-          <h2>{activeSessionId ? activeSessionTitle : 'Zen Console'}</h2>
-          <p>{activeSessionId ? (activeSessionMeta?.remoteAddr || activeSessionMeta?.hostID || '会话已连接') : '当前没有活跃终端，连接主机后会在这里显示 shell。'}</p>
-        </div>
-        <div className="terminal-toolbar-side">
-          <span className={`terminal-status ${activeSessionId ? 'online' : 'idle'}`}>
-            <Activity size={12} />
-            {activeSessionId ? 'Connected' : 'Idle'}
-          </span>
-          <span className="terminal-status subtle">
-            <Server size={12} />
-            {sessions.length} Tabs
-          </span>
-        </div>
-      </div>
-
       <div ref={terminalContainerRef} className="terminal-surface" />
     </section>
   )

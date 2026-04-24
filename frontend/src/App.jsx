@@ -149,6 +149,14 @@ function buildOptimisticSessionTab(host, sessionID) {
   }
 }
 
+function createNewWorkspaceTab(index) {
+  return {
+    tabId: `new-tab-${index}`,
+    type: 'new',
+    title: 'New Tab',
+  }
+}
+
 function normalizeHostKeyPrompt(prompt) {
   if (!prompt) {
     return null
@@ -209,6 +217,76 @@ function PanelFallback({
   )
 }
 
+function NewTabPage({
+  hosts,
+  searchQuery,
+  onSearchChange,
+  onConnect,
+  onCreateHost,
+  connectingHostIds,
+  vaultUnlocked,
+}) {
+  const filteredHosts = hosts.filter((host) => matchesHost(host, searchQuery))
+
+  return (
+    <section className="new-tab-surface">
+      <label className="new-tab-search">
+        <Search size={17} />
+        <input
+          value={searchQuery}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search hosts or tabs"
+          aria-label="搜索主机或标签页"
+        />
+        <span>⌘+K</span>
+      </label>
+
+      <section className="new-tab-card" aria-label="最近连接">
+        <header className="new-tab-card-head">
+          <h2>Recent connections</h2>
+          <div className="new-tab-card-actions">
+            <button type="button" onClick={onCreateHost}>
+              Create a workspace
+            </button>
+            <button type="button" disabled>
+              Restore
+            </button>
+          </div>
+        </header>
+
+        <div className="new-tab-host-list">
+          {filteredHosts.length > 0 ? (
+            filteredHosts.map((host) => {
+              const connecting = connectingHostIds.includes(host.id)
+
+              return (
+                <button
+                  type="button"
+                  key={host.id}
+                  className="new-tab-host-row"
+                  onClick={() => onConnect(host.id)}
+                  disabled={!vaultUnlocked || connecting}
+                >
+                  <span className="new-tab-host-icon">
+                    <TerminalSquare size={15} />
+                  </span>
+                  <span className="new-tab-host-name">{host.name || host.id}</span>
+                  <span className="new-tab-host-meta">Personal</span>
+                </button>
+              )
+            })
+          ) : (
+            <div className="new-tab-empty">
+              <strong>{hosts.length > 0 ? 'No matching hosts' : 'No hosts yet'}</strong>
+              <p>{hosts.length > 0 ? 'Try another host name, address, or user.' : 'Create a workspace before opening an SSH tab.'}</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </section>
+  )
+}
+
 const sidebarPages = {
   hosts: {
     label: '主机',
@@ -246,12 +324,14 @@ const sidebarPages = {
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
+  const newTabCounterRef = useRef(1)
   const [activeWorkspace, setActiveWorkspace] = useState('vaults')
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
   const [hosts, setHosts] = useState([])
   const [selectedHostId, setSelectedHostId] = useState(null)
   const [selectedSftpHostId, setSelectedSftpHostId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [newTabSearchQuery, setNewTabSearchQuery] = useState('')
   const [vaultInitialized, setVaultInitialized] = useState(false)
   const [vaultUnlocked, setVaultUnlocked] = useState(false)
   const [vaultReady, setVaultReady] = useState(false)
@@ -272,7 +352,8 @@ export default function App() {
   const [isAcceptingKey, setIsAcceptingKey] = useState(false)
   const [sessionTabs, setSessionTabs] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
-  const [hostListVisible, setHostListVisible] = useState(true)
+  const [newTabs, setNewTabs] = useState(() => [createNewWorkspaceTab(1)])
+  const [activeNewTabId, setActiveNewTabId] = useState('new-tab-1')
   const [connectingHostIds, setConnectingHostIds] = useState([])
   const [keychainStatus, setKeychainStatus] = useState(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
@@ -286,11 +367,27 @@ export default function App() {
   }, {})
   const selectedSftpHost = hosts.find((host) => host.id === selectedSftpHostId) || null
   const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
+  const workspaceTabs = newTabs.concat(sessionTabs.map((session) => ({
+    ...session,
+    tabId: session.sessionId,
+    type: 'ssh',
+  })))
+  const activeWorkspaceTabId = activeWorkspace === 'new-tab' ? activeNewTabId : activeSessionId
   const navigationItems = [
     { id: 'hosts', label: '主机', icon: LayoutGrid },
     { id: 'keychain', label: '钥匙串', icon: KeyRound },
     { id: 'knownHosts', label: '已知主机', icon: Shield },
   ]
+
+  function createNextNewTab() {
+    newTabCounterRef.current += 1
+    return createNewWorkspaceTab(newTabCounterRef.current)
+  }
+
+  function activateNewTab(tabId) {
+    setActiveNewTabId(tabId)
+    setActiveWorkspace('new-tab')
+  }
 
   function removeSessionTab(sessionID) {
     setSessionTabs((currentTabs) => {
@@ -301,6 +398,36 @@ export default function App() {
         }
         return nextTabs.at(-1)?.sessionId || null
       })
+      return nextTabs
+    })
+  }
+
+  function openNewTab() {
+    const nextTab = createNextNewTab()
+    setNewTabs((currentTabs) => currentTabs.concat(nextTab))
+    setActiveNewTabId(nextTab.tabId)
+    setActiveWorkspace('new-tab')
+  }
+
+  function closeNewTab(tabId) {
+    setNewTabs((currentTabs) => {
+      if (currentTabs.length === 1 && sessionTabs.length === 0) {
+        return currentTabs
+      }
+
+      const nextTabs = currentTabs.filter((tab) => tab.tabId !== tabId)
+      if (activeNewTabId === tabId) {
+        const nextNewTab = nextTabs.at(-1)
+        if (nextNewTab) {
+          setActiveNewTabId(nextNewTab.tabId)
+          setActiveWorkspace('new-tab')
+        } else {
+          setActiveNewTabId(null)
+          setActiveSessionId((current) => current || sessionTabs.at(-1)?.sessionId || null)
+          setActiveWorkspace(sessionTabs.length > 0 ? 'ssh' : 'vaults')
+        }
+      }
+
       return nextTabs
     })
   }
@@ -394,7 +521,7 @@ export default function App() {
         const nextTabs = buildSessionTabs(snapshot, loadedHosts, [])
         setSessionTabs(nextTabs)
         setActiveSessionId(nextTabs.at(-1)?.sessionId || null)
-        setHostListVisible(nextTabs.length === 0)
+        setActiveWorkspace(nextTabs.length > 0 ? 'ssh' : 'vaults')
       })
 
       const status = await getVaultStatus()
@@ -461,10 +588,20 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (sessionTabs.length === 0) {
-      setHostListVisible(true)
+    if (activeWorkspace === 'ssh' && sessionTabs.length === 0) {
+      setNewTabs((currentTabs) => {
+        if (currentTabs.length > 0) {
+          setActiveNewTabId((current) => current || currentTabs.at(-1)?.tabId || null)
+          return currentTabs
+        }
+
+        const nextTab = createNextNewTab()
+        setActiveNewTabId(nextTab.tabId)
+        return [nextTab]
+      })
+      setActiveWorkspace('new-tab')
     }
-  }, [sessionTabs.length])
+  }, [activeWorkspace, sessionTabs.length])
 
   function openCreateHost() {
     if (!vaultUnlocked) {
@@ -542,7 +679,37 @@ export default function App() {
   }
 
   function handleWorkspaceChange(workspace) {
+    if (workspace === 'ssh') {
+      if (sessionTabs.length === 0) {
+        if (newTabs.length > 0) {
+          activateNewTab(activeNewTabId || newTabs.at(-1)?.tabId)
+        }
+        return
+      }
+
+      setActiveSessionId((current) => current || sessionTabs.at(-1)?.sessionId || null)
+    }
+
     setActiveWorkspace(workspace)
+  }
+
+  function handleWorkspaceTabSelect(tab) {
+    if (tab.type === 'new') {
+      activateNewTab(tab.tabId)
+      return
+    }
+
+    setActiveSessionId(tab.sessionId)
+    setActiveWorkspace('ssh')
+  }
+
+  function handleWorkspaceTabClose(tab) {
+    if (tab.type === 'new') {
+      closeNewTab(tab.tabId)
+      return
+    }
+
+    handleCloseTab(tab.sessionId)
   }
 
   function handleChangeMasterField(field, value) {
@@ -594,6 +761,7 @@ export default function App() {
           setSelectedHostId(null)
           setSelectedSftpHostId(null)
           setSearchQuery('')
+          setNewTabSearchQuery('')
           setVaultInitialized(false)
           setVaultUnlocked(false)
           setVaultSetupForm(createVaultSetupForm())
@@ -605,6 +773,9 @@ export default function App() {
           setHostKeyPrompt(null)
           setSessionTabs([])
           setActiveSessionId(null)
+          newTabCounterRef.current = 1
+          setNewTabs([createNewWorkspaceTab(1)])
+          setActiveNewTabId('new-tab-1')
           setConnectingHostIds([])
           setKeychainStatus(null)
         })
@@ -669,6 +840,7 @@ export default function App() {
     }
 
     const host = hosts.find((item) => item.id === hostID) || null
+    const sourceNewTabId = activeWorkspace === 'new-tab' ? activeNewTabId : null
     setConnectingHostIds((current) => current.concat(hostID))
     setError(null)
 
@@ -684,8 +856,12 @@ export default function App() {
 
             return currentTabs.concat(nextTab)
           })
+          if (sourceNewTabId) {
+            setNewTabs((currentTabs) => currentTabs.filter((tab) => tab.tabId !== sourceNewTabId))
+            setActiveNewTabId(null)
+          }
           setActiveSessionId(sessionID)
-          setHostListVisible(false)
+          setActiveWorkspace('ssh')
         })
 
         void syncSessions()
@@ -776,12 +952,24 @@ export default function App() {
   const isSettingsPage = activeSidebarPage === 'settings'
   const isKnownHostsPage = activeSidebarPage === 'knownHosts'
   const isKeychainPage = activeSidebarPage === 'keychain'
-  const showTerminalFocus = isHostsPage && Boolean(activeSessionId) && !hostListVisible
-  const pageHeader = showTerminalFocus
+  const shellClassName = [
+    'app-shell',
+    activeWorkspace === 'ssh' || activeWorkspace === 'new-tab' ? 'app-shell-tabbed' : '',
+    activeWorkspace === 'ssh' ? 'app-shell-ssh' : '',
+  ].filter(Boolean).join(' ')
+  const pageHeader = activeWorkspace === 'ssh'
     ? {
-        kicker: 'Live Session',
+        kicker: 'SSH',
         title: activeSession?.title || '终端工作区',
-        description: activeSession?.remoteAddr || '当前活跃 SSH 会话已进入专注模式，主机列表已自动折叠。',
+        description: activeSession?.remoteAddr || '当前活跃 SSH 会话会在这里独立展示。',
+      }
+    : activeWorkspace === 'sftp'
+    ? {
+        kicker: 'SFTP',
+        title: '文件工作区',
+        description: selectedSftpHost
+          ? `当前主机：${selectedSftpHost.name || selectedSftpHost.id} · ${selectedSftpHost.address}:${selectedSftpHost.port || 22}`
+          : 'SFTP 是独立工作区，用来浏览本地与远端目录并执行上传下载。',
       }
     : isSettingsPage
     ? {
@@ -792,7 +980,7 @@ export default function App() {
     : currentSidebarPage
 
   return (
-    <div className="app-shell">
+    <div className={shellClassName}>
       <section className="workspace-strip" onDoubleClick={handleWorkspaceStripDoubleClick}>
         <div className="workspace-modules">
           <button
@@ -814,19 +1002,29 @@ export default function App() {
             {t('sftp')}
           </button>
         </div>
-        {activeWorkspace === 'vaults' ? (
+        <div className="workspace-tab-strip">
+        {workspaceTabs.length > 0 ? (
           <SessionTabs
             className="workspace-tabs"
-            sessions={sessionTabs}
-            activeSessionId={activeSessionId}
-            onSelect={setActiveSessionId}
-            onClose={handleCloseTab}
+            sessions={workspaceTabs}
+            activeSessionId={activeWorkspaceTabId}
+            onSelect={handleWorkspaceTabSelect}
+            onClose={handleWorkspaceTabClose}
             emptyLabel="还没有打开的 SSH 终端标签"
             emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
           />
         ) : (
           <div className="workspace-strip-spacer" />
         )}
+          <button
+            type="button"
+            className="workspace-new-tab-btn"
+            onClick={openNewTab}
+            aria-label="新增标签页"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
         <button
           type="button"
           className="theme-toggle-btn"
@@ -895,7 +1093,7 @@ export default function App() {
               </div>
 
               <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : ''}`}>
-                {isHostsPage && !showTerminalFocus ? (
+                {isHostsPage ? (
                   <div className="page-toolbar-search-slot">
                     <label className="search-bar search-bar-compact">
                       <Search size={15} />
@@ -909,16 +1107,7 @@ export default function App() {
                   </div>
                 ) : null}
                 <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
-                  {isHostsPage && activeSessionId ? (
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => setHostListVisible((current) => !current)}
-                    >
-                      {showTerminalFocus ? '显示主机列表' : '专注终端'}
-                    </button>
-                  ) : null}
-                  {isHostsPage && !showTerminalFocus && (
+                  {isHostsPage && (
                     <button
                       type="button"
                       className="toolbar-btn primary"
@@ -934,45 +1123,20 @@ export default function App() {
 
             <main className="content-area">
               {isHostsPage ? (
-                <section className={`hosts-stage${showTerminalFocus ? ' focus-mode' : ''}`}>
-                  <div className={`hosts-stage-grid${showTerminalFocus ? ' focus-mode' : ''}`}>
-                    {!showTerminalFocus ? (
-                      <HostList
-                        hosts={filteredHosts}
-                        hasAnyHosts={hosts.length > 0}
-                        searchQuery={searchQuery}
-                        selectedHostId={selectedHostId}
-                        sessionCountByHost={sessionCountByHost}
-                        connectingHostIds={connectingHostIds}
-                        onSelect={setSelectedHostId}
-                        onConnect={handleConnect}
-                        onEdit={openEditHost}
-                        onDelete={setDeleteCandidate}
-                        disabled={!vaultUnlocked}
-                      />
-                    ) : null}
-                    <Suspense
-                      fallback={(
-                        <PanelFallback
-                          className="panel terminal-panel"
-                          kicker="Console"
-                          title="正在加载终端工作区"
-                          description="终端组件会在进入主机页后按需加载，减少应用初始体积。"
-                        />
-                      )}
-                    >
-                      <TerminalPane
-                        sessions={sessionTabs}
-                        activeSessionId={activeSessionId}
-                        activeSessionTitle={activeSession?.title || 'Zen Console'}
-                        activeSessionMeta={activeSession}
-                        onSendInput={handleSendInput}
-                        onResize={handleResizeTerminal}
-                        onSessionClosed={handleSessionClosed}
-                        onError={(err) => setError(err?.message || String(err))}
-                      />
-                    </Suspense>
-                  </div>
+                <section className="hosts-stage">
+                  <HostList
+                    hosts={filteredHosts}
+                    hasAnyHosts={hosts.length > 0}
+                    searchQuery={searchQuery}
+                    selectedHostId={selectedHostId}
+                    sessionCountByHost={sessionCountByHost}
+                    connectingHostIds={connectingHostIds}
+                    onSelect={setSelectedHostId}
+                    onConnect={handleConnect}
+                    onEdit={openEditHost}
+                    onDelete={setDeleteCandidate}
+                    disabled={!vaultUnlocked}
+                  />
                 </section>
               ) : isSettingsPage ? (
                 <Suspense
@@ -1028,27 +1192,95 @@ export default function App() {
             </main>
           </section>
         </div>
-      ) : (
-        <Suspense
-          fallback={(
-            <PanelFallback
-              className="panel"
-              kicker="SFTP"
-              title="正在加载文件工作区"
-              description="SFTP 仅在切换到文件工作区时加载，避免首屏携带文件浏览逻辑。"
+      ) : activeWorkspace === 'new-tab' ? (
+        <section className="page-shell workspace-page new-tab-page">
+          <main className="content-area content-area-new-tab">
+            <NewTabPage
+              hosts={hosts}
+              searchQuery={newTabSearchQuery}
+              onSearchChange={setNewTabSearchQuery}
+              onConnect={handleConnect}
+              onCreateHost={openCreateHost}
+              connectingHostIds={connectingHostIds}
+              vaultUnlocked={vaultUnlocked}
             />
-          )}
-        >
-          <SftpWorkspace
-            hosts={hosts}
-            selectedHost={selectedSftpHost}
-            vaultUnlocked={vaultUnlocked}
-            onChooseHost={handlePickSftpHost}
-            onCreateHost={openCreateHost}
-            onBackToVaults={() => handleWorkspaceChange('vaults')}
-            onError={(message) => setError(message)}
-          />
-        </Suspense>
+          </main>
+        </section>
+      ) : activeWorkspace === 'sftp' ? (
+        <section className="page-shell workspace-page sftp-page">
+          <header className="page-toolbar">
+            <div className="page-toolbar-main">
+              <div className="page-intro-copy page-toolbar-copy">
+                <span className="panel-kicker">{pageHeader.kicker}</span>
+                <h1>{pageHeader.title}</h1>
+                {pageHeader.description ? <p>{pageHeader.description}</p> : null}
+              </div>
+            </div>
+
+            <div className="page-toolbar-actions">
+              <div className="page-toolbar-meta">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => handlePickSftpHost()}
+                >
+                  {selectedSftpHost ? '切换主机' : '选择主机'}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="content-area content-area-flush">
+            <Suspense
+              fallback={(
+                <PanelFallback
+                  className="panel"
+                  kicker="SFTP"
+                  title="正在加载文件工作区"
+                  description="SFTP 仅在切换到文件工作区时加载，避免首屏携带文件浏览逻辑。"
+                />
+              )}
+            >
+              <SftpWorkspace
+                hosts={hosts}
+                selectedHost={selectedSftpHost}
+                vaultUnlocked={vaultUnlocked}
+                onChooseHost={handlePickSftpHost}
+                onCreateHost={openCreateHost}
+                onBackToVaults={() => handleWorkspaceChange('vaults')}
+                onError={(message) => setError(message)}
+              />
+            </Suspense>
+          </main>
+        </section>
+      ) : (
+        <section className="page-shell workspace-page ssh-page">
+          <main className="content-area content-area-terminal">
+            <section className="ssh-stage">
+              <Suspense
+                fallback={(
+                  <PanelFallback
+                    className="panel terminal-panel"
+                    kicker="Console"
+                    title="正在加载终端工作区"
+                    description="SSH 会话会在这里作为独立界面展示。"
+                  />
+                )}
+              >
+                <TerminalPane
+                  sessions={sessionTabs}
+                  activeSessionId={activeSessionId}
+                  activeSessionTitle={activeSession?.title || 'Zen Console'}
+                  activeSessionMeta={activeSession}
+                  onSendInput={handleSendInput}
+                  onResize={handleResizeTerminal}
+                  onSessionClosed={handleSessionClosed}
+                  onError={(err) => setError(err?.message || String(err))}
+                />
+              </Suspense>
+            </section>
+          </main>
+        </section>
       )}
 
       <UnlockModal
