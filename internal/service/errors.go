@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrNilDependency               = errors.New("service dependencies cannot be nil")
-	ErrNoIdentityAuth              = errors.New("no supported ssh authentication method configured")
+	ErrNoIdentityAuth              = errors.New("未配置可用的 SSH 认证方式")
 	ErrHostAddressRequired         = errors.New("host address is required")
 	ErrHostUsernameRequired        = errors.New("host username is required")
 	ErrInvalidTerminalSize         = errors.New("invalid terminal size")

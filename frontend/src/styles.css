@@ -730,6 +730,15 @@ textarea {
   gap: 1rem;
 }
 
+.hosts-stage.focus-mode,
+.hosts-stage-grid.focus-mode {
+  min-height: 100%;
+}
+
+.hosts-stage-grid.focus-mode {
+  grid-template-columns: 1fr;
+}
+
 .settings-stage {
   min-height: 100%;
   display: grid;

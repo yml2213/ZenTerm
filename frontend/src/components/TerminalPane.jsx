@@ -1,7 +1,6 @@
 import { useEffect, useEffectEvent, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { WebglAddon } from '@xterm/addon-webgl'
 import { Activity, Server } from 'lucide-react'
 import { onRuntimeEvent } from '../lib/backend.js'
 
@@ -60,6 +59,7 @@ export default function TerminalPane({
     const output = buffersRef.current.get(activeSessionId) || `\x1b[32mConnected:\x1b[0m ${activeSessionTitle}\r\n`
     buffersRef.current.set(activeSessionId, output)
     terminal.write(output)
+    terminal.focus()
     void syncSize()
   })
 
@@ -108,7 +108,8 @@ export default function TerminalPane({
 
     const terminal = new XTerm({
       convertEol: true,
-      cursorBlink: true,
+      cursorBlink: false,
+      cursorStyle: 'bar',
       fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
       fontSize: 13,
       theme: {
@@ -120,13 +121,6 @@ export default function TerminalPane({
 
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
-
-    try {
-      const webglAddon = new WebglAddon()
-      terminal.loadAddon(webglAddon)
-    } catch {
-      terminal.writeln('[ZenTerm] WebGL addon unavailable, fallback to canvas renderer.')
-    }
 
     terminal.open(terminalContainerRef.current)
     terminal.write('\x1b[1;32mZenTerm\x1b[0m workspace ready.\r\n')

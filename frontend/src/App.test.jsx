@@ -434,6 +434,23 @@ describe('App', () => {
     })
   })
 
+  it('新增主机时如果没有认证方式会直接拦截', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /New Host|新建主机/ }))
+    await user.clear(screen.getByLabelText('主机 ID'))
+    await user.type(screen.getByLabelText('主机 ID'), 'host-empty-auth')
+    await user.type(screen.getByLabelText('地址'), '10.0.0.9')
+    await user.clear(screen.getByLabelText('用户名'))
+    await user.type(screen.getByLabelText('用户名'), 'root')
+    await user.click(screen.getByRole('button', { name: '加密保存' }))
+
+    expect(await screen.findByText('请至少配置一种 SSH 认证方式：密码、私钥或凭据。')).toBeInTheDocument()
+    expect(addHost).not.toHaveBeenCalled()
+  })
+
   it('编辑主机时保留 ID 并调用 updateHost', async () => {
     const user = userEvent.setup()
     renderApp()
@@ -481,7 +498,9 @@ describe('App', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '显示主机列表' })).toBeInTheDocument()
 
+    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ })).toBeInTheDocument())
 
@@ -497,6 +516,40 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '关闭 Alpha' }))
     await waitFor(() => expect(disconnect).toHaveBeenCalledWith('session-1'))
     expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ }).closest('.session-tab')).toHaveClass('active')
+  })
+
+  it('连接后会自动进入终端专注模式并允许切回主机列表', async () => {
+    const user = userEvent.setup()
+    connect.mockResolvedValueOnce('session-1')
+    listSessions
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { ID: 'session-1', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
+      ])
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getAllByRole('button', { name: '连接' })[0])
+
+    expect(await screen.findByRole('button', { name: '显示主机列表' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '连接' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
+    expect(await screen.findAllByRole('button', { name: '连接' })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: '专注终端' })).toBeInTheDocument()
+  })
+
+  it('连接缺少认证方式的主机会显示中文错误', async () => {
+    const user = userEvent.setup()
+    connect.mockRejectedValueOnce(new Error('no supported ssh authentication method configured'))
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getAllByRole('button', { name: '连接' })[0])
+
+    expect(await screen.findByText('当前主机未配置认证方式，请填写密码、私钥或选择一个凭据后再连接。')).toBeInTheDocument()
   })
 
   it('终端面板会跟随活跃会话并把输入与尺寸同步到后端', async () => {
@@ -518,6 +571,7 @@ describe('App', () => {
     expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(within(terminalPane).getByText('10.0.0.1:22')).toBeInTheDocument()
 
+    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(within(terminalPane).getByText('Beta')).toBeInTheDocument())
     expect(within(terminalPane).getByText('10.0.0.2:2222')).toBeInTheDocument()
@@ -540,8 +594,11 @@ describe('App', () => {
     const pendingConnect = createDeferred()
 
     listSessions
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
+        { ID: 'session-boot', HostID: 'host-2', RemoteAddr: '10.0.0.2:2222' },
+      ])
+      .mockResolvedValueOnce([
+        { ID: 'session-boot', HostID: 'host-2', RemoteAddr: '10.0.0.2:2222' },
         { ID: 'session-key', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
       ])
     connect.mockReturnValueOnce(pendingConnect.promise)
@@ -549,6 +606,7 @@ describe('App', () => {
     renderApp()
 
     await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '显示主机列表' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
     runtimeHandlers.get('ssh:host-key:confirm')?.({

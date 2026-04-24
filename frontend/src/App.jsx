@@ -71,6 +71,27 @@ function buildIdentityPayload(form) {
   }
 }
 
+function hasConfiguredAuth(form) {
+  return Boolean(
+    form?.credentialId
+      || form?.password?.trim()
+      || form?.privateKey?.trim(),
+  )
+}
+
+function toUserMessage(error) {
+  const message = error?.message || String(error || '')
+
+  if (
+    message === 'no supported ssh authentication method configured'
+    || message === '未配置可用的 SSH 认证方式'
+  ) {
+    return '当前主机未配置认证方式，请填写密码、私钥或选择一个凭据后再连接。'
+  }
+
+  return message
+}
+
 function buildSessionTabs(snapshot, hosts, previousTabs) {
   const normalizedSnapshot = snapshot.map((session) => ({
     id: session.id || session.ID,
@@ -114,6 +135,18 @@ function buildSessionTabs(snapshot, hosts, previousTabs) {
   }
 
   return nextTabs
+}
+
+function buildOptimisticSessionTab(host, sessionID) {
+  return {
+    sessionId: sessionID,
+    hostID: host?.id || '',
+    title: host?.name || host?.id || '新会话',
+    connectedAt: new Date().toISOString(),
+    remoteAddr: host?.address
+      ? `${host.address}:${host.port || 22}`
+      : host?.id || sessionID,
+  }
 }
 
 function normalizeHostKeyPrompt(prompt) {
@@ -239,6 +272,7 @@ export default function App() {
   const [isAcceptingKey, setIsAcceptingKey] = useState(false)
   const [sessionTabs, setSessionTabs] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
+  const [hostListVisible, setHostListVisible] = useState(true)
   const [connectingHostIds, setConnectingHostIds] = useState([])
   const [keychainStatus, setKeychainStatus] = useState(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
@@ -360,6 +394,7 @@ export default function App() {
         const nextTabs = buildSessionTabs(snapshot, loadedHosts, [])
         setSessionTabs(nextTabs)
         setActiveSessionId(nextTabs.at(-1)?.sessionId || null)
+        setHostListVisible(nextTabs.length === 0)
       })
 
       const status = await getVaultStatus()
@@ -424,6 +459,12 @@ export default function App() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (sessionTabs.length === 0) {
+      setHostListVisible(true)
+    }
+  }, [sessionTabs.length])
 
   function openCreateHost() {
     if (!vaultUnlocked) {
@@ -575,6 +616,12 @@ export default function App() {
 
   function handleSaveHost(event) {
     event.preventDefault()
+
+    if (hostDialogMode === 'create' && !hasConfiguredAuth(hostForm)) {
+      setError('请至少配置一种 SSH 认证方式：密码、私钥或凭据。')
+      return
+    }
+
     setIsSavingHost(true)
     setError(null)
 
@@ -588,7 +635,7 @@ export default function App() {
         await refreshHosts()
         setSelectedHostId(host.id)
       })
-      .catch((err) => setError(err.message || String(err)))
+      .catch((err) => setError(toUserMessage(err)))
       .finally(() => setIsSavingHost(false))
   }
 
@@ -621,19 +668,33 @@ export default function App() {
       return
     }
 
+    const host = hosts.find((item) => item.id === hostID) || null
     setConnectingHostIds((current) => current.concat(hostID))
     setError(null)
 
     connect(hostID)
-      .then(async (sessionID) => {
-        await syncSessions()
-        setActiveSessionId(sessionID)
+      .then((sessionID) => {
+        const nextTab = buildOptimisticSessionTab(host, sessionID)
+
+        startTransition(() => {
+          setSessionTabs((currentTabs) => {
+            if (currentTabs.some((tab) => tab.sessionId === sessionID)) {
+              return currentTabs
+            }
+
+            return currentTabs.concat(nextTab)
+          })
+          setActiveSessionId(sessionID)
+          setHostListVisible(false)
+        })
+
+        void syncSessions()
       })
       .catch((err) => {
         if (rejectedHostIdsRef.current.delete(hostID)) {
           return
         }
-        setError(err.message || String(err))
+        setError(toUserMessage(err))
       })
       .finally(() => {
         setConnectingHostIds((current) => current.filter((id) => id !== hostID))
@@ -715,7 +776,14 @@ export default function App() {
   const isSettingsPage = activeSidebarPage === 'settings'
   const isKnownHostsPage = activeSidebarPage === 'knownHosts'
   const isKeychainPage = activeSidebarPage === 'keychain'
-  const pageHeader = isSettingsPage
+  const showTerminalFocus = isHostsPage && Boolean(activeSessionId) && !hostListVisible
+  const pageHeader = showTerminalFocus
+    ? {
+        kicker: 'Live Session',
+        title: activeSession?.title || '终端工作区',
+        description: activeSession?.remoteAddr || '当前活跃 SSH 会话已进入专注模式，主机列表已自动折叠。',
+      }
+    : isSettingsPage
     ? {
         kicker: 'Security',
         title: '保险箱设置',
@@ -827,7 +895,7 @@ export default function App() {
               </div>
 
               <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : ''}`}>
-                {isHostsPage ? (
+                {isHostsPage && !showTerminalFocus ? (
                   <div className="page-toolbar-search-slot">
                     <label className="search-bar search-bar-compact">
                       <Search size={15} />
@@ -841,7 +909,16 @@ export default function App() {
                   </div>
                 ) : null}
                 <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
-                  {isHostsPage && (
+                  {isHostsPage && activeSessionId ? (
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setHostListVisible((current) => !current)}
+                    >
+                      {showTerminalFocus ? '显示主机列表' : '专注终端'}
+                    </button>
+                  ) : null}
+                  {isHostsPage && !showTerminalFocus && (
                     <button
                       type="button"
                       className="toolbar-btn primary"
@@ -857,21 +934,23 @@ export default function App() {
 
             <main className="content-area">
               {isHostsPage ? (
-                <section className="hosts-stage">
-                  <div className="hosts-stage-grid">
-                    <HostList
-                      hosts={filteredHosts}
-                      hasAnyHosts={hosts.length > 0}
-                      searchQuery={searchQuery}
-                      selectedHostId={selectedHostId}
-                      sessionCountByHost={sessionCountByHost}
-                      connectingHostIds={connectingHostIds}
-                      onSelect={setSelectedHostId}
-                      onConnect={handleConnect}
-                      onEdit={openEditHost}
-                      onDelete={setDeleteCandidate}
-                      disabled={!vaultUnlocked}
-                    />
+                <section className={`hosts-stage${showTerminalFocus ? ' focus-mode' : ''}`}>
+                  <div className={`hosts-stage-grid${showTerminalFocus ? ' focus-mode' : ''}`}>
+                    {!showTerminalFocus ? (
+                      <HostList
+                        hosts={filteredHosts}
+                        hasAnyHosts={hosts.length > 0}
+                        searchQuery={searchQuery}
+                        selectedHostId={selectedHostId}
+                        sessionCountByHost={sessionCountByHost}
+                        connectingHostIds={connectingHostIds}
+                        onSelect={setSelectedHostId}
+                        onConnect={handleConnect}
+                        onEdit={openEditHost}
+                        onDelete={setDeleteCandidate}
+                        disabled={!vaultUnlocked}
+                      />
+                    ) : null}
                     <Suspense
                       fallback={(
                         <PanelFallback
