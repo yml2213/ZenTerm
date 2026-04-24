@@ -107,12 +107,36 @@ export async function listRemoteFiles(hostID, path = '') {
   return callApp('ListRemoteFiles', hostID, path)
 }
 
-export async function uploadFile(hostID, localPath, remoteDir) {
-  return callApp('UploadFile', hostID, localPath, remoteDir)
+export async function createLocalDirectory(parentPath, name) {
+  return callApp('CreateLocalDirectory', parentPath, name)
 }
 
-export async function downloadFile(hostID, remotePath, localDir) {
-  return callApp('DownloadFile', hostID, remotePath, localDir)
+export async function createRemoteDirectory(hostID, parentPath, name) {
+  return callApp('CreateRemoteDirectory', hostID, parentPath, name)
+}
+
+export async function renameLocalEntry(path, nextName) {
+  return callApp('RenameLocalEntry', path, nextName)
+}
+
+export async function renameRemoteEntry(hostID, path, nextName) {
+  return callApp('RenameRemoteEntry', hostID, path, nextName)
+}
+
+export async function deleteLocalEntry(path) {
+  return callApp('DeleteLocalEntry', path)
+}
+
+export async function deleteRemoteEntry(hostID, path) {
+  return callApp('DeleteRemoteEntry', hostID, path)
+}
+
+export async function uploadFile(hostID, localPath, remoteDir, overwrite = false) {
+  return callApp('UploadFile', hostID, localPath, remoteDir, overwrite)
+}
+
+export async function downloadFile(hostID, remotePath, localDir, overwrite = false) {
+  return callApp('DownloadFile', hostID, remotePath, localDir, overwrite)
 }
 
 export async function addHost(host, identity) {

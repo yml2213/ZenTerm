@@ -1480,28 +1480,6 @@ export default function App() {
         </section>
       ) : activeWorkspace === 'sftp' ? (
         <section className="page-shell workspace-page sftp-page">
-          <header className="page-toolbar">
-            <div className="page-toolbar-main">
-              <div className="page-intro-copy page-toolbar-copy">
-                <span className="panel-kicker">{pageHeader.kicker}</span>
-                <h1>{pageHeader.title}</h1>
-                {pageHeader.description ? <p>{pageHeader.description}</p> : null}
-              </div>
-            </div>
-
-            <div className="page-toolbar-actions">
-              <div className="page-toolbar-meta">
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => handlePickSftpHost()}
-                >
-                  {selectedSftpHost ? '切换主机' : '选择主机'}
-                </button>
-              </div>
-            </div>
-          </header>
-
           <main className="content-area content-area-flush">
             <Suspense
               fallback={(

@@ -34,6 +34,9 @@ var (
 	ErrTransferSourceNotFile       = errors.New("transfer source must be a file")
 	ErrTransferTargetNotDirectory  = errors.New("transfer target must be a directory")
 	ErrTransferTargetExists        = errors.New("transfer target already exists")
+	ErrFileActionPathRequired      = errors.New("file action path is required")
+	ErrFileNameRequired            = errors.New("file name is required")
+	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
 )
 
 const (
@@ -74,8 +77,14 @@ type ZenService interface {
 	GetHosts() ([]model.Host, error)
 	ListLocalFiles(path string) (model.FileListing, error)
 	ListRemoteFiles(hostID, path string) (model.FileListing, error)
-	UploadFile(hostID, localPath, remoteDir string) (model.FileTransferResult, error)
-	DownloadFile(hostID, remotePath, localDir string) (model.FileTransferResult, error)
+	CreateLocalDirectory(parentPath, name string) (model.FileEntry, error)
+	CreateRemoteDirectory(hostID, parentPath, name string) (model.FileEntry, error)
+	RenameLocalEntry(path, nextName string) (model.FileEntry, error)
+	RenameRemoteEntry(hostID, path, nextName string) (model.FileEntry, error)
+	DeleteLocalEntry(path string) error
+	DeleteRemoteEntry(hostID, path string) error
+	UploadFile(hostID, localPath, remoteDir string, overwrite bool) (model.FileTransferResult, error)
+	DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error)
 	AddHost(host model.Host, identity model.Identity) error
 	UpdateHost(host model.Host, identity model.Identity) error
 	DeleteHost(hostID string) error
@@ -126,5 +135,9 @@ type sftpClient interface {
 	Stat(path string) (os.FileInfo, error)
 	Open(path string) (io.ReadCloser, error)
 	Create(path string) (io.WriteCloser, error)
+	Mkdir(path string) error
+	Rename(oldPath, newPath string) error
+	Remove(path string) error
+	RemoveDirectory(path string) error
 	Close() error
 }

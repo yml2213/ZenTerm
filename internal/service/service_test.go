@@ -928,7 +928,7 @@ func TestUploadFileCopiesLocalFileToRemoteDirectory(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.UploadFile(host.ID, localPath, "/srv/project")
+	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", false)
 	if err != nil {
 		t.Fatalf("UploadFile() error = %v", err)
 	}
@@ -986,7 +986,7 @@ func TestDownloadFileCopiesRemoteFileToLocalDirectory(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir)
+	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, false)
 	if err != nil {
 		t.Fatalf("DownloadFile() error = %v", err)
 	}
@@ -1001,6 +1001,130 @@ func TestDownloadFileCopiesRemoteFileToLocalDirectory(t *testing.T) {
 	}
 	if string(downloaded) != string(content) {
 		t.Fatalf("downloaded content = %q, want %q", string(downloaded), string(content))
+	}
+}
+
+func TestUploadFileOverwritesRemoteFileWhenRequested(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-upload-overwrite", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	localPath := filepath.Join(dir, "notes.txt")
+	content := []byte("fresh content")
+	if err := os.WriteFile(localPath, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/project": "/srv/project"},
+			dirs:      map[string][]os.FileInfo{"/srv/project": {}},
+			stats: map[string]os.FileInfo{
+				"/srv/project":           stubFileInfo{name: "project", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+				"/srv/project/notes.txt": stubFileInfo{name: "notes.txt", size: 13, mode: 0o644, modTime: time.Unix(1710000100, 0)},
+			},
+			files: map[string][]byte{
+				"/srv/project/notes.txt": []byte("stale content"),
+			},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", true)
+	if err != nil {
+		t.Fatalf("UploadFile() overwrite error = %v", err)
+	}
+
+	targetPath := "/srv/project/notes.txt"
+	if result.TargetPath != targetPath {
+		t.Fatalf("result.TargetPath = %q, want %q", result.TargetPath, targetPath)
+	}
+	if got := string(client.sftp.files[targetPath]); got != string(content) {
+		t.Fatalf("remote file content after overwrite = %q, want %q", got, string(content))
+	}
+}
+
+func TestDownloadFileOverwritesLocalFileWhenRequested(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-download-overwrite", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	content := []byte("replacement content")
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/app.log": "/srv/app.log"},
+			dirs:      map[string][]os.FileInfo{},
+			stats: map[string]os.FileInfo{
+				"/srv/app.log": stubFileInfo{name: "app.log", size: int64(len(content)), mode: 0o644, modTime: time.Unix(1710000000, 0)},
+			},
+			files: map[string][]byte{
+				"/srv/app.log": content,
+			},
+		},
+	}
+
+	targetPath := filepath.Join(dir, "app.log")
+	if err := os.WriteFile(targetPath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("WriteFile() seed error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, true)
+	if err != nil {
+		t.Fatalf("DownloadFile() overwrite error = %v", err)
+	}
+
+	if result.TargetPath != targetPath {
+		t.Fatalf("result.TargetPath = %q, want %q", result.TargetPath, targetPath)
+	}
+	downloaded, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(downloaded) != string(content) {
+		t.Fatalf("downloaded content after overwrite = %q, want %q", string(downloaded), string(content))
 	}
 }
 
@@ -1296,6 +1420,56 @@ func (c *stubSFTPClient) Create(path string) (io.WriteCloser, error) {
 			}
 		},
 	}, nil
+}
+
+func (c *stubSFTPClient) Mkdir(path string) error {
+	if c.dirs == nil {
+		c.dirs = make(map[string][]os.FileInfo)
+	}
+	if c.stats == nil {
+		c.stats = make(map[string]os.FileInfo)
+	}
+	if _, ok := c.dirs[path]; ok {
+		return os.ErrExist
+	}
+
+	c.dirs[path] = []os.FileInfo{}
+	c.stats[path] = stubFileInfo{name: pathpkg.Base(path), mode: os.ModeDir | 0o755, dir: true, modTime: time.Now().UTC()}
+	return nil
+}
+
+func (c *stubSFTPClient) Rename(oldPath, newPath string) error {
+	if info, ok := c.stats[oldPath]; ok {
+		c.stats[newPath] = stubFileInfo{
+			name:    pathpkg.Base(newPath),
+			size:    info.Size(),
+			mode:    info.Mode(),
+			dir:     info.IsDir(),
+			modTime: info.ModTime(),
+		}
+		delete(c.stats, oldPath)
+	}
+	if payload, ok := c.files[oldPath]; ok {
+		c.files[newPath] = payload
+		delete(c.files, oldPath)
+	}
+	if entries, ok := c.dirs[oldPath]; ok {
+		c.dirs[newPath] = entries
+		delete(c.dirs, oldPath)
+	}
+	return nil
+}
+
+func (c *stubSFTPClient) Remove(path string) error {
+	delete(c.files, path)
+	delete(c.stats, path)
+	return nil
+}
+
+func (c *stubSFTPClient) RemoveDirectory(path string) error {
+	delete(c.dirs, path)
+	delete(c.stats, path)
+	return nil
 }
 
 func (c *stubSFTPClient) Close() error {

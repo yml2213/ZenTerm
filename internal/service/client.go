@@ -94,6 +94,22 @@ func (c *realSFTPClient) Create(path string) (io.WriteCloser, error) {
 	return c.client.Create(path)
 }
 
+func (c *realSFTPClient) Mkdir(path string) error {
+	return c.client.Mkdir(path)
+}
+
+func (c *realSFTPClient) Rename(oldPath, newPath string) error {
+	return c.client.Rename(oldPath, newPath)
+}
+
+func (c *realSFTPClient) Remove(path string) error {
+	return c.client.Remove(path)
+}
+
+func (c *realSFTPClient) RemoveDirectory(path string) error {
+	return c.client.RemoveDirectory(path)
+}
+
 func (c *realSFTPClient) Close() error {
 	return c.client.Close()
 }

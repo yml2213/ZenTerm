@@ -12,8 +12,8 @@ import (
 	"zenterm/internal/model"
 )
 
-// UploadFile 将本地文件上传到远端目录 / uploads a local file into the selected remote directory.
-func (s *Service) UploadFile(hostID, localPath, remoteDir string) (model.FileTransferResult, error) {
+// UploadFile 将本地文件上传到远端目录，可按需覆盖同名文件 / uploads a local file into the selected remote directory and can overwrite an existing file when requested.
+func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool) (model.FileTransferResult, error) {
 	var result model.FileTransferResult
 
 	resolvedLocalPath, _, err := resolveExistingLocalFile(localPath)
@@ -31,8 +31,10 @@ func (s *Service) UploadFile(hostID, localPath, remoteDir string) (model.FileTra
 		}
 
 		targetPath := pathpkg.Join(resolvedRemoteDir, filepath.Base(resolvedLocalPath))
-		if _, err := client.Stat(targetPath); err == nil {
-			return ErrTransferTargetExists
+		if info, err := client.Stat(targetPath); err == nil {
+			if info.IsDir() || !overwrite {
+				return ErrTransferTargetExists
+			}
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("stat remote target: %w", err)
 		}
@@ -69,8 +71,8 @@ func (s *Service) UploadFile(hostID, localPath, remoteDir string) (model.FileTra
 	return result, nil
 }
 
-// DownloadFile 将远端文件下载到本地目录 / downloads a remote file into the selected local directory.
-func (s *Service) DownloadFile(hostID, remotePath, localDir string) (model.FileTransferResult, error) {
+// DownloadFile 将远端文件下载到本地目录，可按需覆盖同名文件 / downloads a remote file into the selected local directory and can overwrite an existing file when requested.
+func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error) {
 	var result model.FileTransferResult
 
 	resolvedLocalDir, err := resolveExistingLocalDirectory(localDir)
@@ -85,8 +87,10 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string) (model.FileT
 		}
 
 		targetPath := filepath.Join(resolvedLocalDir, filepath.Base(resolvedRemotePath))
-		if _, err := os.Stat(targetPath); err == nil {
-			return ErrTransferTargetExists
+		if info, err := os.Stat(targetPath); err == nil {
+			if info.IsDir() || !overwrite {
+				return ErrTransferTargetExists
+			}
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("stat local target: %w", err)
 		}
@@ -102,7 +106,14 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string) (model.FileT
 			mode = 0o644
 		}
 
-		targetFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+		targetFlags := os.O_CREATE | os.O_WRONLY
+		if overwrite {
+			targetFlags |= os.O_TRUNC
+		} else {
+			targetFlags |= os.O_EXCL
+		}
+
+		targetFile, err := os.OpenFile(targetPath, targetFlags, mode)
 		if err != nil {
 			return fmt.Errorf("create local file: %w", err)
 		}
