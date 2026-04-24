@@ -39,17 +39,17 @@ describe('App host management', () => {
     expect(screen.getByRole('button', { name: /收藏 1/ })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /收藏 1/ }))
-    expect(screen.getByRole('heading', { name: '收藏主机' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /收藏 1/ })).toHaveClass('active')
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /测试环境 1/ }))
-    expect(screen.getByRole('heading', { name: '测试环境' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /测试环境 1/ })).toHaveClass('active')
     expect(screen.getByText('Beta')).toBeInTheDocument()
     expect(screen.queryByText('Alpha')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Linux/ }))
-    expect(screen.getByRole('heading', { name: 'Linux' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Linux' })).toHaveClass('active')
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
   })

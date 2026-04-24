@@ -5,7 +5,7 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--shell-bg);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, rgba(255, 255, 255, 0) 22%);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0) 18%);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -70,17 +70,17 @@
   gap: 0.75rem;
   min-height: 56px;
   padding: 0 1.25rem 0 7rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--toolbar-bg);
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.015);
+  border-bottom: 1px solid var(--window-top-border, var(--border-subtle));
+  background: var(--window-top-bg, var(--toolbar-bg));
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(14px);
   --wails-draggable: drag;
   -webkit-app-region: drag;
 }
 
 .app-shell-tabbed .workspace-strip {
-  border-bottom-color: transparent;
-  background: var(--terminal-toolbar-bg);
+  border-bottom-color: var(--window-top-border, transparent);
+  background: var(--window-top-bg, var(--terminal-toolbar-bg));
   color: var(--terminal-control);
   backdrop-filter: none;
 }
@@ -95,49 +95,64 @@
 .workspace-modules {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.42rem;
   justify-self: start;
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
 
 .workspace-module {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 0.42rem;
-  padding: 0.52rem 0.82rem;
+  min-width: 96px;
+  max-width: 132px;
+  justify-content: center;
+  padding: 0.56rem 0.92rem;
   border-radius: 12px;
   border: 1px solid var(--border-default);
-  background: var(--panel-muted);
+  background: var(--chrome-tab-bg);
   color: var(--text-secondary);
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  white-space: nowrap;
+  transition:
+    min-width 180ms ease,
+    max-width 180ms ease,
+    padding 180ms ease,
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease,
+    box-shadow 180ms ease;
   box-shadow: var(--shadow-sm);
-  opacity: 0.76;
+  opacity: 0.78;
 }
 
 .workspace-module:hover {
-  background: var(--panel-bg-strong);
+  background: var(--chrome-tab-hover-bg);
   border-color: var(--border-hover);
-  transform: translateY(-1px);
+  color: var(--text-primary);
+  transform: translateY(-0.5px);
   opacity: 1;
 }
 
 .workspace-module.active {
-  color: var(--text-primary);
-  background: var(--card-active);
-  border-color: var(--border-strong);
+  min-width: 116px;
+  max-width: 158px;
+  padding-inline: 1.08rem;
+  color: var(--chrome-tab-active-text);
+  background: var(--chrome-tab-active-bg);
+  border-color: var(--chrome-tab-active-border);
+  box-shadow: var(--chrome-tab-active-shadow);
+  transform: translateY(-1px);
   opacity: 1;
-  box-shadow:
-    inset 0 -2px 0 var(--accent-secondary),
-    var(--shadow-sm);
 }
 
 .app-shell-tabbed .workspace-module {
-  position: relative;
-  isolation: isolate;
   border-color: rgba(255, 255, 255, 0.03);
   background: var(--terminal-tab-bg);
   color: var(--terminal-control);
@@ -154,15 +169,18 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 8px 18px rgba(6, 10, 20, 0.16);
-  transform: translateY(-1px);
   opacity: 0.92;
 }
 
 .app-shell-tabbed .workspace-module.active {
+  min-width: 124px;
+  max-width: 170px;
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
   color: var(--terminal-tab-active-text);
-  box-shadow: var(--terminal-tab-active-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(6, 10, 20, 0.22);
   transform: translateY(-1px);
   opacity: 1;
 }
@@ -298,25 +316,35 @@
 }
 
 .session-tab {
-  min-width: 136px;
+  flex: 0 0 auto;
+  min-width: 132px;
   max-width: 184px;
   height: 36px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   border-radius: 11px;
-  background: var(--card-bg);
+  background: var(--chrome-tab-bg);
   box-shadow: var(--shadow-sm);
   opacity: 0.78;
+  transition:
+    min-width 180ms ease,
+    max-width 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 .session-tab.active {
-  background: var(--card-active);
-  border-color: var(--border-strong);
+  min-width: 188px;
+  max-width: 248px;
+  background: var(--chrome-tab-active-bg);
+  border-color: var(--chrome-tab-active-border);
   opacity: 1;
-  box-shadow:
-    inset 0 -2px 0 var(--accent-secondary),
-    0 8px 18px rgba(79, 116, 160, 0.12);
+  box-shadow: var(--chrome-tab-active-shadow);
+  transform: translateY(-1px);
 }
 
 .app-shell-tabbed .session-tab {
@@ -328,9 +356,13 @@
 }
 
 .app-shell-tabbed .session-tab.active {
+  min-width: 196px;
+  max-width: 268px;
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
-  box-shadow: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(6, 10, 20, 0.22);
   opacity: 1;
 }
 
@@ -371,6 +403,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.session-tab.active .session-tab-main strong {
+  font-size: 0.84rem;
+  color: inherit;
 }
 
 .session-tab-close {

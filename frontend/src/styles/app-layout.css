@@ -24,7 +24,7 @@
   min-height: 92px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--toolbar-bg);
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.018);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .page-toolbar-main {
@@ -47,9 +47,10 @@
 
 .page-toolbar-actions.hosts {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) auto;
+  grid-template-columns: minmax(280px, 1fr) auto;
   align-items: center;
-  justify-content: end;
+  justify-content: stretch;
+  width: 100%;
 }
 
 .page-toolbar-search-slot {
@@ -66,6 +67,7 @@
 
 .page-toolbar-meta.hosts {
   flex-wrap: nowrap;
+  justify-self: end;
 }
 
 .page-toolbar-meta.hosts .toolbar-btn.primary {
@@ -107,17 +109,56 @@
 }
 
 .search-bar {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   gap: 0.65rem;
   padding: 0.9rem 1rem;
   border-radius: 14px;
-  border: 1px solid var(--border-default);
+  border: 1px solid rgba(148, 163, 184, 0.09);
   background: var(--input-bg);
   color: var(--text-tertiary);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease;
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
+}
+
+.search-bar:has(input:focus:placeholder-shown)::after {
+  content: "";
+  position: absolute;
+  left: calc(0.82rem + 15px + 0.5rem);
+  top: 50%;
+  width: 1.5px;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: var(--accent-secondary);
+  transform: translateY(-50%);
+  animation: search-caret-blink 1s steps(1) infinite;
+  pointer-events: none;
+}
+
+@keyframes search-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.search-bar:focus-within {
+  border-color: var(--border-strong);
+  background: var(--input-focus);
+  box-shadow: var(--focus-ring);
+  color: var(--accent-secondary);
 }
 
 .search-bar-compact {
@@ -129,17 +170,35 @@
 
 .search-bar-compact input {
   font-size: 0.84rem;
+  line-height: 1.2;
 }
 
 .search-bar input {
+  min-width: 0;
   border: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
+  color: var(--text-primary);
+  caret-color: var(--accent-secondary);
+  font-variant-ligatures: none;
+}
+
+.search-bar input:focus:placeholder-shown {
+  caret-color: transparent;
 }
 
 .search-bar input:focus {
   box-shadow: none;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-muted);
+  transition: opacity 120ms ease;
+}
+
+.search-bar input:focus::placeholder {
+  opacity: 0;
 }
 
 .toolbar-btn,
@@ -230,10 +289,10 @@
   overflow: auto;
   background-color: var(--content-bg);
   background-image:
-    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 38%),
+    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 24%),
     linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
-  background-size: auto, 52px 52px, 52px 52px;
+  background-size: auto, 88px 88px, 88px 88px;
   background-position: center top, center center, center center;
 }
 

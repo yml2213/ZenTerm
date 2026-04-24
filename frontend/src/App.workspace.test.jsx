@@ -29,7 +29,7 @@ describe('App workspace flows', () => {
 
     await continueWithMasterPassword(user)
 
-    expect(screen.getByText('全部主机')).toBeInTheDocument()
+    expect(screen.getByLabelText('搜索主机')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
 
     expect(await screen.findByText('先选择一个主机')).toBeInTheDocument()
@@ -74,7 +74,7 @@ describe('App workspace flows', () => {
 
     expect(screen.queryByRole('button', { name: '新标签页' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '新增标签页' })).toBeInTheDocument()
-    expect(await screen.findByText('全部主机')).toBeInTheDocument()
+    expect(await screen.findByLabelText('搜索主机')).toBeInTheDocument()
   })
 
   it('支持多标签终端切换和关闭', async () => {
@@ -133,7 +133,7 @@ describe('App workspace flows', () => {
     expect(screen.queryByRole('button', { name: '连接' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Vaults/i }))
-    expect(await screen.findByText('全部主机')).toBeInTheDocument()
+    expect(await screen.findByLabelText('搜索主机')).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: '连接' })).toHaveLength(2)
 
     await user.click(screen.getByRole('button', { name: /SFTP/i }))

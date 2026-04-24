@@ -26,7 +26,7 @@ describe('App vault flows', () => {
     await waitFor(() => expect(listHosts).toHaveBeenCalledTimes(1))
     await continueWithMasterPassword(user)
 
-    expect(screen.getByText('全部主机')).toBeInTheDocument()
+    expect(screen.getByLabelText('搜索主机')).toBeInTheDocument()
   })
 
   it('未初始化时显示主密码设置流程，并跳过自动进入', async () => {
@@ -40,7 +40,7 @@ describe('App vault flows', () => {
 
     await initializeVault(user)
 
-    expect(screen.getByText('全部主机')).toBeInTheDocument()
+    expect(screen.getByLabelText('搜索主机')).toBeInTheDocument()
   })
 
   it('支持使用系统钥匙串自动进入', async () => {
@@ -50,7 +50,7 @@ describe('App vault flows', () => {
     await waitFor(() => expect(tryAutoUnlock).toHaveBeenCalledTimes(1))
 
     expect(screen.queryByLabelText('主密码')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('全部主机')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('搜索主机')).toBeInTheDocument())
   })
 
   it('设置页支持修改主密码', async () => {

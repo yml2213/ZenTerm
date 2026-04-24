@@ -201,14 +201,6 @@ export default function VaultWorkspace({
 
       <section className="page-shell">
         <header className="page-toolbar">
-          <div className="page-toolbar-main">
-            <div className="page-intro-copy page-toolbar-copy">
-              <span className="panel-kicker">{resolvedPageHeader.kicker}</span>
-              <h1>{resolvedPageHeader.title}</h1>
-              {resolvedPageHeader.description ? <p>{resolvedPageHeader.description}</p> : null}
-            </div>
-          </div>
-
           <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : ''}`}>
             {isHostsPage ? (
               <div className="page-toolbar-search-slot">
@@ -224,7 +216,15 @@ export default function VaultWorkspace({
                   />
                 </label>
               </div>
-            ) : null}
+            ) : (
+              <div className="page-toolbar-main">
+                <div className="page-intro-copy page-toolbar-copy">
+                  <span className="panel-kicker">{resolvedPageHeader.kicker}</span>
+                  <h1>{resolvedPageHeader.title}</h1>
+                  {resolvedPageHeader.description ? <p>{resolvedPageHeader.description}</p> : null}
+                </div>
+              </div>
+            )}
             <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
               {isHostsPage ? (
                 <>
