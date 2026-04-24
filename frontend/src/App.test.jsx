@@ -318,16 +318,33 @@ describe('App', () => {
     renderApp()
 
     await continueWithMasterPassword(user)
+    expect(screen.queryByRole('button', { name: 'New Tab' })).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: '新增标签页' }))
 
-    expect(await screen.findByText('Recent connections')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Search hosts or tabs')).toBeInTheDocument()
+    expect(await screen.findByText('最近连接')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('搜索主机...')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Alpha Personal/ }))
+    await user.click(screen.getByRole('button', { name: /Alpha root@10.0.0.1:22 SSH/ }))
 
     const terminalPane = await screen.findByTestId('terminal-pane')
     expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(connect).toHaveBeenCalledWith('host-1')
+  })
+
+  it('空白标签可以全部关闭，关闭后只保留新增标签按钮', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '新增标签页' }))
+
+    expect(await screen.findByRole('button', { name: 'New Tab' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '关闭 New Tab' }))
+
+    expect(screen.queryByRole('button', { name: 'New Tab' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '新增标签页' })).toBeInTheDocument()
+    expect(await screen.findByText('全部主机')).toBeInTheDocument()
   })
 
   it('SFTP 工作区支持上传和下载文件', async () => {

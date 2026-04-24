@@ -313,6 +313,14 @@ textarea {
   -webkit-app-region: no-drag;
 }
 
+.workspace-tab-strip.has-tabs::before {
+  content: "";
+  width: 1px;
+  height: 32px;
+  margin-right: 0.22rem;
+  background: rgba(148, 163, 184, 0.28);
+}
+
 .workspace-strip-spacer {
   min-height: 1px;
 }
@@ -324,8 +332,12 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  color: var(--terminal-control);
+  color: var(--text-secondary);
   transition: all 0.18s ease;
+}
+
+.app-shell-tabbed .workspace-new-tab-btn {
+  color: var(--terminal-control);
 }
 
 .workspace-new-tab-btn:hover {
@@ -654,10 +666,6 @@ textarea {
   background: var(--terminal-bg);
 }
 
-.new-tab-page {
-  background: #eef3f4;
-}
-
 .workspace-page {
   flex: 1;
 }
@@ -841,18 +849,16 @@ textarea {
 }
 
 .content-area-new-tab {
-  overflow: hidden;
-  background: #eef3f4;
-  background-image: none;
+  overflow: auto;
 }
 
 .new-tab-surface {
   min-height: 100%;
   display: grid;
   align-content: start;
-  justify-items: center;
+  justify-items: start;
   gap: 1.35rem;
-  padding: 3.6rem 1.5rem;
+  padding: 1.75rem;
 }
 
 .new-tab-search {
@@ -894,7 +900,9 @@ textarea {
   gap: 1rem;
   padding: 1.25rem 1.35rem;
   border-radius: 20px;
-  background: rgba(248, 250, 251, 0.82);
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-sm);
 }
 
 .new-tab-card-head,
@@ -911,7 +919,7 @@ textarea {
 
 .new-tab-card h2 {
   font-size: 1rem;
-  color: #202437;
+  color: var(--text-primary);
 }
 
 .new-tab-card-actions {
@@ -921,14 +929,15 @@ textarea {
 .new-tab-card-actions button {
   padding: 0.48rem 0.86rem;
   border-radius: 8px;
-  background: rgba(215, 225, 229, 0.82);
-  color: #92a0aa;
+  border: 1px solid var(--border-default);
+  background: var(--panel-muted);
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
 .new-tab-card-actions button:hover:not(:disabled) {
-  background: rgba(198, 211, 216, 0.9);
-  color: #54606b;
+  background: var(--panel-bg-strong);
+  color: var(--text-primary);
 }
 
 .new-tab-card-actions button:disabled {
@@ -945,14 +954,15 @@ textarea {
   width: 100%;
   justify-content: start;
   gap: 0.75rem;
-  min-height: 44px;
-  border-radius: 12px;
-  color: #202437;
+  min-height: 54px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 14px;
+  color: var(--text-primary);
   text-align: left;
 }
 
 .new-tab-host-row:hover:not(:disabled) {
-  background: rgba(226, 233, 236, 0.72);
+  background: var(--panel-muted);
 }
 
 .new-tab-host-row:disabled {
@@ -973,25 +983,37 @@ textarea {
 
 .new-tab-host-name {
   min-width: 0;
-  flex: 1;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 800;
 }
 
+.new-tab-host-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.new-tab-host-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
 .new-tab-host-meta {
-  color: #7e8f9b;
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
 .new-tab-empty {
   padding: 0.5rem 0 0.35rem;
-  color: #71818d;
+  color: var(--text-secondary);
 }
 
 .new-tab-empty strong {
-  color: #202437;
+  color: var(--text-primary);
 }
 
 .new-tab-empty p {

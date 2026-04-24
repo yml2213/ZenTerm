@@ -230,26 +230,15 @@ function NewTabPage({
 
   return (
     <section className="new-tab-surface">
-      <label className="new-tab-search">
-        <Search size={17} />
-        <input
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search hosts or tabs"
-          aria-label="搜索主机或标签页"
-        />
-        <span>⌘+K</span>
-      </label>
-
       <section className="new-tab-card" aria-label="最近连接">
         <header className="new-tab-card-head">
-          <h2>Recent connections</h2>
+          <h2>最近连接</h2>
           <div className="new-tab-card-actions">
             <button type="button" onClick={onCreateHost}>
-              Create a workspace
+              新建主机
             </button>
             <button type="button" disabled>
-              Restore
+              恢复会话
             </button>
           </div>
         </header>
@@ -270,15 +259,18 @@ function NewTabPage({
                   <span className="new-tab-host-icon">
                     <TerminalSquare size={15} />
                   </span>
-                  <span className="new-tab-host-name">{host.name || host.id}</span>
-                  <span className="new-tab-host-meta">Personal</span>
+                  <span className="new-tab-host-copy">
+                    <span className="new-tab-host-name">{host.name || host.id}</span>
+                    <span className="new-tab-host-subtitle">{host.username}@{host.address}:{host.port || 22}</span>
+                  </span>
+                  <span className="new-tab-host-meta">SSH</span>
                 </button>
               )
             })
           ) : (
             <div className="new-tab-empty">
-              <strong>{hosts.length > 0 ? 'No matching hosts' : 'No hosts yet'}</strong>
-              <p>{hosts.length > 0 ? 'Try another host name, address, or user.' : 'Create a workspace before opening an SSH tab.'}</p>
+              <strong>{hosts.length > 0 ? '没有匹配的主机' : '还没有主机'}</strong>
+              <p>{hosts.length > 0 ? '换个主机名、地址或用户名试试。' : '先新建一台主机，再从空白标签发起连接。'}</p>
             </div>
           )}
         </div>
@@ -324,7 +316,7 @@ const sidebarPages = {
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
-  const newTabCounterRef = useRef(1)
+  const newTabCounterRef = useRef(0)
   const [activeWorkspace, setActiveWorkspace] = useState('vaults')
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
   const [hosts, setHosts] = useState([])
@@ -352,8 +344,8 @@ export default function App() {
   const [isAcceptingKey, setIsAcceptingKey] = useState(false)
   const [sessionTabs, setSessionTabs] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
-  const [newTabs, setNewTabs] = useState(() => [createNewWorkspaceTab(1)])
-  const [activeNewTabId, setActiveNewTabId] = useState('new-tab-1')
+  const [newTabs, setNewTabs] = useState([])
+  const [activeNewTabId, setActiveNewTabId] = useState(null)
   const [connectingHostIds, setConnectingHostIds] = useState([])
   const [keychainStatus, setKeychainStatus] = useState(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
@@ -411,10 +403,6 @@ export default function App() {
 
   function closeNewTab(tabId) {
     setNewTabs((currentTabs) => {
-      if (currentTabs.length === 1 && sessionTabs.length === 0) {
-        return currentTabs
-      }
-
       const nextTabs = currentTabs.filter((tab) => tab.tabId !== tabId)
       if (activeNewTabId === tabId) {
         const nextNewTab = nextTabs.at(-1)
@@ -592,14 +580,14 @@ export default function App() {
       setNewTabs((currentTabs) => {
         if (currentTabs.length > 0) {
           setActiveNewTabId((current) => current || currentTabs.at(-1)?.tabId || null)
+          setActiveWorkspace('new-tab')
           return currentTabs
         }
 
-        const nextTab = createNextNewTab()
-        setActiveNewTabId(nextTab.tabId)
-        return [nextTab]
+        setActiveNewTabId(null)
+        setActiveWorkspace('vaults')
+        return currentTabs
       })
-      setActiveWorkspace('new-tab')
     }
   }, [activeWorkspace, sessionTabs.length])
 
@@ -773,9 +761,9 @@ export default function App() {
           setHostKeyPrompt(null)
           setSessionTabs([])
           setActiveSessionId(null)
-          newTabCounterRef.current = 1
-          setNewTabs([createNewWorkspaceTab(1)])
-          setActiveNewTabId('new-tab-1')
+          newTabCounterRef.current = 0
+          setNewTabs([])
+          setActiveNewTabId(null)
           setConnectingHostIds([])
           setKeychainStatus(null)
         })
@@ -954,7 +942,7 @@ export default function App() {
   const isKeychainPage = activeSidebarPage === 'keychain'
   const shellClassName = [
     'app-shell',
-    activeWorkspace === 'ssh' || activeWorkspace === 'new-tab' ? 'app-shell-tabbed' : '',
+    activeWorkspace === 'ssh' ? 'app-shell-tabbed' : '',
     activeWorkspace === 'ssh' ? 'app-shell-ssh' : '',
   ].filter(Boolean).join(' ')
   const pageHeader = activeWorkspace === 'ssh'
@@ -1002,20 +990,18 @@ export default function App() {
             {t('sftp')}
           </button>
         </div>
-        <div className="workspace-tab-strip">
-        {workspaceTabs.length > 0 ? (
-          <SessionTabs
-            className="workspace-tabs"
-            sessions={workspaceTabs}
-            activeSessionId={activeWorkspaceTabId}
-            onSelect={handleWorkspaceTabSelect}
-            onClose={handleWorkspaceTabClose}
-            emptyLabel="还没有打开的 SSH 终端标签"
-            emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
-          />
-        ) : (
-          <div className="workspace-strip-spacer" />
-        )}
+        <div className={`workspace-tab-strip${workspaceTabs.length > 0 ? ' has-tabs' : ''}`}>
+          {workspaceTabs.length > 0 ? (
+            <SessionTabs
+              className="workspace-tabs"
+              sessions={workspaceTabs}
+              activeSessionId={activeWorkspaceTabId}
+              onSelect={handleWorkspaceTabSelect}
+              onClose={handleWorkspaceTabClose}
+              emptyLabel="还没有打开的 SSH 终端标签"
+              emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
+            />
+          ) : null}
           <button
             type="button"
             className="workspace-new-tab-btn"
@@ -1194,6 +1180,39 @@ export default function App() {
         </div>
       ) : activeWorkspace === 'new-tab' ? (
         <section className="page-shell workspace-page new-tab-page">
+          <header className="page-toolbar">
+            <div className="page-toolbar-main">
+              <div className="page-intro-copy page-toolbar-copy">
+                <span className="panel-kicker">Vaults</span>
+                <h1>新标签页</h1>
+                <p>选择一台保险箱中的主机来打开 SSH 会话，或先新建主机。</p>
+              </div>
+            </div>
+
+            <div className="page-toolbar-actions hosts">
+              <div className="page-toolbar-search-slot">
+                <label className="search-bar search-bar-compact">
+                  <Search size={15} />
+                  <input
+                    value={newTabSearchQuery}
+                    onChange={(event) => setNewTabSearchQuery(event.target.value)}
+                    placeholder="搜索主机..."
+                    aria-label="搜索空白标签主机"
+                  />
+                </label>
+              </div>
+              <div className="page-toolbar-meta hosts">
+                <button
+                  type="button"
+                  className="toolbar-btn primary"
+                  onClick={openCreateHost}
+                >
+                  <Plus size={16} />
+                  新建主机
+                </button>
+              </div>
+            </div>
+          </header>
           <main className="content-area content-area-new-tab">
             <NewTabPage
               hosts={hosts}
