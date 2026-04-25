@@ -5,7 +5,6 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--shell-bg);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0) 18%);
   border: 0;
   border-radius: 0;
   box-shadow: none;

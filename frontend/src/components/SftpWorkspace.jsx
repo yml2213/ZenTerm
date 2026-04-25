@@ -1,5 +1,6 @@
 import {
   ChevronRight,
+  Download,
   FileText,
   Folder,
   FolderOpen,
@@ -11,6 +12,8 @@ import {
   RefreshCw,
   Server,
   Trash2,
+  Upload,
+  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import ContextMenu from './sftp/ContextMenu.jsx'
@@ -125,6 +128,8 @@ function FilePane({
     : selectedTransferableEntries.length > 1
       ? `${transferLabel.includes('上传') ? '上传所选' : '下载所选'} (${selectedTransferableEntries.length})`
       : transferLabel
+  const sourceMetaTitle = [hostLabel, hostMeta].filter(Boolean).join(' · ') || sourceLabel
+  const transferIcon = transferActionLabel?.includes('上传') ? <Upload size={15} /> : <Download size={15} />
 
   function handleRowClick(event, entry) {
     if (entry.parent) {
@@ -153,111 +158,131 @@ function FilePane({
   return (
     <section className={paneClassName}>
       <header className="sftp-pane-topbar">
-        <div className="sftp-pane-topbar-main">
-          <div className="sftp-pane-source">
-            <span className="sftp-pane-source-icon">
-              <SourceIcon size={15} />
-            </span>
-            <div className="sftp-pane-source-copy">
-              <strong>{sourceLabel}</strong>
-              <span>{hostLabel || '当前目录浏览'}</span>
-            </div>
+        <div className="sftp-pane-tabbar">
+          <div className="sftp-pane-tab" title={sourceMetaTitle}>
+            {headerActions || (
+              <>
+                <SourceIcon size={14} />
+                <span>{sourceLabel}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="sftp-pane-toolbar">
+          <div className="sftp-breadcrumb-scroll">
+            <nav className="sftp-breadcrumb" aria-label={`${sourceLabel} 路径`}>
+              {breadcrumbItems.map((item, index) => (
+                <button
+                  key={`${item.path}-${index}`}
+                  type="button"
+                  className={`sftp-breadcrumb-link${index === breadcrumbItems.length - 1 ? ' active' : ''}`}
+                  onClick={() => onNavigate(item.path)}
+                >
+                  {index === 0 && item.label === '/' ? <Home size={14} /> : <span>{item.label}</span>}
+                  {index < breadcrumbItems.length - 1 ? <ChevronRight size={14} /> : null}
+                </button>
+              ))}
+            </nav>
           </div>
 
-          {hostMeta ? <span className="sftp-pane-host-meta">{hostMeta}</span> : null}
-        </div>
+          <div className="sftp-pane-topbar-actions">
+            {selectedEntries.length > 0 ? (
+              <span className="visually-hidden">
+                {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
+              </span>
+            ) : null}
 
-        <div className="sftp-pane-topbar-actions">
-          {headerActions}
+            {selectedEntries.length > 0 ? (
+              <span className="pill subtle sftp-selection-pill">
+                {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
+              </span>
+            ) : null}
 
-          {selectedEntries.length > 0 ? (
-            <span className="visually-hidden">
-              {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
-            </span>
-          ) : null}
+            <div className="sftp-toolbar-actions">
+              {selectedEntries.length > 1 ? (
+                <button
+                  type="button"
+                  className="icon-button sftp-tool-button"
+                  aria-label="清空选择"
+                  title="清空选择"
+                  onClick={onClearSelection}
+                >
+                  <X size={15} />
+                </button>
+              ) : null}
 
-          {selectedEntries.length > 1 ? (
-            <button type="button" className="ghost-button" onClick={onClearSelection}>
-              清空选择
-            </button>
-          ) : null}
+              <button
+                type="button"
+                className="icon-button sftp-tool-button"
+                aria-label="新建目录"
+                title="新建目录"
+                onClick={onCreateDirectory}
+              >
+                <Plus size={15} />
+              </button>
 
-          <button type="button" className="ghost-button" onClick={onCreateDirectory}>
-            <Plus size={14} />
-            新建目录
-          </button>
+              {singleSelectedEntry && !singleSelectedEntry.parent ? (
+                <button
+                  type="button"
+                  className="icon-button sftp-tool-button"
+                  aria-label="重命名"
+                  title="重命名"
+                  onClick={() => onRenameEntry(singleSelectedEntry)}
+                >
+                  <PencilLine size={15} />
+                </button>
+              ) : null}
 
-          {singleSelectedEntry && !singleSelectedEntry.parent ? (
-            <button type="button" className="ghost-button" onClick={() => onRenameEntry(singleSelectedEntry)}>
-              <PencilLine size={14} />
-              重命名
-            </button>
-          ) : null}
+              {selectedEntries.length > 0 ? (
+                <button
+                  type="button"
+                  className="icon-button sftp-tool-button danger-outline"
+                  aria-label={selectedEntries.length > 1 ? `删除所选 (${selectedEntries.length})` : '删除'}
+                  title={selectedEntries.length > 1 ? `删除所选 (${selectedEntries.length})` : '删除'}
+                  onClick={() => (
+                    selectedEntries.length > 1
+                      ? onDeleteSelection(selectedEntries)
+                      : onDeleteEntry(singleSelectedEntry)
+                  )}
+                >
+                  <Trash2 size={15} />
+                </button>
+              ) : null}
 
-          {selectedEntries.length > 0 ? (
+              {transferActionLabel ? (
+                <button
+                  type="button"
+                  className="icon-button sftp-tool-button"
+                  aria-label={transferActionAriaLabel}
+                  title={transferActionAriaLabel}
+                  disabled={transferDisabled}
+                  onClick={onTransfer}
+                >
+                  {transferBusy ? <LoaderCircle size={15} className="spin" /> : transferIcon}
+                </button>
+              ) : null}
+            </div>
+
+            {loading ? (
+              <span className="pill subtle">
+                <LoaderCircle size={13} className="spin" />
+                加载中
+              </span>
+            ) : null}
+
             <button
               type="button"
-              className="ghost-button danger-outline"
-              onClick={() => (
-                selectedEntries.length > 1
-                  ? onDeleteSelection(selectedEntries)
-                  : onDeleteEntry(singleSelectedEntry)
-              )}
+              className="icon-button sftp-pane-refresh"
+              aria-label={`刷新 ${sourceLabel}`}
+              title={`刷新 ${sourceLabel}`}
+              onClick={onRefresh}
             >
-              <Trash2 size={14} />
-              {selectedEntries.length > 1 ? `删除所选 (${selectedEntries.length})` : '删除'}
+              <RefreshCw size={15} />
             </button>
-          ) : null}
-
-          {transferActionLabel ? (
-            <button
-              type="button"
-              className="ghost-button"
-              aria-label={transferActionAriaLabel}
-              disabled={transferDisabled}
-              onClick={onTransfer}
-            >
-              {transferBusy ? <LoaderCircle size={14} className="spin" /> : null}
-              {transferActionLabel}
-            </button>
-          ) : null}
-
-          {loading ? (
-            <span className="pill subtle">
-              <LoaderCircle size={13} className="spin" />
-              加载中
-            </span>
-          ) : null}
-
-          <button
-            type="button"
-            className="icon-button sftp-pane-refresh"
-            aria-label={`刷新 ${sourceLabel}`}
-            title={`刷新 ${sourceLabel}`}
-            onClick={onRefresh}
-          >
-            <RefreshCw size={15} />
-          </button>
+          </div>
         </div>
       </header>
-
-      <div className="sftp-pane-toolbar">
-        <div className="sftp-breadcrumb-scroll">
-          <nav className="sftp-breadcrumb" aria-label={`${sourceLabel} 路径`}>
-            {breadcrumbItems.map((item, index) => (
-              <button
-                key={`${item.path}-${index}`}
-                type="button"
-                className={`sftp-breadcrumb-link${index === breadcrumbItems.length - 1 ? ' active' : ''}`}
-                onClick={() => onNavigate(item.path)}
-              >
-                {index === 0 && item.label === '/' ? <Home size={14} /> : <span>{item.label}</span>}
-                {index < breadcrumbItems.length - 1 ? <ChevronRight size={14} /> : null}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
 
       <div className="sftp-file-table">
         <div className={`sftp-file-head${showSelectionControls ? ' has-selection' : ''}`}>
@@ -1018,21 +1043,39 @@ export default function SftpWorkspace({
 
   const selectedLocalTransferableEntries = pickTransferableEntries(getVisibleListing('local'), selectedLocalPaths)
   const selectedRemoteTransferableEntries = pickTransferableEntries(getVisibleListing('remote'), selectedRemotePaths)
-  const remoteHostSwitcher = hosts.length > 1 && selectedHost ? (
-    <label className="sftp-host-switcher">
-      <span>主机</span>
-      <select
-        aria-label="切换 SFTP 主机"
-        value={selectedHost.id}
-        onChange={(event) => onChooseHost(event.target.value)}
+  const remoteHostSwitcher = selectedHost ? (
+    <div
+      className="sftp-host-switcher-group"
+      title={`${selectedHost.name || selectedHost.id} · ${selectedHost.username}@${selectedHost.address}:${selectedHost.port || 22}`}
+    >
+      <Server size={14} />
+      {hosts.length > 1 ? (
+        <label className="sftp-host-switcher">
+          <select
+            aria-label="切换 SFTP 主机"
+            value={selectedHost.id}
+            onChange={(event) => onChooseHost(event.target.value)}
+          >
+            {hosts.map((host) => (
+              <option key={host.id} value={host.id}>
+                {host.name || host.id}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span className="sftp-current-host-label">{selectedHost.name || selectedHost.id}</span>
+      )}
+      <button
+        type="button"
+        className="icon-button sftp-tab-close"
+        aria-label="关闭远端"
+        title="关闭远端"
+        onClick={() => onChooseHost(null)}
       >
-        {hosts.map((host) => (
-          <option key={host.id} value={host.id}>
-            {(host.name || host.id)} · {host.username}@{host.address}:{host.port || 22}
-          </option>
-        ))}
-      </select>
-    </label>
+        <X size={14} />
+      </button>
+    </div>
   ) : null
 
   function openContextMenu(nextState) {
@@ -1169,18 +1212,25 @@ export default function SftpWorkspace({
               </div>
             )}
             extra={hosts.length > 0 ? (
-              <div className="sftp-host-picker">
-                {hosts.slice(0, 6).map((host) => (
-                  <button
-                    key={host.id}
-                    type="button"
-                    className="sftp-host-chip"
-                    onClick={() => onChooseHost(host.id)}
-                  >
-                    <span>{host.name || host.id}</span>
-                    <small>{host.username}@{host.address}</small>
-                  </button>
-                ))}
+              <div className="sftp-host-picker-panel">
+                <div className="sftp-host-picker-meta">
+                  已保存 {hosts.length} 台主机，可滚动查看更多。
+                </div>
+                <div className="sftp-host-picker-scroll" aria-label="SFTP 主机列表">
+                  <div className="sftp-host-picker">
+                    {hosts.map((host) => (
+                      <button
+                        key={host.id}
+                        type="button"
+                        className="sftp-host-chip"
+                        onClick={() => onChooseHost(host.id)}
+                      >
+                        <span>{host.name || host.id}</span>
+                        <small>{host.username}@{host.address}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : null}
           />

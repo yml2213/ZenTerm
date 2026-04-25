@@ -22,17 +22,13 @@ function SftpWorkspaceFallback() {
         {['Local', 'Remote'].map((label) => (
           <section key={label} className={`sftp-pane${label === 'Local' ? ' sftp-pane-local' : ''}`}>
             <header className="sftp-pane-topbar">
-              <div className="sftp-pane-topbar-main">
-                <div className="sftp-pane-source">
-                  <span className="sftp-pane-source-icon sftp-loading-block" />
-                  <div className="sftp-pane-source-copy">
-                    <strong>{label}</strong>
-                    <span>文件浏览器</span>
-                  </div>
+              <div className="sftp-pane-tabbar">
+                <div className="sftp-pane-tab">
+                  <span className="sftp-loading-block" />
+                  <span>{label}</span>
                 </div>
               </div>
             </header>
-            <div className="sftp-pane-toolbar sftp-pane-toolbar-placeholder" aria-hidden="true" />
             <div className="sftp-file-table">
               <div className="sftp-file-head" aria-hidden="true" />
               <div className="sftp-file-body" aria-hidden="true" />

@@ -1,8 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { windowSetBackgroundColour } from '../lib/backend.js'
 
 const ThemeContext = createContext(undefined)
 
 const THEME_KEY = 'zenterm-theme'
+const NATIVE_WINDOW_BACKGROUND = {
+  dark: [5, 7, 11, 255],
+  light: [233, 238, 244, 255],
+}
 
 export function useTheme() {
   const context = useContext(ThemeContext)
@@ -35,6 +40,7 @@ export default function ThemeProvider({ children }) {
       }
       setResolvedTheme(resolved)
       root.setAttribute('data-theme', resolved)
+      windowSetBackgroundColour(...NATIVE_WINDOW_BACKGROUND[resolved]).catch(() => {})
     }
 
     resolveTheme()
