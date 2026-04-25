@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="ZenTerm">
+  <defs>
+    <linearGradient id="bg" x1="180" y1="120" x2="840" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1d2630"/>
+      <stop offset="0.48" stop-color="#0c1218"/>
+      <stop offset="1" stop-color="#05080c"/>
+    </linearGradient>
+
+    <radialGradient id="zenGlow" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#9eff50" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#60f06c" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#60f06c" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="enso" x1="260" y1="220" x2="780" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e7ffb0"/>
+      <stop offset="0.45" stop-color="#9eff50"/>
+      <stop offset="1" stop-color="#49c95f"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-16%" y="-16%" width="132%" height="132%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.34"/>
+    </filter>
+
+    <filter id="glow" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#9eff50" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#66ff77" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <!-- App shape -->
+  <rect x="64" y="64" width="896" height="896" rx="210" fill="url(#bg)"/>
+  <rect x="78" y="78" width="868" height="868" rx="198" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="4"/>
+
+  <!-- Inner calm glow -->
+  <circle cx="512" cy="512" r="390" fill="url(#zenGlow)"/>
+
+  <!-- Zen Enso circle -->
+  <g filter="url(#shadow)">
+    <path
+      d="M760 650
+         C705 770 565 835 420 790
+         C275 744 185 610 215 465
+         C248 305 394 205 553 232
+         C689 255 785 365 800 500"
+      fill="none"
+      stroke="url(#enso)"
+      stroke-width="72"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.96"/>
+
+    <path
+      d="M762 645
+         C710 760 570 815 432 775
+         C300 736 220 610 248 475
+         C280 322 410 242 555 260
+         C675 275 760 370 774 496"
+      fill="none"
+      stroke="#f2ffd2"
+      stroke-width="12"
+      stroke-linecap="round"
+      opacity="0.28"/>
+  </g>
+
+  <!-- Terminal prompt -->
+  <g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M395 420 L535 512 L395 604" stroke="#dfffaa" stroke-width="60"/>
+    <path d="M585 620 H710" stroke="#dfffaa" stroke-width="48"/>
+  </g>
+</svg>
