@@ -74,23 +74,7 @@ export default function VaultWorkspace({
       <aside className="sidebar">
         <section className="sidebar-brand-card">
           <div className="sidebar-brand-icon" aria-hidden="true">
-            <svg className="sidebar-brand-mark" viewBox="0 0 40 40" focusable="false">
-              <defs>
-                <linearGradient id="zen-brand-shell" x1="7" y1="5" x2="33" y2="35" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#26384f" />
-                  <stop offset="1" stopColor="#0b111b" />
-                </linearGradient>
-                <radialGradient id="zen-brand-glow" cx="25" cy="14" r="18" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#45ff78" stopOpacity="0.24" />
-                  <stop offset="1" stopColor="#45ff78" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <rect x="5" y="5" width="30" height="30" rx="10" fill="url(#zen-brand-shell)" />
-              <rect x="5.5" y="5.5" width="29" height="29" rx="9.5" fill="url(#zen-brand-glow)" stroke="rgba(148, 163, 184, 0.28)" />
-              <circle cx="12.6" cy="12.4" r="2.1" fill="#9eff50" />
-              <path d="M13.5 18.2l4.3 3.1-4.3 3.1" fill="none" stroke="#9eff50" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M20.8 25.1h6.2" fill="none" stroke="#d7ffe2" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <img className="sidebar-brand-mark" src="/icon-mark.svg" alt="" />
           </div>
           <div className="sidebar-brand-copy">
             <strong>ZenTerm</strong>
