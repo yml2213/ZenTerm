@@ -8,6 +8,11 @@ import (
 	"zenterm/internal/security"
 )
 
+const (
+	defaultTranscriptFlushDelay = 200 * time.Millisecond
+	maxBufferedTranscriptBytes  = 32 * 1024
+)
+
 // Service 负责把 Vault 生命周期、SSH 会话与文件浏览能力连接起来 / wires the vault lifecycle, SSH sessions, and file browsing capabilities together.
 type Service struct {
 	store           *db.Store
@@ -29,6 +34,7 @@ type Service struct {
 type pendingTranscript struct {
 	sessionID string
 	chunks    []string
+	sizeBytes int
 	timer     *time.Timer
 }
 
@@ -49,7 +55,7 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		emitter:         func(string, any) {},
 		sessions:        make(map[string]*managedSession),
 		transcripts:     make(map[string]*pendingTranscript),
-		transcriptDelay: 200 * time.Millisecond,
+		transcriptDelay: defaultTranscriptFlushDelay,
 		sftpConnections: make(map[string]*managedSFTPConnection),
 		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
 	}, nil

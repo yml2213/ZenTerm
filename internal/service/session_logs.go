@@ -108,8 +108,6 @@ func (s *Service) markSessionLogFinished(logID, status, errorMessage string) {
 
 func (s *Service) enqueueSessionTranscript(logID, sessionID, chunk string) {
 	s.transcriptMu.Lock()
-	defer s.transcriptMu.Unlock()
-
 	pending := s.transcripts[logID]
 	if pending == nil {
 		pending = &pendingTranscript{}
@@ -117,11 +115,18 @@ func (s *Service) enqueueSessionTranscript(logID, sessionID, chunk string) {
 	}
 	pending.sessionID = sessionID
 	pending.chunks = append(pending.chunks, chunk)
+	pending.sizeBytes += len(chunk)
 
+	flushNow := pending.sizeBytes >= maxBufferedTranscriptBytes
 	if pending.timer == nil {
 		pending.timer = time.AfterFunc(s.transcriptDelay, func() {
 			_ = s.flushSessionTranscript(logID)
 		})
+	}
+	s.transcriptMu.Unlock()
+
+	if flushNow {
+		_ = s.flushSessionTranscript(logID)
 	}
 }
 
@@ -146,11 +151,12 @@ func (s *Service) flushSessionTranscript(logID string) error {
 	chunk := strings.Join(pending.chunks, "")
 	if pending.timer != nil {
 		pending.timer.Stop()
+		pending.timer = nil
 	}
 	delete(s.transcripts, logID)
-	err := s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
 	s.transcriptMu.Unlock()
-	return err
+
+	return s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
 }
 
 func (s *Service) flushAllSessionTranscripts() error {

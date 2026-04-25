@@ -1,21 +1,18 @@
 import { useRef, useState } from 'react'
 import { useHostState } from './useHostState.js'
+import { useSessionWorkspaceState } from './useSessionWorkspaceState.js'
 import { useVaultState } from './useVaultState.js'
-import { useWorkspaceState } from './useWorkspaceState.js'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)
   const hostSearchInputRef = useRef(null)
   const newTabSearchInputRef = useRef(null)
   const rejectedHostIdsRef = useRef(new Set())
-  const workspace = useWorkspaceState()
-  const host = useHostState(workspace.sessionTabs)
+  const sessionWorkspace = useSessionWorkspaceState()
+  const host = useHostState(sessionWorkspace.sessionTabs)
   const vault = useVaultState()
 
   const [error, setError] = useState(null)
-  const [hostKeyPrompt, setHostKeyPrompt] = useState(null)
-  const [isAcceptingKey, setIsAcceptingKey] = useState(false)
-  const [connectingHostIds, setConnectingHostIds] = useState([])
   const [keychainStatus, setKeychainStatus] = useState(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
   const {
@@ -38,7 +35,13 @@ export function useAppState() {
     workspaceTabs,
     activeWorkspaceTabId,
     shellClassName,
-  } = workspace
+    hostKeyPrompt,
+    setHostKeyPrompt,
+    isAcceptingKey,
+    setIsAcceptingKey,
+    connectingHostIds,
+    setConnectingHostIds,
+  } = sessionWorkspace
   const {
     activeSidebarPage,
     setActiveSidebarPage,
@@ -156,11 +159,15 @@ export function useAppState() {
     activeNewTabId,
     sessionTabs,
     hostKeyPrompt,
+    connectingHostIds,
+    isAcceptingKey,
   }
   const workspaceState = {
+    activeWorkspace,
     newTabs,
     activeNewTabId,
     sessionTabs,
+    activeSessionId,
     logTabs,
     activeLogTabId,
   }

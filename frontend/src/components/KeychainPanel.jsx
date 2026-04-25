@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   KeyRound,
@@ -71,9 +71,7 @@ function formatDate(dateString) {
 }
 
 export default function KeychainPanel({
-  vaultInitialized,
   vaultUnlocked,
-  onRefresh,
 }) {
   const [toolbarTarget, setToolbarTarget] = useState(null)
   const [activeType, setActiveType] = useState('ssh_key')
@@ -95,17 +93,7 @@ export default function KeychainPanel({
     return credentials.filter((cred) => cred.type === activeType)
   }, [credentials, activeType])
 
-  useEffect(() => {
-    setToolbarTarget(document.getElementById('keychain-toolbar-slot'))
-  }, [])
-
-  useEffect(() => {
-    if (vaultUnlocked) {
-      loadCredentials()
-    }
-  }, [vaultUnlocked, activeType])
-
-  async function loadCredentials() {
+  const loadCredentials = useCallback(async () => {
     if (!vaultUnlocked) return
     setLoading(true)
     setError(null)
@@ -114,11 +102,20 @@ export default function KeychainPanel({
       setCredentials(creds || [])
     } catch (err) {
       setError(err.message)
-      console.error('加载凭据失败:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [vaultUnlocked])
+
+  useEffect(() => {
+    setToolbarTarget(document.getElementById('keychain-toolbar-slot'))
+  }, [])
+
+  useEffect(() => {
+    if (vaultUnlocked) {
+      void loadCredentials()
+    }
+  }, [loadCredentials, vaultUnlocked, activeType])
 
   function openDrawer(drawer) {
     setActiveDrawer(drawer)
@@ -162,18 +159,16 @@ export default function KeychainPanel({
     setOperationLoading(true)
     setError(null)
     try {
-      const credentialID = await generateCredential(
+      await generateCredential(
         generateForm.label,
         generateForm.algorithm,
         generateForm.keyBits,
         generateForm.passphrase
       )
-      console.log('凭据生成成功:', credentialID)
       closeDrawer()
       await loadCredentials()
     } catch (err) {
       setError(err.message)
-      console.error('生成凭据失败:', err)
     } finally {
       setOperationLoading(false)
     }
@@ -192,17 +187,15 @@ export default function KeychainPanel({
     setOperationLoading(true)
     setError(null)
     try {
-      const credentialID = await importCredential(
+      await importCredential(
         importForm.label,
         importForm.privateKeyPEM,
         importForm.passphrase
       )
-      console.log('凭据导入成功:', credentialID)
       closeDrawer()
       await loadCredentials()
     } catch (err) {
       setError(err.message)
-      console.error('导入凭据失败:', err)
     } finally {
       setOperationLoading(false)
     }
@@ -224,7 +217,6 @@ export default function KeychainPanel({
       await loadCredentials()
     } catch (err) {
       setError(err.message)
-      console.error('删除凭据失败:', err)
     }
   }
 

@@ -765,6 +765,14 @@ func TestStoreSaveAndLoadWindowState(t *testing.T) {
 		t.Fatalf("SaveWindowState() error = %v", err)
 	}
 
+	windowBytes, err := os.ReadFile(filepath.Join(dir, windowStateFileName))
+	if err != nil {
+		t.Fatalf("ReadFile(window-state) error = %v", err)
+	}
+	if !strings.Contains(string(windowBytes), "1520") {
+		t.Fatalf("window-state.json = %q, want serialized width", string(windowBytes))
+	}
+
 	reopened, err := NewStore(path)
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
@@ -774,6 +782,40 @@ func TestStoreSaveAndLoadWindowState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadWindowState() error = %v", err)
 	}
+	if state != expected {
+		t.Fatalf("LoadWindowState() = %#v, want %#v", state, expected)
+	}
+}
+
+func TestStoreLoadWindowStateFallsBackToLegacyConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.zen")
+
+	legacy := `{
+  "version": 1,
+  "window": {
+    "width": 1280,
+    "height": 820,
+    "maximised": true
+  },
+  "hosts": [],
+  "credentials": []
+}`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("WriteFile(config.zen) error = %v", err)
+	}
+
+	store, err := NewStore(path)
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	state, err := store.LoadWindowState()
+	if err != nil {
+		t.Fatalf("LoadWindowState() error = %v", err)
+	}
+
+	expected := model.WindowState{Width: 1280, Height: 820, Maximised: true}
 	if state != expected {
 		t.Fatalf("LoadWindowState() = %#v, want %#v", state, expected)
 	}

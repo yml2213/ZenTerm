@@ -22,6 +22,7 @@ const currentVersion = 1
 const vaultCheckToken = "zenterm:vault-check:v1"
 const transcriptDirName = "session-transcripts"
 const transcriptFileExt = ".jsonl"
+const windowStateFileName = "window-state.json"
 
 var (
 	ErrHostIDRequired             = errors.New("host id is required")
@@ -845,6 +846,14 @@ func (s *Store) LoadWindowState() (model.WindowState, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	state, ok, err := s.loadWindowStateFileLocked()
+	if err != nil {
+		return model.WindowState{}, err
+	}
+	if ok {
+		return state, nil
+	}
+
 	data, err := s.loadLocked()
 	if err != nil {
 		return model.WindowState{}, err
@@ -858,13 +867,7 @@ func (s *Store) SaveWindowState(state model.WindowState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	data, err := s.loadLocked()
-	if err != nil {
-		return err
-	}
-
-	data.Window = state
-	return s.saveLocked(data)
+	return s.saveWindowStateFileLocked(state)
 }
 
 func (s *Store) loadLocked() (fileData, error) {
@@ -923,6 +926,39 @@ func (s *Store) saveLocked(data fileData) error {
 
 	if err := os.WriteFile(s.path, bytes, 0o600); err != nil {
 		return fmt.Errorf("write store: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Store) loadWindowStateFileLocked() (model.WindowState, bool, error) {
+	bytes, err := os.ReadFile(s.windowStateFilePath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return model.WindowState{}, false, nil
+		}
+		return model.WindowState{}, false, fmt.Errorf("read window state: %w", err)
+	}
+
+	var state model.WindowState
+	if err := json.Unmarshal(bytes, &state); err != nil {
+		return model.WindowState{}, false, fmt.Errorf("decode window state: %w", err)
+	}
+	return state, true, nil
+}
+
+func (s *Store) saveWindowStateFileLocked(state model.WindowState) error {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return fmt.Errorf("create store directory: %w", err)
+	}
+
+	bytes, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode window state: %w", err)
+	}
+
+	if err := os.WriteFile(s.windowStateFilePath(), bytes, 0o600); err != nil {
+		return fmt.Errorf("write window state: %w", err)
 	}
 
 	return nil
@@ -1154,6 +1190,10 @@ func (s *Store) transcriptDirPath() string {
 func (s *Store) transcriptFilePath(logID string) string {
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))
 	return filepath.Join(s.transcriptDirPath(), encoded+transcriptFileExt)
+}
+
+func (s *Store) windowStateFilePath() string {
+	return filepath.Join(filepath.Dir(s.path), windowStateFileName)
 }
 
 func decodeSalt(encoded string) ([]byte, error) {

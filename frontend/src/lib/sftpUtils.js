@@ -163,7 +163,7 @@ export function joinTransferTargetPath(scope, directory, name) {
 
   if (scope === 'remote') {
     const prefix = directory.endsWith('/') ? directory.slice(0, -1) : directory
-    return `${prefix || ''}/${name}` || `/${name}`
+    return `${prefix}/${name}`
   }
 
   const prefix = directory.endsWith('/') ? directory.slice(0, -1) : directory
@@ -317,29 +317,26 @@ export function sortRows(rows, sort) {
       return left.isDir ? -1 : 1
     }
 
-    let compare = 0
-    switch (sort.key) {
-      case 'modTime': {
-        compare = new Date(left.modTime || 0).getTime() - new Date(right.modTime || 0).getTime()
-        break
+    const compareBySortKey = (() => {
+      switch (sort.key) {
+        case 'modTime': {
+          return new Date(left.modTime || 0).getTime() - new Date(right.modTime || 0).getTime()
+        }
+        case 'size': {
+          return (left.size || 0) - (right.size || 0)
+        }
+        case 'type': {
+          return getEntryTypeLabel(left).localeCompare(getEntryTypeLabel(right), 'zh-CN')
+        }
+        default: {
+          return left.name.localeCompare(right.name, 'zh-CN', { sensitivity: 'base' })
+        }
       }
-      case 'size': {
-        compare = (left.size || 0) - (right.size || 0)
-        break
-      }
-      case 'type': {
-        compare = getEntryTypeLabel(left).localeCompare(getEntryTypeLabel(right), 'zh-CN')
-        break
-      }
-      default: {
-        compare = left.name.localeCompare(right.name, 'zh-CN', { sensitivity: 'base' })
-        break
-      }
-    }
+    })()
 
-    if (compare === 0) {
-      compare = left.name.localeCompare(right.name, 'zh-CN', { sensitivity: 'base' })
-    }
+    const compare = compareBySortKey === 0
+      ? left.name.localeCompare(right.name, 'zh-CN', { sensitivity: 'base' })
+      : compareBySortKey
 
     return compare * direction
   })

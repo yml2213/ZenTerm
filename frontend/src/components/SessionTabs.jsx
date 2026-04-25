@@ -6,8 +6,6 @@ export default function SessionTabs({
   onSelect,
   onClose,
   className = '',
-  emptyLabel = '还没有活跃终端标签',
-  emptyDescription = '选择一台主机后点击连接即可打开新标签。',
 }) {
   if (sessions.length === 0) {
     return null

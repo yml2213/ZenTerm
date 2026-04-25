@@ -22,7 +22,6 @@ export function useSessionActionHandlers({
     hosts,
     activeWorkspace,
     activeNewTabId,
-    sessionTabs,
     hostKeyPrompt,
   } = state
   const {

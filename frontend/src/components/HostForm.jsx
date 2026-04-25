@@ -71,21 +71,19 @@ export default function HostForm({
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
 
-  useEffect(() => {
-    loadCredentials()
-  }, [])
-
   async function loadCredentials() {
     setLoadingCredentials(true)
     try {
       const creds = await getCredentials()
       setCredentials(creds || [])
-    } catch (err) {
-      console.error('加载凭据失败:', err)
     } finally {
       setLoadingCredentials(false)
     }
   }
+
+  useEffect(() => {
+    loadCredentials()
+  }, [])
 
   function update(field, nextValue) {
     onChange({

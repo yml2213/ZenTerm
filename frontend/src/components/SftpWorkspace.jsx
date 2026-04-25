@@ -1,10 +1,8 @@
 import {
-  ChevronDown,
   ChevronRight,
   FileText,
   Folder,
   FolderOpen,
-  HardDrive,
   Home,
   LoaderCircle,
   MonitorSmartphone,
@@ -15,6 +13,10 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import ContextMenu from './sftp/ContextMenu.jsx'
+import EntryDialog from './sftp/EntryDialog.jsx'
+import PaneEmptyState from './sftp/PaneEmptyState.jsx'
+import SortButton from './sftp/SortButton.jsx'
 import {
   createLocalDirectory,
   createRemoteDirectory,
@@ -29,22 +31,17 @@ import {
 } from '../lib/backend.js'
 import {
   buildActionSuccessMessage,
-  buildDialogDescription,
   buildRows,
   buildTransferNotice,
   collapseEntriesForDelete,
   defaultSort,
   filterVisibleEntries,
   findSelectedEntries,
-  findSelectedEntry,
   formatSize,
   formatTime,
   getBaseName,
-  getContextMenuPosition,
-  getContextMenuTitle,
   getEntryPermissionLabel,
   getEntryTypeLabel,
-  getScopeLabel,
   isTransferConflictError,
   joinTransferTargetPath,
   pickTransferableEntries,
@@ -53,207 +50,6 @@ import {
   splitRemotePath,
   uniquePaths,
 } from '../lib/sftpUtils.js'
-
-function SortButton({ columnKey, label, sort, onSortChange, className = '' }) {
-  const isActive = sort.key === columnKey
-
-  return (
-    <button
-      type="button"
-      className={`sftp-head-sort${isActive ? ' active' : ''}${className ? ` ${className}` : ''}`}
-      onClick={() => onSortChange(columnKey)}
-    >
-      <span>{label}</span>
-      {isActive ? (
-        <ChevronDown size={13} className={`sftp-sort-indicator${sort.direction === 'desc' ? ' desc' : ''}`} />
-      ) : null}
-    </button>
-  )
-}
-
-function EntryDialog({ state, busy, onClose, onConfirm, onChange }) {
-  if (!state) {
-    return null
-  }
-
-  const isDelete = state.type === 'delete'
-  const isDeleteBatch = state.type === 'delete-batch'
-  const isRename = state.type === 'rename'
-  const isCreate = state.type === 'mkdir'
-  const isOverwriteTransfer = state.type === 'overwrite-transfer'
-  const title = isCreate
-    ? `在${getScopeLabel(state.scope)}创建目录`
-    : isOverwriteTransfer
-      ? `${state.direction === 'upload' ? '上传' : '下载'}覆盖确认`
-      : isDeleteBatch
-        ? `删除${getScopeLabel(state.scope)}所选条目`
-        : isRename
-          ? `重命名${getScopeLabel(state.scope)}条目`
-          : `删除${getScopeLabel(state.scope)}条目`
-
-  const confirmLabel = isCreate
-    ? '确认创建'
-    : isOverwriteTransfer
-      ? '覆盖并继续'
-      : isDeleteBatch
-        ? '删除所选'
-        : isRename
-          ? '确认重命名'
-          : '确认删除'
-
-  const description = buildDialogDescription(state)
-  const hideInput = isDelete || isDeleteBatch || isOverwriteTransfer
-
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-content modal-narrow sftp-action-modal">
-        <div className="modal-eyebrow">
-          <span className="panel-kicker">SFTP</span>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭操作弹窗">
-            ×
-          </button>
-        </div>
-
-        <div className="sftp-action-dialog-copy">
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </div>
-
-        {hideInput ? null : (
-          <label className="modal-form-stack">
-            <span>{isCreate ? '目录名称' : '新名称'}</span>
-            <input
-              autoFocus
-              value={state.value}
-              onChange={(event) => onChange(event.target.value)}
-              placeholder={isCreate ? '例如 logs' : '请输入新名称'}
-            />
-          </label>
-        )}
-
-        <div className="modal-actions">
-          <button type="button" className="ghost-button" onClick={onClose} disabled={busy}>
-            取消
-          </button>
-          <button
-            type="button"
-            className={`primary-button${isDelete || isDeleteBatch ? ' danger' : ''}${isOverwriteTransfer ? ' warning' : ''}`}
-            onClick={onConfirm}
-            disabled={busy || (!hideInput && !String(state.value || '').trim())}
-          >
-            {busy ? '处理中...' : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ContextMenu({ state, onClose, onAction }) {
-  if (!state) {
-    return null
-  }
-
-  const position = getContextMenuPosition(state)
-
-  return (
-    <div
-      className="sftp-context-menu"
-      role="menu"
-      aria-label={`${getScopeLabel(state.scope)}${state.entry ? '条目' : '工作区'}菜单`}
-      style={position}
-    >
-      <div className="sftp-context-menu-title">{getContextMenuTitle(state)}</div>
-      {state.useSelectionActions ? (
-        <>
-          {state.canTransferSelection ? (
-            <button type="button" role="menuitem" onClick={() => onAction('transfer')}>
-              {state.transferLabel}
-            </button>
-          ) : null}
-          {state.canClearSelection ? (
-            <button type="button" role="menuitem" onClick={() => onAction('clear-selection')}>
-              清空选择
-            </button>
-          ) : null}
-          {state.canDeleteSelection ? (
-            <button type="button" role="menuitem" className="danger" onClick={() => onAction('delete-selection')}>
-              {state.deleteSelectionLabel}
-            </button>
-          ) : null}
-        </>
-      ) : state.entry?.isDir ? (
-        <button type="button" role="menuitem" onClick={() => onAction('open')}>
-          打开目录
-        </button>
-      ) : null}
-      <button type="button" role="menuitem" onClick={() => onAction('mkdir')}>
-        新建目录
-      </button>
-      {!state.useSelectionActions && state.entry && !state.entry.parent ? (
-        <button type="button" role="menuitem" onClick={() => onAction('rename')}>
-          重命名
-        </button>
-      ) : null}
-      {!state.useSelectionActions && state.entry && !state.entry.parent ? (
-        <button type="button" role="menuitem" className="danger" onClick={() => onAction('delete')}>
-          删除
-        </button>
-      ) : null}
-      <button type="button" role="menuitem" onClick={() => onAction('refresh')}>
-        刷新
-      </button>
-      <button type="button" role="menuitem" onClick={() => onAction('toggle-hidden-files')}>
-        {state.hiddenFilesLabel}
-      </button>
-      <div className="sftp-context-menu-separator" />
-      <button type="button" role="menuitem" onClick={onClose}>
-        关闭菜单
-      </button>
-    </div>
-  )
-}
-
-function PaneEmptyState({
-  sourceLabel,
-  sourceIcon: SourceIcon,
-  title,
-  description,
-  actions = null,
-  extra = null,
-}) {
-  return (
-    <section className="sftp-pane">
-      <header className="sftp-pane-topbar">
-        <div className="sftp-pane-topbar-main">
-          <div className="sftp-pane-source">
-            <span className="sftp-pane-source-icon">
-              <SourceIcon size={15} />
-            </span>
-            <div className="sftp-pane-source-copy">
-              <strong>{sourceLabel}</strong>
-              <span>文件浏览器</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="sftp-pane-toolbar sftp-pane-toolbar-placeholder" aria-hidden="true" />
-
-      <div className="sftp-empty-state">
-        <div className="sftp-empty-icon">
-          <HardDrive size={24} />
-        </div>
-        <div className="sftp-empty-copy">
-          <strong>{title}</strong>
-          <p>{description}</p>
-        </div>
-        {actions}
-        {extra}
-      </div>
-    </section>
-  )
-}
 
 function FilePane({
   className = '',
