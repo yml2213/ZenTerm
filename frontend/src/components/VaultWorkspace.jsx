@@ -67,6 +67,7 @@ export default function VaultWorkspace({
   keychainLoading,
   vaultInitialized,
   onRefreshKeychainStatus,
+  onOpenLogTab,
   hostDrawer,
 }) {
   return (
@@ -353,6 +354,7 @@ export default function VaultWorkspace({
               <SessionLogPanel
                 vaultUnlocked={vaultUnlocked}
                 onReconnect={onConnectHost}
+                onOpenLogTab={onOpenLogTab}
               />
             </Suspense>
           ) : null}

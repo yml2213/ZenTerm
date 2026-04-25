@@ -19,6 +19,11 @@ func (s *Service) ListSessionLogs(limit int) ([]model.SessionLog, error) {
 	return s.store.ListSessionLogs(limit)
 }
 
+// GetSessionTranscript 返回解密后的终端输出记录 / returns decrypted terminal output for a connection log.
+func (s *Service) GetSessionTranscript(logID string) (model.SessionTranscript, error) {
+	return s.store.GetSessionTranscript(logID, s.vault)
+}
+
 // ToggleSessionLogFavorite 更新连接历史收藏状态 / updates the favorite state for a connection history record.
 func (s *Service) ToggleSessionLogFavorite(logID string, favorite bool) error {
 	return s.store.ToggleSessionLogFavorite(logID, favorite)
@@ -72,6 +77,14 @@ func (s *Service) markSessionLogActive(logID, sessionID, remoteAddr string) {
 	log.Status = model.SessionLogStatusActive
 	log.ErrorMessage = ""
 	_ = s.store.UpdateSessionLog(log)
+}
+
+func (s *Service) appendSessionTranscript(logID, sessionID, chunk string) {
+	if logID == "" || chunk == "" {
+		return
+	}
+
+	_ = s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
 }
 
 func (s *Service) markSessionLogFinished(logID, status, errorMessage string) {

@@ -92,6 +92,7 @@ type ZenService interface {
 	AcceptHostKey(hostID, key string) error
 	RejectHostKey(hostID string) error
 	ListSessionLogs(limit int) ([]model.SessionLog, error)
+	GetSessionTranscript(logID string) (model.SessionTranscript, error)
 	ToggleSessionLogFavorite(logID string, favorite bool) error
 	DeleteSessionLog(logID string) error
 	ListSessions() []Session

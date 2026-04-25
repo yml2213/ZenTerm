@@ -8,6 +8,7 @@ import {
 } from './test/appTestHarness.jsx'
 import {
   connect,
+  getSessionTranscript,
   listSessionLogs,
   toggleSessionLogFavorite,
 } from './lib/backend.js'
@@ -27,6 +28,16 @@ describe('App session logs', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.getByText('已关闭')).toBeInTheDocument()
     expect(screen.getAllByText('失败').length).toBeGreaterThan(0)
+
+    await user.click(screen.getByText('Beta'))
+    await waitFor(() => expect(getSessionTranscript).toHaveBeenCalledWith('log-2'))
+    expect(await screen.findByText(/visible|uptime|Connected: Beta/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '新标签页打开终端日志' }))
+    expect(await screen.findByTestId('log-workspace')).toBeInTheDocument()
+    expect(screen.getAllByText('日志：Beta').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: '关闭日志标签页' }))
+    await user.click(screen.getByRole('button', { name: '日志' }))
 
     await user.click(screen.getByRole('button', { name: '收藏' }))
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()

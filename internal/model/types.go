@@ -82,6 +82,16 @@ type SessionLog struct {
 	Note           string    `json:"note,omitempty"`
 }
 
+// SessionTranscript 保存一次 SSH 会话的可见终端输出内容 / stores visible terminal output for one SSH session.
+type SessionTranscript struct {
+	LogID      string    `json:"log_id"`
+	SessionID  string    `json:"session_id,omitempty"`
+	Content    string    `json:"content"`
+	SizeBytes  int64     `json:"size_bytes,omitempty"`
+	UpdatedAt  time.Time `json:"updated_at,omitempty"`
+	RecordedAt time.Time `json:"recorded_at,omitempty"`
+}
+
 // WindowState 保存窗口尺寸与启动状态 / stores persisted window dimensions and startup state.
 type WindowState struct {
 	Width     int  `json:"width,omitempty"`

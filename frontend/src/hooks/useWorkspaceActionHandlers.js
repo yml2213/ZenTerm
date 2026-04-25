@@ -1,5 +1,5 @@
 import { persistWindowState, windowToggleMaximise } from '../lib/backend.js'
-import { createNewWorkspaceTab } from '../lib/appSessionUtils.js'
+import { createLogWorkspaceTab, createNewWorkspaceTab } from '../lib/appSessionUtils.js'
 
 export function useWorkspaceActionHandlers({
   state,
@@ -10,6 +10,7 @@ export function useWorkspaceActionHandlers({
     newTabs,
     activeNewTabId,
     sessionTabs,
+    activeLogTabId,
   } = state
   const {
     setError,
@@ -18,6 +19,8 @@ export function useWorkspaceActionHandlers({
     setSessionTabs,
     setActiveSessionId,
     setNewTabs,
+    setLogTabs,
+    setActiveLogTabId,
   } = setters
   const { newTabCounterRef } = refs
 
@@ -70,6 +73,40 @@ export function useWorkspaceActionHandlers({
     })
   }
 
+  function openLogTab(log) {
+    if (!log?.id) {
+      return
+    }
+
+    const nextTab = createLogWorkspaceTab(log)
+    setLogTabs((currentTabs) => (
+      currentTabs.some((tab) => tab.tabId === nextTab.tabId)
+        ? currentTabs.map((tab) => (tab.tabId === nextTab.tabId ? { ...tab, ...nextTab } : tab))
+        : currentTabs.concat(nextTab)
+    ))
+    setActiveLogTabId(nextTab.tabId)
+    setActiveWorkspace('log')
+  }
+
+  function closeLogTab(tabId) {
+    setLogTabs((currentTabs) => {
+      const nextTabs = currentTabs.filter((tab) => tab.tabId !== tabId)
+      if (activeLogTabId === tabId) {
+        const nextLogTab = nextTabs.at(-1)
+        if (nextLogTab) {
+          setActiveLogTabId(nextLogTab.tabId)
+          setActiveWorkspace('log')
+        } else {
+          setActiveLogTabId(null)
+          setActiveSessionId((current) => current || sessionTabs.at(-1)?.sessionId || null)
+          setActiveWorkspace(sessionTabs.length > 0 ? 'ssh' : 'vaults')
+        }
+      }
+
+      return nextTabs
+    })
+  }
+
   function handleWorkspaceStripDoubleClick(event) {
     if (event.target.closest('button, input, textarea, select, a, [role="button"]')) {
       return
@@ -101,6 +138,12 @@ export function useWorkspaceActionHandlers({
       return
     }
 
+    if (tab.type === 'log') {
+      setActiveLogTabId(tab.tabId)
+      setActiveWorkspace('log')
+      return
+    }
+
     setActiveSessionId(tab.sessionId)
     setActiveWorkspace('ssh')
   }
@@ -108,8 +151,10 @@ export function useWorkspaceActionHandlers({
   return {
     activateNewTab,
     removeSessionTab,
+    openLogTab,
     openNewTab,
     closeNewTab,
+    closeLogTab,
     handleWorkspaceStripDoubleClick,
     handleWorkspaceChange,
     handleWorkspaceTabSelect,

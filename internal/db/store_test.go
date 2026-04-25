@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,6 +145,20 @@ func TestStoreSessionLogLifecycle(t *testing.T) {
 	if err := store.ToggleSessionLogFavorite(log.ID, true); err != nil {
 		t.Fatalf("ToggleSessionLogFavorite() error = %v", err)
 	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	if err := store.AppendSessionTranscript(log.ID, "session-1", "secret terminal output", vault); err != nil {
+		t.Fatalf("AppendSessionTranscript() error = %v", err)
+	}
+	if err := store.AppendSessionTranscript(log.ID, "session-1", "\nnext line", vault); err != nil {
+		t.Fatalf("AppendSessionTranscript() second append error = %v", err)
+	}
 
 	logs, err := store.ListSessionLogs(10)
 	if err != nil {
@@ -166,6 +181,20 @@ func TestStoreSessionLogLifecycle(t *testing.T) {
 	if loaded.ID != log.ID {
 		t.Fatalf("GetSessionLog().ID = %q, want %q", loaded.ID, log.ID)
 	}
+	transcript, err := store.GetSessionTranscript(log.ID, vault)
+	if err != nil {
+		t.Fatalf("GetSessionTranscript() error = %v", err)
+	}
+	if transcript.Content != "secret terminal output\nnext line" {
+		t.Fatalf("SessionTranscript.Content = %q", transcript.Content)
+	}
+	bytes, err := os.ReadFile(store.Path())
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(bytes), "secret terminal output") {
+		t.Fatal("store file contains plaintext terminal transcript")
+	}
 
 	if err := store.DeleteSessionLog(log.ID); err != nil {
 		t.Fatalf("DeleteSessionLog() error = %v", err)
@@ -176,6 +205,9 @@ func TestStoreSessionLogLifecycle(t *testing.T) {
 	}
 	if len(logs) != 0 {
 		t.Fatalf("len(ListSessionLogs()) after delete = %d, want 0", len(logs))
+	}
+	if _, err := store.GetSessionTranscript(log.ID, vault); !errors.Is(err, ErrSessionTranscriptNotFound) {
+		t.Fatalf("GetSessionTranscript() after delete error = %v, want %v", err, ErrSessionTranscriptNotFound)
 	}
 }
 

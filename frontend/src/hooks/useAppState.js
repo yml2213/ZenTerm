@@ -47,6 +47,8 @@ export function useAppState() {
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [newTabs, setNewTabs] = useState([])
   const [activeNewTabId, setActiveNewTabId] = useState(null)
+  const [logTabs, setLogTabs] = useState([])
+  const [activeLogTabId, setActiveLogTabId] = useState(null)
   const [connectingHostIds, setConnectingHostIds] = useState([])
   const [keychainStatus, setKeychainStatus] = useState(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
@@ -65,12 +67,19 @@ export function useAppState() {
   }, {})
   const selectedSftpHost = hosts.find((host) => host.id === selectedSftpHostId) || null
   const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
-  const workspaceTabs = newTabs.concat(sessionTabs.map((session) => ({
-    ...session,
-    tabId: session.sessionId,
-    type: 'ssh',
-  })))
-  const activeWorkspaceTabId = activeWorkspace === 'new-tab' ? activeNewTabId : activeSessionId
+  const workspaceTabs = newTabs
+    .concat(sessionTabs.map((session) => ({
+      ...session,
+      tabId: session.sessionId,
+      type: 'ssh',
+    })))
+    .concat(logTabs)
+  const activeLogTab = logTabs.find((tab) => tab.tabId === activeLogTabId) || null
+  const activeWorkspaceTabId = activeWorkspace === 'new-tab'
+    ? activeNewTabId
+    : activeWorkspace === 'log'
+    ? activeLogTabId
+    : activeSessionId
   const showSetupModal = !vaultInitialized && vaultReady
   const showAccessModal = vaultInitialized && !vaultUnlocked && vaultReady
   const currentSidebarPage = sidebarPages[activeSidebarPage] || sidebarPages.hosts
@@ -81,8 +90,9 @@ export function useAppState() {
   const isLogsPage = activeSidebarPage === 'logs'
   const shellClassName = [
     'app-shell',
-    activeWorkspace === 'ssh' ? 'app-shell-tabbed' : '',
+    activeWorkspace === 'ssh' || activeWorkspace === 'log' ? 'app-shell-tabbed' : '',
     activeWorkspace === 'ssh' ? 'app-shell-ssh' : '',
+    activeWorkspace === 'log' ? 'app-shell-log' : '',
     activeWorkspace === 'sftp' ? 'app-shell-sftp' : '',
   ].filter(Boolean).join(' ')
   const pageHeader = activeWorkspace === 'ssh'
@@ -141,6 +151,8 @@ export function useAppState() {
     newTabs,
     activeNewTabId,
     sessionTabs,
+    logTabs,
+    activeLogTabId,
   }
   const setters = {
     setError,
@@ -174,6 +186,8 @@ export function useAppState() {
     setHostKeyPrompt,
     setNewTabs,
     setActiveNewTabId,
+    setLogTabs,
+    setActiveLogTabId,
     setConnectingHostIds,
     setIsSavingHost,
     setIsAcceptingKey,
@@ -217,6 +231,8 @@ export function useAppState() {
     activeSessionId,
     newTabs,
     activeNewTabId,
+    logTabs,
+    activeLogTabId,
     connectingHostIds,
     keychainStatus,
     keychainLoading,
@@ -228,6 +244,7 @@ export function useAppState() {
     sessionCountByHost,
     selectedSftpHost,
     activeSession,
+    activeLogTab,
     workspaceTabs,
     activeWorkspaceTabId,
     showSetupModal,
