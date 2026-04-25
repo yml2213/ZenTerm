@@ -69,6 +69,16 @@ func (a *App) ListSessionLogs(limit int) ([]SessionLog, error) {
 	return sessionLogsFromModel(logs), nil
 }
 
+// GetSessionTranscript 返回指定连接日志的加密终端输出内容 / returns decrypted terminal output for the requested connection log.
+func (a *App) GetSessionTranscript(logID string) (SessionTranscript, error) {
+	transcript, err := a.service.GetSessionTranscript(logID)
+	if err != nil {
+		return SessionTranscript{}, normalizeFrontendError(err)
+	}
+
+	return sessionTranscriptFromModel(transcript), nil
+}
+
 // ToggleSessionLogFavorite 更新连接历史收藏状态 / updates the favorite state for a connection history record.
 func (a *App) ToggleSessionLogFavorite(logID string, favorite bool) error {
 	if err := a.service.ToggleSessionLogFavorite(logID, favorite); err != nil {

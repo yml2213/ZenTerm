@@ -20,6 +20,9 @@ async function callApp(method, ...args) {
     if (method === 'ListHosts' || method === 'ListSessions' || method === 'ListSessionLogs') {
       return []
     }
+    if (method === 'GetSessionTranscript') {
+      return { content: '' }
+    }
 
     throw new Error(missingBackendMessage)
   }
@@ -181,6 +184,10 @@ export async function listSessions() {
 
 export async function listSessionLogs(limit = 200) {
   return callApp('ListSessionLogs', limit)
+}
+
+export async function getSessionTranscript(logID) {
+  return callApp('GetSessionTranscript', logID)
 }
 
 export async function toggleSessionLogFavorite(logID, favorite) {

@@ -32,6 +32,8 @@ func normalizeFrontendError(err error) error {
 		return db.ErrSessionLogIDRequired
 	case errors.Is(err, db.ErrSessionLogNotFound):
 		return db.ErrSessionLogNotFound
+	case errors.Is(err, db.ErrSessionTranscriptNotFound):
+		return db.ErrSessionTranscriptNotFound
 	case errors.Is(err, service.ErrNilDependency):
 		return service.ErrNilDependency
 	case errors.Is(err, service.ErrNoIdentityAuth):

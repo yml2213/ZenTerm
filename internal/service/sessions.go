@@ -121,8 +121,8 @@ func (s *Service) Connect(hostID string) (string, error) {
 	s.sessionMu.Unlock()
 
 	s.markSessionLogActive(logID, sessionID, remoteAddr)
-	go s.forwardOutput(sessionID, stdout)
-	go s.forwardOutput(sessionID, stderr)
+	go s.forwardOutput(sessionID, logID, stdout)
+	go s.forwardOutput(sessionID, logID, stderr)
 	go s.waitForSession(sessionID, managed)
 	_ = s.store.UpdateLastConnectedAt(hostID, managed.ConnectedAt)
 	if host.SystemTypeSource != "manual" {
@@ -410,12 +410,14 @@ func (s *Service) hasActiveSessionForHost(hostID string) bool {
 	return false
 }
 
-func (s *Service) forwardOutput(sessionID string, reader io.Reader) {
+func (s *Service) forwardOutput(sessionID, logID string, reader io.Reader) {
 	buf := make([]byte, 4096)
 	for {
 		n, err := reader.Read(buf)
 		if n > 0 {
-			s.emit("term:data:"+sessionID, string(buf[:n]))
+			chunk := string(buf[:n])
+			s.appendSessionTranscript(logID, sessionID, chunk)
+			s.emit("term:data:"+sessionID, chunk)
 		}
 		if err != nil {
 			if !errors.Is(err, io.EOF) {

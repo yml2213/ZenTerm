@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react'
+import { FileText, Plus, X } from 'lucide-react'
 
 export default function SessionTabs({
   sessions,
@@ -18,13 +18,14 @@ export default function SessionTabs({
       {sessions.map((session) => {
         const tabId = session.tabId || session.sessionId
         const isNewTab = session.type === 'new'
+        const isLogTab = session.type === 'log'
         const active = tabId === activeSessionId
-        const label = isNewTab ? session.title : `${session.title} ${session.remoteAddr || session.hostID}`
+        const label = isNewTab || isLogTab ? session.title : `${session.title} ${session.remoteAddr || session.hostID}`
 
         return (
           <article
             key={tabId}
-            className={`session-tab ${isNewTab ? 'new-tab' : 'ssh-tab'}${active ? ' active' : ''}`}
+            className={`session-tab ${isNewTab ? 'new-tab' : isLogTab ? 'log-tab' : 'ssh-tab'}${active ? ' active' : ''}`}
           >
             <button
               type="button"
@@ -33,6 +34,7 @@ export default function SessionTabs({
               onClick={() => onSelect(session)}
             >
               {isNewTab ? <Plus className="session-tab-icon" size={13} /> : null}
+              {isLogTab ? <FileText className="session-tab-icon" size={13} /> : null}
               <strong>{session.title}</strong>
             </button>
             <button

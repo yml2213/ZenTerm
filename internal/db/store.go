@@ -20,13 +20,15 @@ const currentVersion = 1
 const vaultCheckToken = "zenterm:vault-check:v1"
 
 var (
-	ErrHostIDRequired       = errors.New("host id is required")
-	ErrStorePathEmpty       = errors.New("store path is required")
-	ErrHostNotFound         = errors.New("host not found")
-	ErrCredentialIDRequired = errors.New("credential id is required")
-	ErrCredentialNotFound   = errors.New("credential not found")
-	ErrSessionLogIDRequired = errors.New("session log id is required")
-	ErrSessionLogNotFound   = errors.New("session log not found")
+	ErrHostIDRequired             = errors.New("host id is required")
+	ErrStorePathEmpty             = errors.New("store path is required")
+	ErrHostNotFound               = errors.New("host not found")
+	ErrCredentialIDRequired       = errors.New("credential id is required")
+	ErrCredentialNotFound         = errors.New("credential not found")
+	ErrSessionLogIDRequired       = errors.New("session log id is required")
+	ErrSessionLogNotFound         = errors.New("session log not found")
+	ErrSessionTranscriptNotFound  = errors.New("session transcript not found")
+	ErrSessionTranscriptEncrypted = errors.New("session transcript content is encrypted")
 )
 
 // Store 将 ZenTerm 数据持久化到本地 JSON 文件 / persists ZenTerm data in a local JSON file.
@@ -37,12 +39,13 @@ type Store struct {
 }
 
 type fileData struct {
-	Version     int                `json:"version"`
-	Vault       vaultData          `json:"vault"`
-	Window      model.WindowState  `json:"window,omitempty"`
-	Hosts       []hostEntry        `json:"hosts"`
-	Credentials []credentialEntry  `json:"credentials"`
-	SessionLogs []model.SessionLog `json:"session_logs,omitempty"`
+	Version            int                      `json:"version"`
+	Vault              vaultData                `json:"vault"`
+	Window             model.WindowState        `json:"window,omitempty"`
+	Hosts              []hostEntry              `json:"hosts"`
+	Credentials        []credentialEntry        `json:"credentials"`
+	SessionLogs        []model.SessionLog       `json:"session_logs,omitempty"`
+	SessionTranscripts []sessionTranscriptEntry `json:"session_transcripts,omitempty"`
 }
 
 type vaultData struct {
@@ -68,6 +71,15 @@ type encryptedCredential struct {
 type encryptedSecret struct {
 	Password   *security.Ciphertext `json:"password,omitempty"`
 	PrivateKey *security.Ciphertext `json:"private_key,omitempty"`
+}
+
+type sessionTranscriptEntry struct {
+	LogID      string               `json:"log_id"`
+	SessionID  string               `json:"session_id,omitempty"`
+	Content    *security.Ciphertext `json:"content,omitempty"`
+	SizeBytes  int64                `json:"size_bytes,omitempty"`
+	UpdatedAt  time.Time            `json:"updated_at,omitempty"`
+	RecordedAt time.Time            `json:"recorded_at,omitempty"`
 }
 
 // NewStore 为指定文件路径创建一个基于 JSON 的存储实现 / creates a JSON-backed store for the given file path.
@@ -202,6 +214,18 @@ func (s *Store) RekeyVault(currentVault, nextVault *security.Vault, nextSalt []b
 		data.Hosts[i].Identity.PrivateKey = encryptedPrivateKey
 	}
 
+	for i := range data.SessionTranscripts {
+		content, err := decryptOptional(data.SessionTranscripts[i].Content, currentVault)
+		if err != nil {
+			return fmt.Errorf("decrypt session transcript: %w", err)
+		}
+		encryptedContent, err := encryptOptional(content, nextVault)
+		if err != nil {
+			return fmt.Errorf("encrypt session transcript: %w", err)
+		}
+		data.SessionTranscripts[i].Content = encryptedContent
+	}
+
 	check, err := nextVault.EncryptString(vaultCheckToken)
 	if err != nil {
 		return fmt.Errorf("encrypt vault check: %w", err)
@@ -226,6 +250,7 @@ func (s *Store) ResetVault() error {
 	data.Hosts = []hostEntry{}
 	data.Credentials = []credentialEntry{}
 	data.SessionLogs = []model.SessionLog{}
+	data.SessionTranscripts = []sessionTranscriptEntry{}
 	return s.saveLocked(data)
 }
 
@@ -613,7 +638,122 @@ func (s *Store) DeleteSessionLog(logID string) error {
 		return ErrSessionLogNotFound
 	}
 	data.SessionLogs = filtered
+
+	transcripts := data.SessionTranscripts[:0]
+	for _, transcript := range data.SessionTranscripts {
+		if transcript.LogID == logID {
+			continue
+		}
+		transcripts = append(transcripts, transcript)
+	}
+	data.SessionTranscripts = transcripts
 	return s.saveLocked(data)
+}
+
+// AppendSessionTranscript 追加并加密保存会话终端输出 / appends and encrypts visible terminal output for a session.
+func (s *Store) AppendSessionTranscript(logID, sessionID, chunk string, vault *security.Vault) error {
+	if logID == "" {
+		return ErrSessionLogIDRequired
+	}
+	if chunk == "" {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	exists := false
+	for _, log := range data.SessionLogs {
+		if log.ID == logID {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		return ErrSessionLogNotFound
+	}
+
+	now := time.Now().UTC()
+	for i := range data.SessionTranscripts {
+		if data.SessionTranscripts[i].LogID != logID {
+			continue
+		}
+
+		content, err := decryptOptional(data.SessionTranscripts[i].Content, vault)
+		if err != nil {
+			return fmt.Errorf("decrypt session transcript: %w", err)
+		}
+		content += chunk
+		encrypted, err := encryptOptional(content, vault)
+		if err != nil {
+			return fmt.Errorf("encrypt session transcript: %w", err)
+		}
+
+		data.SessionTranscripts[i].SessionID = sessionID
+		data.SessionTranscripts[i].Content = encrypted
+		data.SessionTranscripts[i].SizeBytes = int64(len([]byte(content)))
+		data.SessionTranscripts[i].UpdatedAt = now
+		if data.SessionTranscripts[i].RecordedAt.IsZero() {
+			data.SessionTranscripts[i].RecordedAt = now
+		}
+		return s.saveLocked(data)
+	}
+
+	encrypted, err := encryptOptional(chunk, vault)
+	if err != nil {
+		return fmt.Errorf("encrypt session transcript: %w", err)
+	}
+
+	data.SessionTranscripts = append(data.SessionTranscripts, sessionTranscriptEntry{
+		LogID:      logID,
+		SessionID:  sessionID,
+		Content:    encrypted,
+		SizeBytes:  int64(len([]byte(chunk))),
+		UpdatedAt:  now,
+		RecordedAt: now,
+	})
+	return s.saveLocked(data)
+}
+
+// GetSessionTranscript 解密并返回指定日志的终端输出 / decrypts and returns terminal output for a connection log.
+func (s *Store) GetSessionTranscript(logID string, vault *security.Vault) (model.SessionTranscript, error) {
+	if logID == "" {
+		return model.SessionTranscript{}, ErrSessionLogIDRequired
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return model.SessionTranscript{}, err
+	}
+
+	for _, transcript := range data.SessionTranscripts {
+		if transcript.LogID != logID {
+			continue
+		}
+
+		content, err := decryptOptional(transcript.Content, vault)
+		if err != nil {
+			return model.SessionTranscript{}, fmt.Errorf("decrypt session transcript: %w", err)
+		}
+		return model.SessionTranscript{
+			LogID:      transcript.LogID,
+			SessionID:  transcript.SessionID,
+			Content:    content,
+			SizeBytes:  transcript.SizeBytes,
+			UpdatedAt:  transcript.UpdatedAt,
+			RecordedAt: transcript.RecordedAt,
+		}, nil
+	}
+
+	return model.SessionTranscript{}, ErrSessionTranscriptNotFound
 }
 
 // PruneSessionLogs 保留最新的 maxEntries 条连接历史记录 / keeps only the newest maxEntries connection history records.
@@ -636,6 +776,18 @@ func (s *Store) PruneSessionLogs(maxEntries int) error {
 	if len(data.SessionLogs) > maxEntries {
 		data.SessionLogs = data.SessionLogs[:maxEntries]
 	}
+
+	keptLogIDs := make(map[string]struct{}, len(data.SessionLogs))
+	for _, log := range data.SessionLogs {
+		keptLogIDs[log.ID] = struct{}{}
+	}
+	transcripts := data.SessionTranscripts[:0]
+	for _, transcript := range data.SessionTranscripts {
+		if _, ok := keptLogIDs[transcript.LogID]; ok {
+			transcripts = append(transcripts, transcript)
+		}
+	}
+	data.SessionTranscripts = transcripts
 	return s.saveLocked(data)
 }
 
@@ -670,7 +822,13 @@ func (s *Store) loadLocked() (fileData, error) {
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fileData{Version: currentVersion, Hosts: []hostEntry{}, SessionLogs: []model.SessionLog{}}, nil
+			return fileData{
+				Version:            currentVersion,
+				Hosts:              []hostEntry{},
+				Credentials:        []credentialEntry{},
+				SessionLogs:        []model.SessionLog{},
+				SessionTranscripts: []sessionTranscriptEntry{},
+			}, nil
 		}
 
 		return fileData{}, fmt.Errorf("read store: %w", err)
@@ -692,6 +850,9 @@ func (s *Store) loadLocked() (fileData, error) {
 	}
 	if data.SessionLogs == nil {
 		data.SessionLogs = []model.SessionLog{}
+	}
+	if data.SessionTranscripts == nil {
+		data.SessionTranscripts = []sessionTranscriptEntry{}
 	}
 
 	return data, nil

@@ -63,6 +63,22 @@ export function createNewWorkspaceTab(index) {
   }
 }
 
+export function createLogWorkspaceTab(log) {
+  const title = log?.host_name || log?.host_address || log?.host_id || '连接日志'
+  return {
+    tabId: `log-${log.id}`,
+    type: 'log',
+    logId: log.id,
+    title: `日志：${title}`,
+    hostTitle: title,
+    startedAt: log?.started_at || '',
+    endedAt: log?.ended_at || '',
+    sshUsername: log?.ssh_username || '',
+    localUsername: log?.local_username || '',
+    remoteAddr: log?.remote_addr || (log?.host_address ? `${log.host_address}:${log.host_port || 22}` : ''),
+  }
+}
+
 export function normalizeHostKeyPrompt(prompt) {
   if (!prompt) {
     return null

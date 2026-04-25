@@ -19,6 +19,7 @@ import {
   generateCredential,
   getCredentials,
   getCredentialUsage,
+  getSessionTranscript,
   getKeychainStatus,
   getVaultStatus,
   importCredential,
@@ -67,6 +68,7 @@ vi.mock('../lib/backend.js', () => ({
   importCredential: vi.fn(),
   getCredentials: vi.fn(),
   getCredentialUsage: vi.fn(),
+  getSessionTranscript: vi.fn(),
   deleteCredential: vi.fn(),
   listLocalFiles: vi.fn(),
   listRemoteFiles: vi.fn(),
@@ -110,6 +112,21 @@ vi.mock('../components/TerminalPane.jsx', () => ({
         <button type="button" onClick={() => onSessionClosed(activeSessionId)}>
           模拟会话关闭
         </button>
+      </section>
+    )
+  },
+}))
+
+vi.mock('../components/LogWorkspace.jsx', () => ({
+  default: function MockLogWorkspace({
+    activeLogTab,
+    onCloseLog,
+  }) {
+    return (
+      <section data-testid="log-workspace">
+        <h2>{activeLogTab?.title || '日志'}</h2>
+        <p>{activeLogTab?.remoteAddr || '未知地址'}</p>
+        <button type="button" onClick={onCloseLog}>关闭日志标签页</button>
       </section>
     )
   },
@@ -220,6 +237,13 @@ export function registerAppHarness() {
       credential_id: 'cred-1',
       host_ids: [],
       active_sessions: 0,
+    })
+    getSessionTranscript.mockResolvedValue({
+      log_id: 'log-2',
+      session_id: 'session-closed',
+      content: 'Connected: Beta\r\n$ uptime\r\nup 2 days\r\n',
+      size_bytes: 38,
+      updated_at: '2026-04-14T09:30:00Z',
     })
     deleteCredential.mockResolvedValue(undefined)
     persistWindowState.mockResolvedValue(undefined)
@@ -346,6 +370,7 @@ export {
   generateCredential,
   getCredentials,
   getCredentialUsage,
+  getSessionTranscript,
   getKeychainStatus,
   getVaultStatus,
   importCredential,

@@ -155,6 +155,67 @@ func TestDisconnectClosesSessionLog(t *testing.T) {
 	}
 }
 
+func TestConnectRecordsEncryptedTerminalTranscript(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-transcript", Address: "example.com", Port: 22, Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		session: &stubSSHSession{
+			stdout: io.NopCloser(strings.NewReader("visible terminal output\n")),
+		},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer func() { _ = svc.Disconnect(sessionID) }()
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+
+	var transcript model.SessionTranscript
+	for i := 0; i < 20; i++ {
+		transcript, err = svc.GetSessionTranscript(logs[0].ID)
+		if err == nil && strings.Contains(transcript.Content, "visible terminal output") {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("GetSessionTranscript() error = %v", err)
+	}
+	if !strings.Contains(transcript.Content, "visible terminal output") {
+		t.Fatalf("SessionTranscript.Content = %q", transcript.Content)
+	}
+}
+
 func TestListSessionLogsClosesStaleActiveLog(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))

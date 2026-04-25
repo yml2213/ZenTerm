@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
 import AppOverlays from './components/AppOverlays.jsx'
+import LogWorkspace from './components/LogWorkspace.jsx'
 import NewTabWorkspace from './components/NewTabWorkspace.jsx'
 import SftpWorkspacePage, { preloadSftpWorkspace } from './components/SftpWorkspacePage.jsx'
 import SshWorkspace from './components/SshWorkspace.jsx'
@@ -74,6 +75,7 @@ export default function App() {
     activeSessionId,
     newTabs,
     activeNewTabId,
+    activeLogTabId,
     connectingHostIds,
     keychainStatus,
     keychainLoading,
@@ -85,6 +87,7 @@ export default function App() {
     sessionCountByHost,
     selectedSftpHost,
     activeSession,
+    activeLogTab,
     workspaceTabs,
     activeWorkspaceTabId,
     showSetupModal,
@@ -119,8 +122,10 @@ export default function App() {
 
   const {
     removeSessionTab,
+    openLogTab,
     openNewTab,
     closeNewTab,
+    closeLogTab,
     handleWorkspaceStripDoubleClick,
     handleWorkspaceChange,
     handleWorkspaceTabSelect,
@@ -210,6 +215,11 @@ export default function App() {
   function handleWorkspaceTabClose(tab) {
     if (tab.type === 'new') {
       closeNewTab(tab.tabId)
+      return
+    }
+
+    if (tab.type === 'log') {
+      closeLogTab(tab.tabId)
       return
     }
 
@@ -307,6 +317,7 @@ export default function App() {
           keychainLoading={keychainLoading}
           vaultInitialized={vaultInitialized}
           onRefreshKeychainStatus={refreshKeychainStatus}
+          onOpenLogTab={openLogTab}
           hostDrawer={hostDrawer}
         />
       ) : activeWorkspace === 'new-tab' ? (
@@ -329,6 +340,12 @@ export default function App() {
           onCreateHost={openCreateHost}
           onBackToVaults={() => handleWorkspaceChange('vaults')}
           onError={setters.setError}
+        />
+      ) : activeWorkspace === 'log' ? (
+        <LogWorkspace
+          activeLogTab={activeLogTab}
+          onCloseLog={() => activeLogTabId ? closeLogTab(activeLogTabId) : null}
+          onError={(err) => setters.setError(err?.message || String(err))}
         />
       ) : (
         <SshWorkspace

@@ -48,6 +48,14 @@
   --terminal-control: #9aa2b8;
 }
 
+.app-shell-log {
+  --window-top-bg: #171c27;
+  --window-top-border: rgba(148, 163, 184, 0.14);
+  --terminal-toolbar-bg: #171c27;
+  --terminal-control: #a9b4c6;
+  background: var(--terminal-bg);
+}
+
 .app-shell-sftp {
   background: var(--sftp-page-bg);
 }
@@ -369,7 +377,8 @@
   opacity: 1;
 }
 
-.app-shell-ssh .session-tab.ssh-tab.active {
+.app-shell-ssh .session-tab.ssh-tab.active,
+.app-shell-log .session-tab.log-tab.active {
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
 }
@@ -395,6 +404,10 @@
 
 .app-shell-ssh .session-tab.ssh-tab .session-tab-main {
   color: #2ed58b;
+}
+
+.app-shell-log .session-tab.log-tab .session-tab-main {
+  color: var(--terminal-tab-active-text);
 }
 
 .session-tab-icon {

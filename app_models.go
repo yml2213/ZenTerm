@@ -77,6 +77,15 @@ type SessionLog struct {
 	Note           string `json:"note,omitempty"`
 }
 
+type SessionTranscript struct {
+	LogID      string `json:"log_id"`
+	SessionID  string `json:"session_id,omitempty"`
+	Content    string `json:"content"`
+	SizeBytes  int64  `json:"size_bytes,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
+	RecordedAt string `json:"recorded_at,omitempty"`
+}
+
 func hostFromModel(host model.Host) Host {
 	return Host{
 		ID:               host.ID,
@@ -211,6 +220,17 @@ func sessionLogsFromModel(logs []model.SessionLog) []SessionLog {
 		result = append(result, sessionLogFromModel(log))
 	}
 	return result
+}
+
+func sessionTranscriptFromModel(transcript model.SessionTranscript) SessionTranscript {
+	return SessionTranscript{
+		LogID:      transcript.LogID,
+		SessionID:  transcript.SessionID,
+		Content:    transcript.Content,
+		SizeBytes:  transcript.SizeBytes,
+		UpdatedAt:  formatTime(transcript.UpdatedAt),
+		RecordedAt: formatTime(transcript.RecordedAt),
+	}
 }
 
 func formatTime(value time.Time) string {
