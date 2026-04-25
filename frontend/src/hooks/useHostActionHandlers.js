@@ -152,6 +152,8 @@ export function useHostActionHandlers({
       group: host.group || '',
       tags: host.tags || '',
       favorite: !host.favorite,
+      system_type: host.system_type,
+      system_type_source: host.system_type_source || 'auto',
       last_connected_at: host.last_connected_at,
       known_hosts: host.known_hosts,
       credential_id: host.credential_id,

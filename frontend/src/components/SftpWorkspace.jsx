@@ -594,6 +594,8 @@ function PaneEmptyState({
         </div>
       </header>
 
+      <div className="sftp-pane-toolbar sftp-pane-toolbar-placeholder" aria-hidden="true" />
+
       <div className="sftp-empty-state">
         <div className="sftp-empty-icon">
           <HardDrive size={24} />

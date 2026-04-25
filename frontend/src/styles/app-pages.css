@@ -21,7 +21,14 @@
   background-image: none;
 }
 
+.sftp-page {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .sftp-page .content-area-flush {
+  grid-row: 1;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   background-color: var(--sftp-page-bg);
   background-image: none;

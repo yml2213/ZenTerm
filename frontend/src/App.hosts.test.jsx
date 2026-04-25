@@ -61,8 +61,8 @@ describe('App host management', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: '已知主机' }))
 
-    expect(screen.getAllByRole('heading', { name: '已知主机' }).length).toBeGreaterThan(0)
     expect(await screen.findByText('可信记录')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '已知主机' })).not.toBeInTheDocument()
     expect(screen.getByText('Beta')).toBeInTheDocument()
     expect(screen.getByText('1 条已保存')).toBeInTheDocument()
     expect(screen.getByText(/ssh-ed25519/)).toBeInTheDocument()
@@ -99,6 +99,7 @@ describe('App host management', () => {
           group: '本地',
           tags: 'Linux, Dev',
           favorite: true,
+          system_type_source: 'auto',
         },
         {
           password: 'secret-pass',
@@ -136,9 +137,10 @@ describe('App host management', () => {
     await user.type(screen.getByLabelText('地址'), '10.0.0.11')
     await user.clear(screen.getByLabelText('用户名'))
     await user.type(screen.getByLabelText('用户名'), 'deploy')
-    await user.click(screen.getByRole('radio', { name: '密钥认证' }))
+    await user.click(screen.getByRole('button', { name: /密钥 \/ 证书 \/ 本地密钥/ }))
+    await user.click(screen.getByRole('menuitem', { name: /本地密钥文件/ }))
 
-    expect(screen.queryByLabelText('密码')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('密码')).toBeDisabled()
     expect(screen.getByLabelText('私钥')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('私钥'), 'PRIVATE KEY')
@@ -182,6 +184,7 @@ describe('App host management', () => {
           group: '生产环境',
           tags: 'Linux, DB',
           favorite: true,
+          system_type_source: 'auto',
         },
         {
           password: '',

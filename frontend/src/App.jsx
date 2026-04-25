@@ -1,8 +1,9 @@
+import { useEffect } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { createInitialHostForm } from './components/HostForm.jsx'
+import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
 import AppOverlays from './components/AppOverlays.jsx'
 import NewTabWorkspace from './components/NewTabWorkspace.jsx'
-import SftpWorkspacePage from './components/SftpWorkspacePage.jsx'
+import SftpWorkspacePage, { preloadSftpWorkspace } from './components/SftpWorkspacePage.jsx'
 import SshWorkspace from './components/SshWorkspace.jsx'
 import VaultWorkspace from './components/VaultWorkspace.jsx'
 import WorkspaceStrip from './components/WorkspaceStrip.jsx'
@@ -110,6 +111,8 @@ export default function App() {
     }
 
     setters.setHostForm(createInitialHostForm())
+    setters.setActiveWorkspace('vaults')
+    setters.setActiveSidebarPage('hosts')
     setters.setHostDialogMode('create')
   }
 
@@ -192,6 +195,17 @@ export default function App() {
     setActiveSidebarPage: setters.setActiveSidebarPage,
   })
 
+  useEffect(() => {
+    const runPreload = () => preloadSftpWorkspace()
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(runPreload, { timeout: 1800 })
+      return () => window.cancelIdleCallback(id)
+    }
+
+    const id = window.setTimeout(runPreload, 400)
+    return () => window.clearTimeout(id)
+  }, [])
+
   function handleWorkspaceTabClose(tab) {
     if (tab.type === 'new') {
       closeNewTab(tab.tabId)
@@ -212,6 +226,17 @@ export default function App() {
   }
 
   const ThemeIcon = theme === 'auto' ? Monitor : theme === 'light' ? Sun : Moon
+  const hostDrawer = hostDialogMode ? (
+    <HostForm
+      mode={hostDialogMode}
+      value={hostForm}
+      onChange={setters.setHostForm}
+      onSubmit={handleSaveHost}
+      disabled={!vaultUnlocked}
+      busy={isSavingHost}
+      onClose={closeHostDialog}
+    />
+  ) : null
 
   return (
     <div className={shellClassName}>
@@ -225,6 +250,7 @@ export default function App() {
         onWorkspaceTabClose={handleWorkspaceTabClose}
         onOpenNewTab={openNewTab}
         onCycleTheme={cycleTheme}
+        onPreloadSftp={preloadSftpWorkspace}
         themeIcon={ThemeIcon}
         vaultsLabel={t('vaults')}
         sftpLabel={t('sftp')}
@@ -279,6 +305,7 @@ export default function App() {
           keychainLoading={keychainLoading}
           vaultInitialized={vaultInitialized}
           onRefreshKeychainStatus={refreshKeychainStatus}
+          hostDrawer={hostDrawer}
         />
       ) : activeWorkspace === 'new-tab' ? (
         <NewTabWorkspace
@@ -300,7 +327,6 @@ export default function App() {
           onCreateHost={openCreateHost}
           onBackToVaults={() => handleWorkspaceChange('vaults')}
           onError={setters.setError}
-          PanelFallback={PanelFallback}
         />
       ) : (
         <SshWorkspace
@@ -328,13 +354,6 @@ export default function App() {
         accessBusy={accessBusy}
         onAccessPasswordChange={setters.setAccessPassword}
         onContinueAccess={handleAccessPassword}
-        hostDialogMode={hostDialogMode}
-        onCloseHostDialog={closeHostDialog}
-        hostForm={hostForm}
-        onHostFormChange={setters.setHostForm}
-        onSaveHost={handleSaveHost}
-        vaultUnlocked={vaultUnlocked}
-        isSavingHost={isSavingHost}
         deleteCandidate={deleteCandidate}
         onCancelDeleteHost={() => setters.setDeleteCandidate(null)}
         onDeleteHost={handleDeleteHost}

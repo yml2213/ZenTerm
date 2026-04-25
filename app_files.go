@@ -3,63 +3,63 @@ package main
 import "zenterm/internal/model"
 
 // ListLocalFiles 返回本机目录内容 / returns the local directory contents.
-func (a *App) ListLocalFiles(path string) (model.FileListing, error) {
+func (a *App) ListLocalFiles(path string) (FileListing, error) {
 	listing, err := a.service.ListLocalFiles(path)
 	if err != nil {
-		return model.FileListing{}, normalizeFrontendError(err)
+		return FileListing{}, normalizeFrontendError(err)
 	}
 
-	return listing, nil
+	return fileListingFromModel(listing), nil
 }
 
 // ListRemoteFiles 返回指定主机的远端目录内容 / returns the remote directory contents for the selected host.
-func (a *App) ListRemoteFiles(hostID, path string) (model.FileListing, error) {
+func (a *App) ListRemoteFiles(hostID, path string) (FileListing, error) {
 	listing, err := a.service.ListRemoteFiles(hostID, path)
 	if err != nil {
-		return model.FileListing{}, normalizeFrontendError(err)
+		return FileListing{}, normalizeFrontendError(err)
 	}
 
-	return listing, nil
+	return fileListingFromModel(listing), nil
 }
 
 // CreateLocalDirectory 在本地目录下创建文件夹 / creates a directory inside a local parent directory.
-func (a *App) CreateLocalDirectory(parentPath, name string) (model.FileEntry, error) {
+func (a *App) CreateLocalDirectory(parentPath, name string) (FileEntry, error) {
 	entry, err := a.service.CreateLocalDirectory(parentPath, name)
 	if err != nil {
-		return model.FileEntry{}, normalizeFrontendError(err)
+		return FileEntry{}, normalizeFrontendError(err)
 	}
 
-	return entry, nil
+	return fileEntryFromModel(entry), nil
 }
 
 // CreateRemoteDirectory 在远端目录下创建文件夹 / creates a directory inside a remote parent directory.
-func (a *App) CreateRemoteDirectory(hostID, parentPath, name string) (model.FileEntry, error) {
+func (a *App) CreateRemoteDirectory(hostID, parentPath, name string) (FileEntry, error) {
 	entry, err := a.service.CreateRemoteDirectory(hostID, parentPath, name)
 	if err != nil {
-		return model.FileEntry{}, normalizeFrontendError(err)
+		return FileEntry{}, normalizeFrontendError(err)
 	}
 
-	return entry, nil
+	return fileEntryFromModel(entry), nil
 }
 
 // RenameLocalEntry 重命名本地文件或目录 / renames a local file or directory.
-func (a *App) RenameLocalEntry(path, nextName string) (model.FileEntry, error) {
+func (a *App) RenameLocalEntry(path, nextName string) (FileEntry, error) {
 	entry, err := a.service.RenameLocalEntry(path, nextName)
 	if err != nil {
-		return model.FileEntry{}, normalizeFrontendError(err)
+		return FileEntry{}, normalizeFrontendError(err)
 	}
 
-	return entry, nil
+	return fileEntryFromModel(entry), nil
 }
 
 // RenameRemoteEntry 重命名远端文件或目录 / renames a remote file or directory.
-func (a *App) RenameRemoteEntry(hostID, path, nextName string) (model.FileEntry, error) {
+func (a *App) RenameRemoteEntry(hostID, path, nextName string) (FileEntry, error) {
 	entry, err := a.service.RenameRemoteEntry(hostID, path, nextName)
 	if err != nil {
-		return model.FileEntry{}, normalizeFrontendError(err)
+		return FileEntry{}, normalizeFrontendError(err)
 	}
 
-	return entry, nil
+	return fileEntryFromModel(entry), nil
 }
 
 // DeleteLocalEntry 删除本地文件或目录 / deletes a local file or directory.

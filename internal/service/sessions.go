@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"zenterm/internal/model"
@@ -111,6 +112,11 @@ func (s *Service) Connect(hostID string) (string, error) {
 	go s.forwardOutput(sessionID, stderr)
 	go s.waitForSession(sessionID, managed)
 	_ = s.store.UpdateLastConnectedAt(hostID, managed.ConnectedAt)
+	if host.SystemTypeSource != "manual" {
+		if systemType := detectHostSystemType(client); systemType != "" {
+			_ = s.store.UpdateHostSystemType(hostID, systemType, "auto")
+		}
+	}
 
 	return sessionID, nil
 }
@@ -288,6 +294,68 @@ func newSessionID() (string, error) {
 	}
 
 	return hex.EncodeToString(buf), nil
+}
+
+func detectHostSystemType(client sshClient) string {
+	session, err := client.NewSession()
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = session.Close() }()
+
+	output, err := session.CombinedOutput(`printf 'kernel=%s\n' "$(uname -s 2>/dev/null)"; if [ -r /etc/os-release ]; then cat /etc/os-release; fi`)
+	if err != nil {
+		return ""
+	}
+
+	return parseSystemType(string(output))
+}
+
+func parseSystemType(output string) string {
+	values := make(map[string]string)
+	for _, line := range strings.Split(output, "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.ToLower(strings.TrimSpace(key))
+		value = strings.Trim(strings.TrimSpace(value), `"'`)
+		values[key] = strings.ToLower(value)
+	}
+
+	kernel := values["kernel"]
+	if strings.Contains(kernel, "darwin") {
+		return "macos"
+	}
+	if strings.Contains(kernel, "mingw") || strings.Contains(kernel, "msys") || strings.Contains(kernel, "cygwin") {
+		return "windows"
+	}
+
+	candidates := []string{values["id"], values["id_like"], values["pretty_name"], output}
+	for _, candidate := range candidates {
+		value := strings.ToLower(candidate)
+		switch {
+		case strings.Contains(value, "ubuntu"):
+			return "ubuntu"
+		case strings.Contains(value, "debian"):
+			return "debian"
+		case strings.Contains(value, "centos"):
+			return "centos"
+		case strings.Contains(value, "rhel") || strings.Contains(value, "red hat"):
+			return "rhel"
+		case strings.Contains(value, "fedora"):
+			return "fedora"
+		case strings.Contains(value, "alpine"):
+			return "alpine"
+		case strings.Contains(value, "arch"):
+			return "arch"
+		}
+	}
+
+	if strings.Contains(kernel, "linux") {
+		return "linux"
+	}
+	return ""
 }
 
 func (s *Service) getSession(sessionID string) (*managedSession, error) {

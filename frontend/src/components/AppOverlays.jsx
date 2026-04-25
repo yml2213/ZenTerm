@@ -1,4 +1,3 @@
-import HostForm from './HostForm.jsx'
 import HostKeyModal from './HostKeyModal.jsx'
 import UnlockModal from './UnlockModal.jsx'
 
@@ -15,13 +14,6 @@ export default function AppOverlays({
   accessBusy,
   onAccessPasswordChange,
   onContinueAccess,
-  hostDialogMode,
-  onCloseHostDialog,
-  hostForm,
-  onHostFormChange,
-  onSaveHost,
-  vaultUnlocked,
-  isSavingHost,
   deleteCandidate,
   onCancelDeleteHost,
   onDeleteHost,
@@ -57,22 +49,6 @@ export default function AppOverlays({
         onPasswordChange={onAccessPasswordChange}
         onSubmit={onContinueAccess}
       />
-
-      {hostDialogMode ? (
-        <div className="modal-backdrop" onClick={onCloseHostDialog}>
-          <div className="modal-form" onClick={(event) => event.stopPropagation()}>
-            <HostForm
-              mode={hostDialogMode}
-              value={hostForm}
-              onChange={onHostFormChange}
-              onSubmit={onSaveHost}
-              disabled={!vaultUnlocked}
-              busy={isSavingHost}
-              onClose={onCloseHostDialog}
-            />
-          </div>
-        </div>
-      ) : null}
 
       {deleteCandidate ? (
         <div className="modal-backdrop" role="presentation">

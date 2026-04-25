@@ -410,6 +410,29 @@ func (s *Store) UpdateLastConnectedAt(hostID string, connectedAt time.Time) erro
 	return ErrHostNotFound
 }
 
+// UpdateHostSystemType 保存自动探测或手动设置的主机系统类型 / stores the detected or manually selected host system type.
+func (s *Store) UpdateHostSystemType(hostID, systemType, source string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Hosts {
+		if data.Hosts[i].Host.ID != hostID {
+			continue
+		}
+
+		data.Hosts[i].Host.SystemType = systemType
+		data.Hosts[i].Host.SystemTypeSource = source
+		return s.saveLocked(data)
+	}
+
+	return ErrHostNotFound
+}
+
 // DeleteHost 删除指定主机及其加密身份信息 / removes the host and its encrypted identity material.
 func (s *Store) DeleteHost(hostID string) error {
 	if hostID == "" {

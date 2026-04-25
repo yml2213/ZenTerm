@@ -4,6 +4,7 @@ import {
   acceptHostKey,
   connect,
   disconnect,
+  listHosts,
   listSessions,
   rejectHostKey,
   resizeTerminal,
@@ -26,6 +27,7 @@ export function useSessionActionHandlers({
   } = state
   const {
     setError,
+    setHosts,
     setSessionTabs,
     setActiveSessionId,
     setNewTabs,
@@ -51,6 +53,15 @@ export function useSessionActionHandlers({
           })
           return nextTabs
         })
+      })
+      .catch((err) => setError(err.message || String(err)))
+  }
+
+  function refreshHostsAfterConnect() {
+    return listHosts()
+      .then((nextHosts) => {
+        startTransition(() => setHosts(nextHosts))
+        return syncHostsSessions(nextHosts)
       })
       .catch((err) => setError(err.message || String(err)))
   }
@@ -81,7 +92,7 @@ export function useSessionActionHandlers({
           setActiveWorkspace('ssh')
         })
 
-        void syncHostsSessions()
+        void refreshHostsAfterConnect()
       })
       .catch((err) => {
         if (rejectedHostIdsRef.current.delete(hostID)) {

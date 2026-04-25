@@ -3,6 +3,14 @@
     grid-template-columns: 1fr;
   }
 
+  .app-content-drawer-open {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+  }
+
+  .page-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
   .sidebar {
     display: none;
   }
@@ -10,7 +18,7 @@
   .page-toolbar {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 104px;
+    min-height: var(--app-panel-bar-height);
   }
 
   .page-toolbar-actions {

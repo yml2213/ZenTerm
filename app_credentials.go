@@ -21,21 +21,21 @@ func (a *App) ImportCredential(label, privateKeyPEM, passphrase string) (string,
 }
 
 // GetCredentials 返回所有凭据的元数据 / returns all credential metadata.
-func (a *App) GetCredentials() ([]model.Credential, error) {
+func (a *App) GetCredentials() ([]Credential, error) {
 	creds, err := a.service.GetCredentials()
 	if err != nil {
 		return nil, normalizeFrontendError(err)
 	}
-	return creds, nil
+	return credentialsFromModel(creds), nil
 }
 
 // GetCredential 返回指定凭据的详细信息 / returns detailed information for a specific credential.
-func (a *App) GetCredential(credentialID string) (model.Credential, error) {
+func (a *App) GetCredential(credentialID string) (Credential, error) {
 	cred, err := a.service.GetCredential(credentialID)
 	if err != nil {
-		return model.Credential{}, normalizeFrontendError(err)
+		return Credential{}, normalizeFrontendError(err)
 	}
-	return cred, nil
+	return credentialFromModel(cred), nil
 }
 
 // GetCredentialUsage 获取凭据的使用情况 / gets usage information for a credential.

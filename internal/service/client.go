@@ -24,6 +24,7 @@ type sshSession interface {
 	StderrPipe() (io.Reader, error)
 	RequestPty(term string, h, w int, modes ssh.TerminalModes) error
 	Shell() error
+	CombinedOutput(cmd string) ([]byte, error)
 	WindowChange(h, w int) error
 	Wait() error
 	Close() error
@@ -136,6 +137,10 @@ func (s *realSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalMod
 
 func (s *realSSHSession) Shell() error {
 	return s.session.Shell()
+}
+
+func (s *realSSHSession) CombinedOutput(cmd string) ([]byte, error) {
+	return s.session.CombinedOutput(cmd)
 }
 
 func (s *realSSHSession) WindowChange(h, w int) error {
