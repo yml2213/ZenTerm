@@ -11,20 +11,13 @@ export default function PaneEmptyState({
   return (
     <section className="sftp-pane">
       <header className="sftp-pane-topbar">
-        <div className="sftp-pane-topbar-main">
-          <div className="sftp-pane-source">
-            <span className="sftp-pane-source-icon">
-              <SourceIcon size={15} />
-            </span>
-            <div className="sftp-pane-source-copy">
-              <strong>{sourceLabel}</strong>
-              <span>文件浏览器</span>
-            </div>
+        <div className="sftp-pane-tabbar">
+          <div className="sftp-pane-tab">
+            <SourceIcon size={14} />
+            <span>{sourceLabel}</span>
           </div>
         </div>
       </header>
-
-      <div className="sftp-pane-toolbar sftp-pane-toolbar-placeholder" aria-hidden="true" />
 
       <div className="sftp-empty-state">
         <div className="sftp-empty-icon">

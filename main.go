@@ -51,7 +51,7 @@ func main() {
 		MinWidth:         1080,
 		MinHeight:        720,
 		WindowStartState: startState,
-		BackgroundColour: options.NewRGBA(253, 254, 254, 255),
+		BackgroundColour: options.NewRGBA(5, 7, 11, 255),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -63,7 +63,7 @@ func main() {
 		},
 		Mac: &mac.Options{
 			TitleBar:             mac.TitleBarHiddenInset(),
-			Appearance:           mac.DefaultAppearance,
+			Appearance:           mac.NSAppearanceNameDarkAqua,
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 		},

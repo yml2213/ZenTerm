@@ -1,7 +1,8 @@
 .host-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 0.72rem;
+  align-items: stretch;
 }
 
 .host-grid-list {
@@ -22,7 +23,9 @@
 
 .host-card {
   display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 0.7rem;
+  min-width: 0;
   cursor: pointer;
   background: var(--card-bg);
   transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
@@ -43,12 +46,21 @@
 }
 
 .host-card-header,
-.host-card-footer,
 .host-card-badges {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
+}
+
+.host-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-self: end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-width: 0;
 }
 
 .host-card-badges {
@@ -248,21 +260,27 @@
 }
 
 .host-card-summary {
+  min-width: 0;
   font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .host-card-actions {
   display: flex;
   align-items: center;
   gap: 0.38rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  min-width: max-content;
 }
 
 .compact {
   padding: 0.48rem 0.66rem;
   border-radius: 11px;
   font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .host-delete-btn {
@@ -280,7 +298,8 @@
 }
 
 .host-grid-list .host-card {
-  grid-template-columns: minmax(280px, 1.1fr) minmax(210px, 0.8fr) minmax(160px, 0.6fr) auto;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(180px, 0.8fr) minmax(140px, 0.6fr) auto;
+  grid-template-rows: auto;
   align-items: center;
   gap: 1rem;
   padding: 0.72rem 0.82rem;
@@ -312,6 +331,67 @@
 
 .host-grid-list .host-card-summary {
   display: none;
+}
+
+@container (max-width: 1120px) {
+  .host-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  }
+
+  .host-card,
+  .empty-card {
+    padding: 0.82rem;
+  }
+
+  .host-card-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .compact {
+    padding-inline: 0.58rem;
+  }
+}
+
+@container (max-width: 900px) {
+  .host-grid-list .host-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .host-grid-list .host-card-meta-row,
+  .host-grid-list .host-tag-row {
+    display: none;
+  }
+}
+
+@container (max-width: 520px) {
+  .host-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .host-card-header,
+  .host-card-footer {
+    grid-template-columns: 1fr;
+    display: grid;
+    align-items: start;
+  }
+
+  .host-card-badges,
+  .host-card-actions {
+    justify-content: flex-start;
+  }
+
+  .host-card-actions {
+    min-width: 0;
+  }
+
+  .host-card-summary {
+    white-space: normal;
+  }
+
+  .host-grid-list .host-card {
+    grid-template-columns: 1fr;
+  }
 }
 
 .host-context-menu {

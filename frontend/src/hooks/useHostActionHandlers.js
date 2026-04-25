@@ -168,6 +168,11 @@ export function useHostActionHandlers({
   }
 
   function handlePickSftpHost(hostID) {
+    if (hostID === null) {
+      setSelectedSftpHostId(null)
+      return
+    }
+
     const nextHostID = hostID || selectedSftpHostId || selectedHostId || hosts[0]?.id || null
     if (!nextHostID) {
       openCreateHost()

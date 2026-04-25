@@ -220,6 +220,10 @@ export async function windowSetSize(width, height) {
   return callRuntime('WindowSetSize', undefined, width, height)
 }
 
+export async function windowSetBackgroundColour(red, green, blue, alpha = 255) {
+  return callRuntime('WindowSetBackgroundColour', undefined, red, green, blue, alpha)
+}
+
 export async function windowMaximise() {
   return callRuntime('WindowMaximise', undefined)
 }

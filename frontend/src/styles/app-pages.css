@@ -8,6 +8,7 @@
   display: grid;
   align-content: start;
   gap: 1rem;
+  container-type: inline-size;
 }
 
 .ssh-stage {

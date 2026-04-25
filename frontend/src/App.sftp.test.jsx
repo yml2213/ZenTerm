@@ -10,6 +10,7 @@ import {
   createLocalDirectory,
   deleteLocalEntry,
   downloadFile,
+  listHosts,
   listLocalFiles,
   listRemoteFiles,
   renameRemoteEntry,
@@ -27,15 +28,16 @@ describe('App SFTP flows', () => {
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
     await user.click((await screen.findAllByRole('button', { name: '选择主机' }))[0])
 
-    expect(await screen.findByText('本机目录')).toBeInTheDocument()
-    expect(await screen.findByText('root@10.0.0.1:22')).toBeInTheDocument()
+    expect(await screen.findByText('Local')).toBeInTheDocument()
+    expect((await screen.findAllByText('Alpha')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('root@10.0.0.1:22')).not.toBeInTheDocument()
     expect(await screen.findByText('notes.txt')).toBeInTheDocument()
     expect(await screen.findByText('app.log')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '上传到远端' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '下载到本地' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'notes.txt，文件' }))
-    expect(screen.getByText('已选文件')).toBeInTheDocument()
+    expect(screen.getByText('已选文件', { selector: '.sftp-selection-pill' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '上传到远端' }))
 
     await waitFor(() => {
@@ -67,7 +69,84 @@ describe('App SFTP flows', () => {
       expect(listRemoteFiles).toHaveBeenLastCalledWith('host-2', '')
     })
 
-    expect(await screen.findByText('deploy@10.0.0.2:2222')).toBeInTheDocument()
+    expect((await screen.findAllByText('Beta')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('deploy@10.0.0.2:2222')).not.toBeInTheDocument()
+  })
+
+  it('SFTP 空状态会展示全部主机并提供可滚动选择区', async () => {
+    const user = userEvent.setup()
+    listHosts.mockResolvedValue([
+      ...Array.from({ length: 8 }, (_, index) => ({
+        id: `host-extra-${index + 1}`,
+        name: `Host ${index + 1}`,
+        address: `10.0.1.${index + 1}`,
+        port: 22,
+        username: 'ops',
+      })),
+    ])
+
+    const view = renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+
+    expect(await screen.findByText('已保存 8 台主机，可滚动查看更多。')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Host 8 ops@10.0.1.8' })).toBeInTheDocument()
+
+    const hostPickerScroll = view.container.querySelector('.sftp-host-picker-scroll')
+    expect(hostPickerScroll).not.toBeNull()
+    expect(hostPickerScroll.getAttribute('aria-label')).toBe('SFTP 主机列表')
+  })
+
+  it('SFTP 工作区支持关闭当前远端并重新选择主机', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+    await user.click((await screen.findAllByRole('button', { name: '选择主机' }))[0])
+
+    await user.click(await screen.findByRole('button', { name: '关闭远端' }))
+
+    expect(await screen.findByText('先选择一个主机')).toBeInTheDocument()
+    expect(screen.queryByLabelText('切换 SFTP 主机')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Beta deploy@10.0.0.2' }))
+
+    await waitFor(() => {
+      expect(listRemoteFiles).toHaveBeenLastCalledWith('host-2', '')
+    })
+
+    expect((await screen.findAllByText('Beta')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('deploy@10.0.0.2:2222')).not.toBeInTheDocument()
+  })
+
+  it('SFTP 工作区将路径和主操作合并进 72px 顶栏', async () => {
+    const user = userEvent.setup()
+    const view = renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /SFTP/i }))
+    await user.click((await screen.findAllByRole('button', { name: '选择主机' }))[0])
+    await user.click(screen.getByRole('button', { name: 'app.log，文件' }))
+
+    const topbar = view.container.querySelector('.sftp-pane-remote .sftp-pane-topbar')
+    const toolbar = view.container.querySelector('.sftp-pane-remote .sftp-pane-toolbar')
+
+    expect(topbar).not.toBeNull()
+    expect(toolbar).not.toBeNull()
+    expect(toolbar.parentElement).toBe(topbar)
+    expect(topbar.querySelector('.sftp-host-switcher-group')).not.toBeNull()
+    expect(topbar.querySelector('.sftp-pane-tabbar')).not.toBeNull()
+    expect(topbar.querySelector('.sftp-pane-host-meta')).toBeNull()
+
+    const createDirectoryButton = screen.getAllByRole('button', { name: '新建目录' })[1]
+    const downloadButton = screen.getByRole('button', { name: '下载到本地' })
+
+    expect(topbar).toContain(toolbar)
+    expect(toolbar).toContain(createDirectoryButton)
+    expect(toolbar).toContain(downloadButton)
+    expect(toolbar).toContain(screen.getByText('已选文件', { selector: '.sftp-selection-pill' }))
   })
 
   it('SFTP 工作区支持右键重命名远端文件', async () => {
@@ -217,7 +296,7 @@ describe('App SFTP flows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'codes，文件夹' }))
     fireEvent.click(screen.getByRole('button', { name: 'notes.txt，文件' }), { shiftKey: true })
 
-    expect(screen.getByText('已选 2 项')).toBeInTheDocument()
+    expect(screen.getByText('已选 2 项', { selector: '.sftp-selection-pill' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '删除所选 (2)' }))
     expect(await screen.findByText('将删除本地已选 2 个条目，其中 1 个目录会递归删除，此操作不可撤销。')).toBeInTheDocument()

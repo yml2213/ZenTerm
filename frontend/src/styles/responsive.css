@@ -99,19 +99,23 @@
     width: 100%;
   }
 
-  .sftp-pane-topbar,
-  .sftp-pane-toolbar,
   .sftp-pane-footer,
   .sftp-file-head,
   .sftp-file-row {
     grid-template-columns: 1fr;
   }
 
-  .sftp-pane-topbar,
-  .sftp-pane-toolbar,
   .sftp-pane-footer {
     display: grid;
     justify-content: stretch;
+  }
+
+  .sftp-pane-topbar {
+    grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+  }
+
+  .sftp-pane-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .sftp-pane-topbar-main,
