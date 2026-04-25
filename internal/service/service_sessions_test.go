@@ -89,6 +89,117 @@ func TestConnectCreatesManagedSession(t *testing.T) {
 	}
 }
 
+func TestConnectDetectsAndPersistsHostSystemType(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:               "host-system-auto",
+		Address:          "example.com",
+		Username:         "zen",
+		SystemTypeSource: "auto",
+	}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		systemOutput: "kernel=Linux\nID=ubuntu\nPRETTY_NAME=\"Ubuntu 24.04 LTS\"\n",
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer func() { _ = svc.Disconnect(sessionID) }()
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if updatedHost.SystemType != "ubuntu" {
+		t.Fatalf("GetHost().SystemType = %q, want %q", updatedHost.SystemType, "ubuntu")
+	}
+	if updatedHost.SystemTypeSource != "auto" {
+		t.Fatalf("GetHost().SystemTypeSource = %q, want %q", updatedHost.SystemTypeSource, "auto")
+	}
+	if client.newSessionHits != 2 {
+		t.Fatalf("NewSession() hits = %d, want 2", client.newSessionHits)
+	}
+}
+
+func TestConnectDoesNotOverwriteManualSystemType(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:               "host-system-manual",
+		Address:          "example.com",
+		Username:         "zen",
+		SystemType:       "debian",
+		SystemTypeSource: "manual",
+	}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		systemOutput: "kernel=Linux\nID=ubuntu\nPRETTY_NAME=\"Ubuntu 24.04 LTS\"\n",
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer func() { _ = svc.Disconnect(sessionID) }()
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if updatedHost.SystemType != "debian" {
+		t.Fatalf("GetHost().SystemType = %q, want %q", updatedHost.SystemType, "debian")
+	}
+	if updatedHost.SystemTypeSource != "manual" {
+		t.Fatalf("GetHost().SystemTypeSource = %q, want %q", updatedHost.SystemTypeSource, "manual")
+	}
+	if client.newSessionHits != 1 {
+		t.Fatalf("NewSession() hits = %d, want 1", client.newSessionHits)
+	}
+}
+
 func TestConnectEmitsTerminalOutput(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))

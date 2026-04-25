@@ -38,6 +38,9 @@ func (s *Service) UpdateHost(host model.Host, identity model.Identity) error {
 	if host.LastConnectedAt.IsZero() {
 		host.LastConnectedAt = existingHost.LastConnectedAt
 	}
+	if host.SystemTypeSource == "" {
+		host.SystemTypeSource = existingHost.SystemTypeSource
+	}
 
 	if err := s.store.AddHost(host, identity, s.vault); err != nil {
 		return err

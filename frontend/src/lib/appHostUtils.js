@@ -1,5 +1,5 @@
 export function buildHostPayload(form) {
-  return {
+  const host = {
     id: form.id.trim(),
     name: form.name.trim(),
     address: form.address.trim(),
@@ -8,8 +8,17 @@ export function buildHostPayload(form) {
     group: form.group.trim(),
     tags: form.tags.trim(),
     favorite: Boolean(form.favorite),
-    credential_id: form.credentialId || undefined,
+    system_type_source: form.systemTypeSource || 'auto',
   }
+
+  if (form.systemType) {
+    host.system_type = form.systemType
+  }
+  if (form.credentialId) {
+    host.credential_id = form.credentialId
+  }
+
+  return host
 }
 
 export function buildIdentityPayload(form) {

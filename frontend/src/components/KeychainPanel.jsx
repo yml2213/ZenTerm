@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   KeyRound,
   Plus,
@@ -74,6 +75,7 @@ export default function KeychainPanel({
   vaultUnlocked,
   onRefresh,
 }) {
+  const [toolbarTarget, setToolbarTarget] = useState(null)
   const [activeType, setActiveType] = useState('ssh_key')
   const [activeDrawer, setActiveDrawer] = useState(null)
   const [credentials, setCredentials] = useState([])
@@ -92,6 +94,10 @@ export default function KeychainPanel({
     if (activeType === 'all') return credentials
     return credentials.filter((cred) => cred.type === activeType)
   }, [credentials, activeType])
+
+  useEffect(() => {
+    setToolbarTarget(document.getElementById('keychain-toolbar-slot'))
+  }, [])
 
   useEffect(() => {
     if (vaultUnlocked) {
@@ -224,44 +230,47 @@ export default function KeychainPanel({
 
   const TypeIcon = activeTypeConfig.icon
 
-  return (
-    <section className="keychain-stage">
-      <div className="keychain-toolbar">
-        <div className="keychain-sections" role="tablist" aria-label="凭据类型">
-          {credentialTypes.map((type) => {
-            const Icon = type.icon
-            const count = credentials.filter((c) => c.type === type.id).length
+  const toolbar = (
+    <div className="keychain-toolbar">
+      <div className="keychain-sections" role="tablist" aria-label="凭据类型">
+        {credentialTypes.map((type) => {
+          const Icon = type.icon
+          const count = credentials.filter((c) => c.type === type.id).length
 
-            return (
-              <button
-                key={type.id}
-                type="button"
-                role="tab"
-                aria-selected={activeType === type.id}
-                className={`keychain-section-tab${activeType === type.id ? ' active' : ''}`}
-                onClick={() => handleTypeChange(type.id)}
-              >
-                <Icon size={15} />
-                <span>{type.label}</span>
-                <small>{count}</small>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="keychain-toolbar-actions">
-          <button
-            type="button"
-            className="ghost-button compact"
-            onClick={loadCredentials}
-            disabled={loading || !vaultUnlocked}
-          >
-            <RefreshCw size={14} className={loading ? 'spin' : undefined} />
-            刷新
-          </button>
-        </div>
+          return (
+            <button
+              key={type.id}
+              type="button"
+              role="tab"
+              aria-selected={activeType === type.id}
+              className={`keychain-section-tab${activeType === type.id ? ' active' : ''}`}
+              onClick={() => handleTypeChange(type.id)}
+            >
+              <Icon size={15} />
+              <span>{type.label}</span>
+              <small>{count}</small>
+            </button>
+          )
+        })}
       </div>
 
+      <div className="keychain-toolbar-actions">
+        <button
+          type="button"
+          className="ghost-button compact"
+          onClick={loadCredentials}
+          disabled={loading || !vaultUnlocked}
+        >
+          <RefreshCw size={14} className={loading ? 'spin' : undefined} />
+          刷新
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <section className={`keychain-stage${toolbarTarget ? ' toolbar-portaled' : ''}`}>
+      {toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar}
       <div className={`keychain-workbench${activeDrawer ? ' drawer-open' : ''}`}>
         <div className="keychain-canvas">
           {filteredCredentials.length === 0 ? (

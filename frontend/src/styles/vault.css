@@ -16,6 +16,16 @@
   justify-content: flex-start;
 }
 
+.known-hosts-toolbar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.known-hosts-toolbar-stats {
+  justify-content: flex-start;
+}
+
 .known-hosts-stat {
   min-width: 112px;
   padding: 0.72rem 0.9rem;

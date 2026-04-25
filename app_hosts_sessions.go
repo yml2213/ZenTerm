@@ -2,12 +2,11 @@ package main
 
 import (
 	"zenterm/internal/model"
-	"zenterm/internal/service"
 )
 
 // AddHost 接收前端表单数据并完成主机与身份信息存储 / receives frontend form data and persists the host plus its identity.
-func (a *App) AddHost(host model.Host, identity model.Identity) error {
-	if err := a.service.AddHost(host, identity); err != nil {
+func (a *App) AddHost(host Host, identity model.Identity) error {
+	if err := a.service.AddHost(host.toModel(), identity); err != nil {
 		return normalizeFrontendError(err)
 	}
 
@@ -15,8 +14,8 @@ func (a *App) AddHost(host model.Host, identity model.Identity) error {
 }
 
 // UpdateHost 更新已存在主机的非敏感元数据，并按需保留现有凭据 / updates an existing host and preserves credentials when no replacement is provided.
-func (a *App) UpdateHost(host model.Host, identity model.Identity) error {
-	if err := a.service.UpdateHost(host, identity); err != nil {
+func (a *App) UpdateHost(host Host, identity model.Identity) error {
+	if err := a.service.UpdateHost(host.toModel(), identity); err != nil {
 		return normalizeFrontendError(err)
 	}
 
@@ -88,16 +87,16 @@ func (a *App) Disconnect(sessionID string) error {
 }
 
 // ListHosts 返回列表页所需的主机元数据 / returns the host metadata needed by the frontend list view.
-func (a *App) ListHosts() ([]model.Host, error) {
+func (a *App) ListHosts() ([]Host, error) {
 	hosts, err := a.service.GetHosts()
 	if err != nil {
 		return nil, normalizeFrontendError(err)
 	}
 
-	return hosts, nil
+	return hostsFromModel(hosts), nil
 }
 
 // ListSessions 返回当前活跃 SSH 会话列表 / returns the current active SSH sessions.
-func (a *App) ListSessions() []service.Session {
-	return a.service.ListSessions()
+func (a *App) ListSessions() []Session {
+	return sessionsFromService(a.service.ListSessions())
 }

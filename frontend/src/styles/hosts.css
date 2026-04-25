@@ -104,28 +104,44 @@
   flex: 0 0 auto;
 }
 
-.host-card-avatar.amber {
-  background: linear-gradient(135deg, #fb923c, #ea580c);
+.host-card-avatar svg {
+  width: 18px;
+  height: 18px;
 }
 
-.host-card-avatar.emerald {
-  background: linear-gradient(135deg, #34d399, #16a34a);
+.host-card-avatar.system-ubuntu {
+  background: linear-gradient(135deg, #fb6a2a, #e95420);
 }
 
-.host-card-avatar.cyan {
-  background: linear-gradient(135deg, #38bdf8, #0f766e);
+.host-card-avatar.system-debian {
+  background: linear-gradient(135deg, #d22552, #a91239);
 }
 
-.host-card-avatar.violet {
+.host-card-avatar.system-macos,
+.host-card-avatar.system-server,
+.host-card-avatar.system-linux,
+.host-card-avatar.system-centos,
+.host-card-avatar.system-rhel,
+.host-card-avatar.system-fedora,
+.host-card-avatar.system-alpine,
+.host-card-avatar.system-arch {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+}
+
+.host-card-avatar.system-windows {
+  background: linear-gradient(135deg, #60a5fa, #0ea5e9);
+}
+
+.host-card-avatar.system-database {
   background: linear-gradient(135deg, #a78bfa, #7c3aed);
 }
 
-.host-card-avatar.rose {
+.host-card-avatar.system-cache {
   background: linear-gradient(135deg, #fb7185, #e11d48);
 }
 
-.host-card-avatar.blue {
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
+.host-card-avatar.system-gateway {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
 }
 
 .host-card-title {

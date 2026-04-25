@@ -12,7 +12,7 @@
   "build:dir": "build",
   "author": {
     "name": "yml",
-    "email": ""
+    "email": "yml@example.com"
   },
   "info": {
     "companyName": "ZenTerm",

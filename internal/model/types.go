@@ -4,17 +4,19 @@ import "time"
 
 // Host 保存不包含敏感信息的 SSH 连接元数据 / contains non-sensitive SSH connection metadata.
 type Host struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Address         string    `json:"address"`
-	Port            int       `json:"port"`
-	Username        string    `json:"username"`
-	Group           string    `json:"group,omitempty"`
-	Tags            string    `json:"tags,omitempty"` // 逗号分隔标签 / comma-separated labels.
-	Favorite        bool      `json:"favorite,omitempty"`
-	LastConnectedAt time.Time `json:"last_connected_at,omitempty"`
-	KnownHosts      string    `json:"known_hosts,omitempty"`
-	CredentialID    string    `json:"credential_id,omitempty"` // 引用凭据中心的ID，为空则使用内联Identity
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	Address          string    `json:"address"`
+	Port             int       `json:"port"`
+	Username         string    `json:"username"`
+	Group            string    `json:"group,omitempty"`
+	Tags             string    `json:"tags,omitempty"` // 逗号分隔标签 / comma-separated labels.
+	Favorite         bool      `json:"favorite,omitempty"`
+	SystemType       string    `json:"system_type,omitempty"`
+	SystemTypeSource string    `json:"system_type_source,omitempty"`
+	LastConnectedAt  time.Time `json:"last_connected_at,omitempty"`
+	KnownHosts       string    `json:"known_hosts,omitempty"`
+	CredentialID     string    `json:"credential_id,omitempty"` // 引用凭据中心的ID，为空则使用内联Identity
 }
 
 // Identity 保存主机认证所需的敏感凭据（内联模式）/ contains the sensitive authentication material for a host (inline mode).

@@ -65,9 +65,10 @@ export default function VaultWorkspace({
   keychainLoading,
   vaultInitialized,
   onRefreshKeychainStatus,
+  hostDrawer,
 }) {
   return (
-    <div className="app-content">
+    <div className={`app-content${hostDrawer ? ' app-content-drawer-open' : ''}`}>
       <aside className="sidebar">
         <section className="sidebar-brand-card">
           <div className="sidebar-brand-icon">
@@ -201,7 +202,7 @@ export default function VaultWorkspace({
 
       <section className="page-shell">
         <header className="page-toolbar">
-          <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : ''}`}>
+          <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : isKeychainPage ? ' keychain' : isKnownHostsPage ? ' known-hosts' : ''}`}>
             {isHostsPage ? (
               <div className="page-toolbar-search-slot">
                 <label className="search-bar search-bar-compact">
@@ -216,6 +217,10 @@ export default function VaultWorkspace({
                   />
                 </label>
               </div>
+            ) : isKeychainPage ? (
+              <div id="keychain-toolbar-slot" className="page-toolbar-keychain-slot" />
+            ) : isKnownHostsPage ? (
+              <div id="known-hosts-toolbar-slot" className="page-toolbar-known-hosts-slot" />
             ) : (
               <div className="page-toolbar-main">
                 <div className="page-intro-copy page-toolbar-copy">
@@ -335,6 +340,11 @@ export default function VaultWorkspace({
           ) : null}
         </main>
       </section>
+      {hostDrawer ? (
+        <aside className="host-drawer-shell host-drawer-inline">
+          {hostDrawer}
+        </aside>
+      ) : null}
     </div>
   )
 }

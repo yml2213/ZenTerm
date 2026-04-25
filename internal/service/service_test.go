@@ -52,15 +52,23 @@ func (d *stubDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshCl
 }
 
 type stubSSHClient struct {
-	session     *stubSSHSession
-	sftp        *stubSFTPClient
-	closed      bool
-	newSFTPHits int
+	session        *stubSSHSession
+	sftp           *stubSFTPClient
+	closed         bool
+	newSFTPHits    int
+	newSessionHits int
+	systemOutput   string
 }
 
 func (c *stubSSHClient) NewSession() (sshSession, error) {
+	c.newSessionHits++
 	if c.session == nil {
 		c.session = &stubSSHSession{}
+	}
+	if c.newSessionHits > 1 {
+		session := &stubSSHSession{combinedOutput: c.systemOutput}
+		session.ensureDefaults()
+		return session, nil
 	}
 
 	c.session.ensureDefaults()
@@ -248,15 +256,17 @@ func (s stubFileInfo) IsDir() bool        { return s.dir }
 func (s stubFileInfo) Sys() any           { return nil }
 
 type stubSSHSession struct {
-	stdin        bytes.Buffer
-	stdout       io.ReadCloser
-	stderr       io.ReadCloser
-	ptyRequested bool
-	shellStarted bool
-	windowRows   int
-	windowCols   int
-	waitCh       chan struct{}
-	closed       bool
+	stdin           bytes.Buffer
+	stdout          io.ReadCloser
+	stderr          io.ReadCloser
+	ptyRequested    bool
+	shellStarted    bool
+	windowRows      int
+	windowCols      int
+	combinedOutput  string
+	combinedCommand string
+	waitCh          chan struct{}
+	closed          bool
 }
 
 func (s *stubSSHSession) ensureDefaults() {
@@ -298,6 +308,12 @@ func (s *stubSSHSession) Shell() error {
 	s.ensureDefaults()
 	s.shellStarted = true
 	return nil
+}
+
+func (s *stubSSHSession) CombinedOutput(cmd string) ([]byte, error) {
+	s.ensureDefaults()
+	s.combinedCommand = cmd
+	return []byte(s.combinedOutput), nil
 }
 
 func (s *stubSSHSession) WindowChange(h, w int) error {

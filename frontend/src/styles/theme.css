@@ -5,6 +5,7 @@
   font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
+  --app-panel-bar-height: 72px;
   color: var(--text-primary);
   background: var(--bg-body);
   font-synthesis: none;
@@ -17,21 +18,21 @@
 [data-theme="light"] {
   --bg-body: #07090d;
   --bg-body-accent: radial-gradient(circle at top, rgba(160, 194, 238, 0.14) 0%, transparent 30%), linear-gradient(180deg, #0a0c11 0%, #07090d 100%);
-  --shell-bg: #fbfbfc;
-  --window-top-bg: rgba(255, 255, 255, 0.96);
-  --window-top-border: rgba(74, 93, 118, 0.07);
+  --shell-bg: #e9eef4;
+  --window-top-bg: rgba(229, 235, 242, 0.98);
+  --window-top-border: rgba(55, 72, 96, 0.12);
   --shell-border: rgba(255, 255, 255, 0.72);
-  --panel-bg: #ffffff;
-  --panel-bg-strong: #ffffff;
-  --panel-muted: #f3f5f8;
-  --card-bg: #f7f9fb;
-  --card-hover: #f9fbfd;
-  --card-active: #edf6ff;
-  --sidebar-bg: #f6f7fa;
-  --toolbar-bg: #f8fafc;
-  --content-bg: #fcfcfd;
-  --input-bg: #f4f7fb;
-  --input-focus: #ffffff;
+  --panel-bg: #f4f7fa;
+  --panel-bg-strong: #f8fafc;
+  --panel-muted: #e4eaf1;
+  --card-bg: #f7f9fc;
+  --card-hover: #fbfcfe;
+  --card-active: #e4effa;
+  --sidebar-bg: #e3e9f1;
+  --toolbar-bg: #e7edf4;
+  --content-bg: #edf2f7;
+  --input-bg: #e7edf4;
+  --input-focus: #f7f9fc;
   --text-primary: #213247;
   --text-secondary: #73859a;
   --text-tertiary: #97a7b8;
@@ -46,11 +47,11 @@
   --accent-cyan: #5f8fca;
   --accent-violet: #8b5cf6;
   --accent-amber: #dd9222;
-  --border-default: rgba(74, 93, 118, 0.1);
-  --border-subtle: rgba(74, 93, 118, 0.055);
+  --border-default: rgba(55, 72, 96, 0.14);
+  --border-subtle: rgba(55, 72, 96, 0.09);
   --border-strong: rgba(124, 174, 218, 0.34);
   --border-hover: rgba(124, 174, 218, 0.26);
-  --shadow-sm: 0 6px 16px rgba(21, 31, 44, 0.045);
+  --shadow-sm: 0 9px 22px rgba(21, 31, 44, 0.075);
   --shadow-lg: 0 34px 80px rgba(0, 0, 0, 0.34);
   --pill-success-bg: #e7f4ea;
   --pill-success-text: #219454;
@@ -59,8 +60,8 @@
   --focus-ring: 0 0 0 3px rgba(24, 149, 194, 0.12);
   --selection-bg: rgba(124, 174, 218, 0.24);
   --selection-text: var(--text-primary);
-  --sidebar-filter-bg: rgba(255, 255, 255, 0.36);
-  --favorite-btn-bg: rgba(255, 255, 255, 0.54);
+  --sidebar-filter-bg: rgba(244, 247, 250, 0.7);
+  --favorite-btn-bg: rgba(244, 247, 250, 0.78);
   --favorite-btn-hover-bg: rgba(221, 146, 34, 0.1);
   --favorite-btn-active-bg: rgba(221, 146, 34, 0.14);
   --favorite-btn-active-border: rgba(221, 146, 34, 0.24);
@@ -81,10 +82,10 @@
   --surface-danger-hover-bg: rgba(240, 93, 94, 0.08);
   --surface-danger-hover-border: rgba(240, 93, 94, 0.24);
   --surface-neutral-bg: rgba(148, 163, 184, 0.08);
-  --segmented-hover-bg: rgba(255, 255, 255, 0.58);
+  --segmented-hover-bg: rgba(248, 250, 252, 0.78);
   --chrome-tab-bg: var(--panel-muted);
   --chrome-tab-hover-bg: var(--panel-bg-strong);
-  --chrome-tab-active-bg: linear-gradient(180deg, #f7fbff 0%, #edf5ff 100%);
+  --chrome-tab-active-bg: linear-gradient(180deg, #edf6ff 0%, #dfeaf6 100%);
   --chrome-tab-active-border: rgba(111, 164, 220, 0.38);
   --chrome-tab-active-text: #20354b;
   --chrome-tab-active-shadow:
@@ -94,8 +95,8 @@
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.1);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.28);
-  --panel-grid-line: rgba(61, 85, 114, 0.018);
-  --panel-grid-glow: rgba(124, 174, 218, 0.04);
+  --panel-grid-line: rgba(61, 85, 114, 0.014);
+  --panel-grid-glow: rgba(124, 174, 218, 0.018);
   --terminal-bg: #101927;
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;
@@ -326,6 +327,7 @@ html {
   background: transparent;
 }
 
+.sr-only,
 .visually-hidden {
   position: absolute;
   width: 1px;

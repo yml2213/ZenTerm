@@ -8,6 +8,18 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.sftp-shell-loading {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.sftp-shell-loading .sftp-browser {
+  grid-row: 1;
+}
+
+.sftp-loading-block {
+  color: transparent;
+}
+
 .sftp-transfer-banner {
   padding: 0.85rem 1rem 0;
   background: var(--sftp-banner-bg);
@@ -37,10 +49,12 @@
 }
 
 .sftp-pane {
+  --sftp-pane-topbar-height: 72px;
+  --sftp-pane-toolbar-height: 64px;
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: var(--sftp-pane-topbar-height) var(--sftp-pane-toolbar-height) minmax(0, 1fr) auto;
   overflow: hidden;
   background: var(--sftp-pane-bg);
 }
@@ -53,11 +67,13 @@
 .sftp-pane-topbar,
 .sftp-pane-toolbar,
 .sftp-pane-footer {
+  box-sizing: border-box;
   padding: 0.78rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .sftp-pane-topbar {
+  height: var(--sftp-pane-topbar-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -69,7 +85,8 @@
 }
 
 .sftp-pane-toolbar {
-  min-height: 44px;
+  height: var(--sftp-pane-toolbar-height);
+  min-height: var(--sftp-pane-toolbar-height);
   background: var(--sftp-pane-toolbar-bg);
   border-bottom-color: var(--sftp-pane-toolbar-border);
   box-shadow: var(--sftp-pane-toolbar-shadow);
@@ -212,6 +229,10 @@
   gap: 0.9rem;
 }
 
+.sftp-pane-toolbar-placeholder {
+  flex: none;
+}
+
 .sftp-breadcrumb-scroll {
   min-width: 0;
   width: 100%;
@@ -343,6 +364,7 @@
 .sftp-file-table {
   min-width: 0;
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -857,6 +879,294 @@
   gap: 0.85rem;
 }
 
+.host-drawer-backdrop {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  background: rgba(8, 15, 24, 0.38);
+  overflow: hidden;
+}
+
+.host-drawer-shell {
+  width: min(420px, 100vw);
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.host-drawer-inline {
+  width: 100%;
+  height: 100%;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+  box-shadow: -14px 0 28px rgba(15, 23, 42, 0.08);
+}
+
+.host-drawer-form {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+  padding: 0;
+  display: grid;
+  grid-template-rows: var(--app-panel-bar-height) minmax(0, 1fr) var(--app-panel-bar-height);
+  gap: 0;
+  overflow: hidden;
+  background: var(--panel-bg);
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  box-shadow: -18px 0 46px rgba(15, 23, 42, 0.2);
+}
+
+.host-drawer-inline .host-drawer-form {
+  box-shadow: none;
+}
+
+.host-drawer-header,
+.host-drawer-footer {
+  box-sizing: border-box;
+  height: var(--app-panel-bar-height);
+  min-height: var(--app-panel-bar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  background: var(--panel-bg-strong);
+  border-color: var(--border-subtle);
+}
+
+.host-drawer-header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.host-drawer-footer {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.host-drawer-footer .primary-button {
+  min-width: 128px;
+}
+
+.host-drawer-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--content-bg);
+}
+
+.host-form-section {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.78rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.host-form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.host-form-section-title svg {
+  color: var(--text-secondary);
+}
+
+.host-form-icon-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.host-form-row-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  align-self: end;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: var(--panel-bg-strong);
+  border: 1px solid var(--border-subtle);
+}
+
+.host-form-row-icon.primary {
+  color: var(--accent-primary);
+  background: var(--surface-info-bg);
+  border-color: var(--surface-info-border);
+}
+
+.host-form-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.55rem;
+}
+
+.host-form-port-control {
+  min-height: 43px;
+  display: grid !important;
+  grid-template-columns: auto minmax(90px, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem !important;
+  padding: 0.28rem 0.72rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--input-bg);
+}
+
+.host-form-port-control:focus-within {
+  border-color: var(--border-strong);
+  background: var(--input-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.host-form-port-control input {
+  min-height: 34px;
+  padding: 0.32rem 0.75rem;
+  text-align: center;
+  background: var(--panel-bg-strong);
+}
+
+.host-form-port-prefix,
+.host-form-port-suffix {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.host-form-switch,
+.host-form-muted-line {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.66rem 0.78rem;
+  border-radius: 11px;
+  border: 1px solid var(--border-default);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.host-form-switch span,
+.host-form-muted-line span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.host-form-switch strong,
+.host-form-muted-line strong {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.host-form-switch:hover {
+  border-color: var(--border-hover);
+}
+
+.host-form-switch.active {
+  border-color: var(--surface-warning-border);
+  background: var(--surface-warning-bg);
+}
+
+.host-form-switch.active strong {
+  color: var(--accent-amber);
+}
+
+.auth-add-menu-wrap {
+  position: relative;
+  display: grid;
+  justify-items: start;
+}
+
+.auth-add-trigger {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.22rem;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.auth-add-trigger:hover {
+  color: var(--accent-secondary);
+}
+
+.auth-add-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 4;
+  width: min(320px, calc(100vw - 2rem));
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border-default);
+  border-radius: 13px;
+  background: var(--panel-bg-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-add-menu button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.58rem 0.72rem;
+  border-radius: 10px;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.auth-add-menu button:hover:not(:disabled) {
+  background: var(--panel-muted);
+}
+
+.auth-add-menu button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.auth-add-menu button svg {
+  color: var(--text-secondary);
+}
+
+.auth-add-menu button span {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.auth-add-menu button strong {
+  font-size: 0.92rem;
+}
+
+.auth-add-menu button small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
 .form-panel label,
 .modal-form-stack label,
 .hostkey-fingerprint label {
@@ -881,6 +1191,16 @@
   background: rgba(8, 15, 24, 0.46);
   backdrop-filter: blur(8px);
   z-index: 35;
+}
+
+.modal-backdrop.host-drawer-backdrop {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  place-items: unset;
+  padding: 0;
+  background: rgba(8, 15, 24, 0.38);
+  overflow: hidden;
 }
 
 .modal-content,
@@ -1015,6 +1335,20 @@
   cursor: default;
 }
 
+@media (max-width: 640px) {
+  .host-drawer-backdrop {
+    place-items: stretch;
+  }
+
+  .host-drawer-shell {
+    width: 100vw;
+  }
+
+  .host-form-split-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .danger-toggle {
   background: var(--surface-danger-bg-soft);
   border-color: var(--surface-danger-border);
@@ -1061,4 +1395,3 @@
     grid-template-columns: 1fr;
   }
 }
-

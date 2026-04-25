@@ -61,7 +61,7 @@ func TestAppUnlockAddHostAndListHosts(t *testing.T) {
 		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
-	host := model.Host{
+	host := Host{
 		ID:       "host-1",
 		Name:     "Zen Server",
 		Address:  "127.0.0.1",
@@ -136,7 +136,7 @@ func TestAppTryAutoUnlockClearsInvalidRememberedPassword(t *testing.T) {
 	}
 
 	if err := app.AddHost(
-		model.Host{ID: "host-1", Address: "127.0.0.1", Username: "root", Port: 22},
+		Host{ID: "host-1", Address: "127.0.0.1", Username: "root", Port: 22},
 		model.Identity{Password: "secret"},
 	); err != nil {
 		t.Fatalf("AddHost() error = %v", err)
@@ -170,7 +170,7 @@ func TestAppPreservesVaultLockedErrorForFrontend(t *testing.T) {
 		t.Fatalf("NewApp() error = %v", err)
 	}
 
-	err = app.AddHost(model.Host{ID: "host-1"}, model.Identity{Password: "secret"})
+	err = app.AddHost(Host{ID: "host-1"}, model.Identity{Password: "secret"})
 	if !errors.Is(err, security.ErrVaultLocked) {
 		t.Fatalf("AddHost() error = %v, want %v", err, security.ErrVaultLocked)
 	}
@@ -238,7 +238,7 @@ func TestAppUpdateHostPreservesKnownErrorsForFrontend(t *testing.T) {
 		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
-	err = app.UpdateHost(model.Host{ID: "missing-host"}, model.Identity{})
+	err = app.UpdateHost(Host{ID: "missing-host"}, model.Identity{})
 	if !errors.Is(err, db.ErrHostNotFound) {
 		t.Fatalf("UpdateHost() error = %v, want %v", err, db.ErrHostNotFound)
 	}
@@ -254,7 +254,7 @@ func TestAppDeleteHostRemovesSavedHost(t *testing.T) {
 		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 
-	host := model.Host{
+	host := Host{
 		ID:       "host-delete",
 		Name:     "To Delete",
 		Address:  "127.0.0.1",
@@ -394,7 +394,7 @@ func TestAppResetVaultClearsRememberedPassword(t *testing.T) {
 		t.Fatalf("InitializeVaultWithPreferences() error = %v", err)
 	}
 	if err := app.AddHost(
-		model.Host{ID: "host-1", Address: "127.0.0.1", Port: 22, Username: "root"},
+		Host{ID: "host-1", Address: "127.0.0.1", Port: 22, Username: "root"},
 		model.Identity{Password: "secret"},
 	); err != nil {
 		t.Fatalf("AddHost() error = %v", err)
