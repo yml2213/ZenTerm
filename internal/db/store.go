@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +20,8 @@ import (
 const currentVersion = 1
 
 const vaultCheckToken = "zenterm:vault-check:v1"
+const transcriptDirName = "session-transcripts"
+const transcriptFileExt = ".jsonl"
 
 var (
 	ErrHostIDRequired             = errors.New("host id is required")
@@ -74,12 +78,28 @@ type encryptedSecret struct {
 }
 
 type sessionTranscriptEntry struct {
-	LogID      string               `json:"log_id"`
-	SessionID  string               `json:"session_id,omitempty"`
+	LogID      string                        `json:"log_id"`
+	SessionID  string                        `json:"session_id,omitempty"`
+	Content    *security.Ciphertext          `json:"content,omitempty"`
+	Chunks     []sessionTranscriptChunkEntry `json:"chunks,omitempty"`
+	SizeBytes  int64                         `json:"size_bytes,omitempty"`
+	UpdatedAt  time.Time                     `json:"updated_at,omitempty"`
+	RecordedAt time.Time                     `json:"recorded_at,omitempty"`
+}
+
+type sessionTranscriptChunkEntry struct {
+	Seq        int                  `json:"seq"`
 	Content    *security.Ciphertext `json:"content,omitempty"`
 	SizeBytes  int64                `json:"size_bytes,omitempty"`
-	UpdatedAt  time.Time            `json:"updated_at,omitempty"`
 	RecordedAt time.Time            `json:"recorded_at,omitempty"`
+}
+
+type sessionTranscriptFileChunk struct {
+	SessionID  string              `json:"session_id,omitempty"`
+	Seq        int                 `json:"seq,omitempty"`
+	Content    security.Ciphertext `json:"content"`
+	SizeBytes  int64               `json:"size_bytes,omitempty"`
+	RecordedAt time.Time           `json:"recorded_at,omitempty"`
 }
 
 // NewStore 为指定文件路径创建一个基于 JSON 的存储实现 / creates a JSON-backed store for the given file path.
@@ -224,6 +244,21 @@ func (s *Store) RekeyVault(currentVault, nextVault *security.Vault, nextSalt []b
 			return fmt.Errorf("encrypt session transcript: %w", err)
 		}
 		data.SessionTranscripts[i].Content = encryptedContent
+
+		for j := range data.SessionTranscripts[i].Chunks {
+			chunk, err := decryptOptional(data.SessionTranscripts[i].Chunks[j].Content, currentVault)
+			if err != nil {
+				return fmt.Errorf("decrypt session transcript chunk: %w", err)
+			}
+			encryptedChunk, err := encryptOptional(chunk, nextVault)
+			if err != nil {
+				return fmt.Errorf("encrypt session transcript chunk: %w", err)
+			}
+			data.SessionTranscripts[i].Chunks[j].Content = encryptedChunk
+		}
+	}
+	if err := s.rekeyTranscriptFilesLocked(currentVault, nextVault); err != nil {
+		return err
 	}
 
 	check, err := nextVault.EncryptString(vaultCheckToken)
@@ -251,7 +286,13 @@ func (s *Store) ResetVault() error {
 	data.Credentials = []credentialEntry{}
 	data.SessionLogs = []model.SessionLog{}
 	data.SessionTranscripts = []sessionTranscriptEntry{}
-	return s.saveLocked(data)
+	if err := s.saveLocked(data); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(s.transcriptDirPath()); err != nil {
+		return fmt.Errorf("remove session transcript files: %w", err)
+	}
+	return nil
 }
 
 // AddHost 保存主机信息，并在写盘前加密其身份凭据 / stores a host and encrypts the provided identity before writing it to disk.
@@ -647,7 +688,10 @@ func (s *Store) DeleteSessionLog(logID string) error {
 		transcripts = append(transcripts, transcript)
 	}
 	data.SessionTranscripts = transcripts
-	return s.saveLocked(data)
+	if err := s.saveLocked(data); err != nil {
+		return err
+	}
+	return s.deleteTranscriptFilesLocked([]string{logID})
 }
 
 // AppendSessionTranscript 追加并加密保存会话终端输出 / appends and encrypts visible terminal output for a session.
@@ -678,46 +722,7 @@ func (s *Store) AppendSessionTranscript(logID, sessionID, chunk string, vault *s
 		return ErrSessionLogNotFound
 	}
 
-	now := time.Now().UTC()
-	for i := range data.SessionTranscripts {
-		if data.SessionTranscripts[i].LogID != logID {
-			continue
-		}
-
-		content, err := decryptOptional(data.SessionTranscripts[i].Content, vault)
-		if err != nil {
-			return fmt.Errorf("decrypt session transcript: %w", err)
-		}
-		content += chunk
-		encrypted, err := encryptOptional(content, vault)
-		if err != nil {
-			return fmt.Errorf("encrypt session transcript: %w", err)
-		}
-
-		data.SessionTranscripts[i].SessionID = sessionID
-		data.SessionTranscripts[i].Content = encrypted
-		data.SessionTranscripts[i].SizeBytes = int64(len([]byte(content)))
-		data.SessionTranscripts[i].UpdatedAt = now
-		if data.SessionTranscripts[i].RecordedAt.IsZero() {
-			data.SessionTranscripts[i].RecordedAt = now
-		}
-		return s.saveLocked(data)
-	}
-
-	encrypted, err := encryptOptional(chunk, vault)
-	if err != nil {
-		return fmt.Errorf("encrypt session transcript: %w", err)
-	}
-
-	data.SessionTranscripts = append(data.SessionTranscripts, sessionTranscriptEntry{
-		LogID:      logID,
-		SessionID:  sessionID,
-		Content:    encrypted,
-		SizeBytes:  int64(len([]byte(chunk))),
-		UpdatedAt:  now,
-		RecordedAt: now,
-	})
-	return s.saveLocked(data)
+	return s.appendTranscriptFileChunkLocked(logID, sessionID, chunk, vault)
 }
 
 // GetSessionTranscript 解密并返回指定日志的终端输出 / decrypts and returns terminal output for a connection log.
@@ -734,26 +739,61 @@ func (s *Store) GetSessionTranscript(logID string, vault *security.Vault) (model
 		return model.SessionTranscript{}, err
 	}
 
+	var result model.SessionTranscript
+	found := false
+
 	for _, transcript := range data.SessionTranscripts {
 		if transcript.LogID != logID {
 			continue
 		}
 
-		content, err := decryptOptional(transcript.Content, vault)
+		content, err := decryptSessionTranscriptContent(transcript, vault)
 		if err != nil {
 			return model.SessionTranscript{}, fmt.Errorf("decrypt session transcript: %w", err)
 		}
-		return model.SessionTranscript{
+		sizeBytes := transcript.SizeBytes
+		if sizeBytes == 0 {
+			sizeBytes = int64(len([]byte(content)))
+		}
+		result = model.SessionTranscript{
 			LogID:      transcript.LogID,
 			SessionID:  transcript.SessionID,
 			Content:    content,
-			SizeBytes:  transcript.SizeBytes,
+			SizeBytes:  sizeBytes,
 			UpdatedAt:  transcript.UpdatedAt,
 			RecordedAt: transcript.RecordedAt,
-		}, nil
+		}
+		found = true
+		break
 	}
 
-	return model.SessionTranscript{}, ErrSessionTranscriptNotFound
+	fileTranscript, fileFound, err := s.readTranscriptFileLocked(logID, vault)
+	if err != nil {
+		return model.SessionTranscript{}, err
+	}
+	if fileFound {
+		if !found {
+			result = fileTranscript
+		} else {
+			result.Content += fileTranscript.Content
+			result.SizeBytes += fileTranscript.SizeBytes
+			if result.SessionID == "" {
+				result.SessionID = fileTranscript.SessionID
+			}
+			if result.RecordedAt.IsZero() || (!fileTranscript.RecordedAt.IsZero() && fileTranscript.RecordedAt.Before(result.RecordedAt)) {
+				result.RecordedAt = fileTranscript.RecordedAt
+			}
+			if fileTranscript.UpdatedAt.After(result.UpdatedAt) {
+				result.UpdatedAt = fileTranscript.UpdatedAt
+			}
+		}
+		found = true
+	}
+
+	if !found {
+		return model.SessionTranscript{}, ErrSessionTranscriptNotFound
+	}
+	return result, nil
 }
 
 // PruneSessionLogs 保留最新的 maxEntries 条连接历史记录 / keeps only the newest maxEntries connection history records.
@@ -773,7 +813,11 @@ func (s *Store) PruneSessionLogs(maxEntries int) error {
 	sort.SliceStable(data.SessionLogs, func(i, j int) bool {
 		return data.SessionLogs[i].StartedAt.After(data.SessionLogs[j].StartedAt)
 	})
+	removedLogIDs := []string{}
 	if len(data.SessionLogs) > maxEntries {
+		for _, log := range data.SessionLogs[maxEntries:] {
+			removedLogIDs = append(removedLogIDs, log.ID)
+		}
 		data.SessionLogs = data.SessionLogs[:maxEntries]
 	}
 
@@ -785,10 +829,15 @@ func (s *Store) PruneSessionLogs(maxEntries int) error {
 	for _, transcript := range data.SessionTranscripts {
 		if _, ok := keptLogIDs[transcript.LogID]; ok {
 			transcripts = append(transcripts, transcript)
+			continue
 		}
+		removedLogIDs = append(removedLogIDs, transcript.LogID)
 	}
 	data.SessionTranscripts = transcripts
-	return s.saveLocked(data)
+	if err := s.saveLocked(data); err != nil {
+		return err
+	}
+	return s.deleteTranscriptFilesLocked(removedLogIDs)
 }
 
 // LoadWindowState 读取最近一次持久化的窗口状态 / loads the last persisted window state.
@@ -898,6 +947,213 @@ func decryptOptional(payload *security.Ciphertext, vault *security.Vault) (strin
 	}
 
 	return vault.DecryptString(*payload)
+}
+
+func decryptSessionTranscriptContent(transcript sessionTranscriptEntry, vault *security.Vault) (string, error) {
+	content, err := decryptOptional(transcript.Content, vault)
+	if err != nil {
+		return "", err
+	}
+
+	for _, chunk := range transcript.Chunks {
+		plaintext, err := decryptOptional(chunk.Content, vault)
+		if err != nil {
+			return "", err
+		}
+		content += plaintext
+	}
+
+	return content, nil
+}
+
+func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, vault *security.Vault) error {
+	encrypted, err := vault.EncryptString(chunk)
+	if err != nil {
+		return fmt.Errorf("encrypt session transcript chunk: %w", err)
+	}
+
+	if err := os.MkdirAll(s.transcriptDirPath(), 0o700); err != nil {
+		return fmt.Errorf("create session transcript directory: %w", err)
+	}
+
+	file, err := os.OpenFile(s.transcriptFilePath(logID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return fmt.Errorf("open session transcript file: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	record := sessionTranscriptFileChunk{
+		SessionID:  sessionID,
+		Content:    encrypted,
+		SizeBytes:  int64(len([]byte(chunk))),
+		RecordedAt: time.Now().UTC(),
+	}
+	if err := json.NewEncoder(file).Encode(record); err != nil {
+		return fmt.Errorf("write session transcript chunk: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) readTranscriptFileLocked(logID string, vault *security.Vault) (model.SessionTranscript, bool, error) {
+	file, err := os.Open(s.transcriptFilePath(logID))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return model.SessionTranscript{}, false, nil
+		}
+		return model.SessionTranscript{}, false, fmt.Errorf("open session transcript file: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	decoder := json.NewDecoder(file)
+	transcript := model.SessionTranscript{LogID: logID}
+	found := false
+	for {
+		var record sessionTranscriptFileChunk
+		if err := decoder.Decode(&record); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return model.SessionTranscript{}, false, fmt.Errorf("decode session transcript chunk: %w", err)
+		}
+
+		plaintext, err := vault.DecryptString(record.Content)
+		if err != nil {
+			return model.SessionTranscript{}, false, fmt.Errorf("decrypt session transcript chunk: %w", err)
+		}
+		transcript.Content += plaintext
+		if record.SizeBytes > 0 {
+			transcript.SizeBytes += record.SizeBytes
+		} else {
+			transcript.SizeBytes += int64(len([]byte(plaintext)))
+		}
+		if record.SessionID != "" {
+			transcript.SessionID = record.SessionID
+		}
+		if transcript.RecordedAt.IsZero() || (!record.RecordedAt.IsZero() && record.RecordedAt.Before(transcript.RecordedAt)) {
+			transcript.RecordedAt = record.RecordedAt
+		}
+		if record.RecordedAt.After(transcript.UpdatedAt) {
+			transcript.UpdatedAt = record.RecordedAt
+		}
+		found = true
+	}
+
+	return transcript, found, nil
+}
+
+func (s *Store) rekeyTranscriptFilesLocked(currentVault, nextVault *security.Vault) error {
+	entries, err := os.ReadDir(s.transcriptDirPath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("read session transcript directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), transcriptFileExt) {
+			continue
+		}
+
+		path := filepath.Join(s.transcriptDirPath(), entry.Name())
+		records, err := readTranscriptFileRecords(path)
+		if err != nil {
+			return err
+		}
+		for i := range records {
+			plaintext, err := currentVault.DecryptString(records[i].Content)
+			if err != nil {
+				return fmt.Errorf("decrypt session transcript chunk: %w", err)
+			}
+			encrypted, err := nextVault.EncryptString(plaintext)
+			if err != nil {
+				return fmt.Errorf("encrypt session transcript chunk: %w", err)
+			}
+			records[i].Content = encrypted
+		}
+		if err := replaceTranscriptFileRecords(path, records); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readTranscriptFileRecords(path string) ([]sessionTranscriptFileChunk, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open session transcript file: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	decoder := json.NewDecoder(file)
+	records := []sessionTranscriptFileChunk{}
+	for {
+		var record sessionTranscriptFileChunk
+		if err := decoder.Decode(&record); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("decode session transcript chunk: %w", err)
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func replaceTranscriptFileRecords(path string, records []sessionTranscriptFileChunk) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".transcript-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temporary transcript file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	encoder := json.NewEncoder(tmp)
+	for _, record := range records {
+		if err := encoder.Encode(record); err != nil {
+			_ = tmp.Close()
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("write temporary transcript file: %w", err)
+		}
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("close temporary transcript file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("chmod temporary transcript file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("replace transcript file: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) deleteTranscriptFilesLocked(logIDs []string) error {
+	seen := make(map[string]struct{}, len(logIDs))
+	for _, logID := range logIDs {
+		if logID == "" {
+			continue
+		}
+		if _, ok := seen[logID]; ok {
+			continue
+		}
+		seen[logID] = struct{}{}
+
+		if err := os.Remove(s.transcriptFilePath(logID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove session transcript file: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Store) transcriptDirPath() string {
+	return filepath.Join(filepath.Dir(s.path), transcriptDirName)
+}
+
+func (s *Store) transcriptFilePath(logID string) string {
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))
+	return filepath.Join(s.transcriptDirPath(), encoded+transcriptFileExt)
 }
 
 func decodeSalt(encoded string) ([]byte, error) {

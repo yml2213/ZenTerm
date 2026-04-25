@@ -227,6 +227,9 @@ func (s *Service) CloseAll() error {
 	for _, confirmation := range pending {
 		confirmation.respond(false)
 	}
+	if err := s.flushAllSessionTranscripts(); err != nil && closeErr == nil {
+		closeErr = err
+	}
 
 	return closeErr
 }

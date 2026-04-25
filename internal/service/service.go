@@ -2,6 +2,7 @@ package service
 
 import (
 	"sync"
+	"time"
 
 	"zenterm/internal/db"
 	"zenterm/internal/security"
@@ -16,10 +17,19 @@ type Service struct {
 	emitterMu       sync.RWMutex
 	sessionMu       sync.RWMutex
 	sessions        map[string]*managedSession
+	transcriptMu    sync.Mutex
+	transcripts     map[string]*pendingTranscript
+	transcriptDelay time.Duration
 	sftpMu          sync.Mutex
 	sftpConnections map[string]*managedSFTPConnection
 	hostKeyMu       sync.Mutex
 	pendingHostKeys map[string]*pendingHostKeyConfirmation
+}
+
+type pendingTranscript struct {
+	sessionID string
+	chunks    []string
+	timer     *time.Timer
 }
 
 // New 使用显式依赖创建服务实现 / creates a service implementation with explicit dependencies.
@@ -38,6 +48,8 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		dialer:          dialer,
 		emitter:         func(string, any) {},
 		sessions:        make(map[string]*managedSession),
+		transcripts:     make(map[string]*pendingTranscript),
+		transcriptDelay: 200 * time.Millisecond,
 		sftpConnections: make(map[string]*managedSFTPConnection),
 		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
 	}, nil

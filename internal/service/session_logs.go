@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"os"
+	"strings"
 	"time"
 
 	"zenterm/internal/model"
@@ -21,6 +22,10 @@ func (s *Service) ListSessionLogs(limit int) ([]model.SessionLog, error) {
 
 // GetSessionTranscript 返回解密后的终端输出记录 / returns decrypted terminal output for a connection log.
 func (s *Service) GetSessionTranscript(logID string) (model.SessionTranscript, error) {
+	if err := s.flushSessionTranscript(logID); err != nil {
+		return model.SessionTranscript{}, err
+	}
+
 	return s.store.GetSessionTranscript(logID, s.vault)
 }
 
@@ -84,7 +89,7 @@ func (s *Service) appendSessionTranscript(logID, sessionID, chunk string) {
 		return
 	}
 
-	_ = s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
+	s.enqueueSessionTranscript(logID, sessionID, chunk)
 }
 
 func (s *Service) markSessionLogFinished(logID, status, errorMessage string) {
@@ -92,11 +97,77 @@ func (s *Service) markSessionLogFinished(logID, status, errorMessage string) {
 		return
 	}
 
+	_ = s.flushSessionTranscript(logID)
+
 	log, err := s.store.GetSessionLog(logID)
 	if err != nil {
 		return
 	}
 	_ = s.finishSessionLog(log, status, errorMessage)
+}
+
+func (s *Service) enqueueSessionTranscript(logID, sessionID, chunk string) {
+	s.transcriptMu.Lock()
+	defer s.transcriptMu.Unlock()
+
+	pending := s.transcripts[logID]
+	if pending == nil {
+		pending = &pendingTranscript{}
+		s.transcripts[logID] = pending
+	}
+	pending.sessionID = sessionID
+	pending.chunks = append(pending.chunks, chunk)
+
+	if pending.timer == nil {
+		pending.timer = time.AfterFunc(s.transcriptDelay, func() {
+			_ = s.flushSessionTranscript(logID)
+		})
+	}
+}
+
+func (s *Service) flushSessionTranscript(logID string) error {
+	if logID == "" {
+		return nil
+	}
+
+	s.transcriptMu.Lock()
+	pending := s.transcripts[logID]
+	if pending == nil || len(pending.chunks) == 0 {
+		if pending != nil && pending.timer != nil {
+			pending.timer.Stop()
+			pending.timer = nil
+		}
+		delete(s.transcripts, logID)
+		s.transcriptMu.Unlock()
+		return nil
+	}
+
+	sessionID := pending.sessionID
+	chunk := strings.Join(pending.chunks, "")
+	if pending.timer != nil {
+		pending.timer.Stop()
+	}
+	delete(s.transcripts, logID)
+	err := s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
+	s.transcriptMu.Unlock()
+	return err
+}
+
+func (s *Service) flushAllSessionTranscripts() error {
+	s.transcriptMu.Lock()
+	logIDs := make([]string, 0, len(s.transcripts))
+	for logID := range s.transcripts {
+		logIDs = append(logIDs, logID)
+	}
+	s.transcriptMu.Unlock()
+
+	var flushErr error
+	for _, logID := range logIDs {
+		if err := s.flushSessionTranscript(logID); err != nil && flushErr == nil {
+			flushErr = err
+		}
+	}
+	return flushErr
 }
 
 func (s *Service) reconcileActiveSessionLogs() error {

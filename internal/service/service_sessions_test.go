@@ -216,6 +216,58 @@ func TestConnectRecordsEncryptedTerminalTranscript(t *testing.T) {
 	}
 }
 
+func TestGetSessionTranscriptFlushesBufferedOutput(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+	svc.transcriptDelay = time.Hour
+
+	log := model.SessionLog{
+		ID:          "log-buffered",
+		HostID:      "host-buffered",
+		HostAddress: "example.com",
+		HostPort:    22,
+		SSHUsername: "zen",
+		Protocol:    sessionLogProtocolSSH,
+		Status:      model.SessionLogStatusActive,
+		StartedAt:   time.Now().UTC(),
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+
+	svc.appendSessionTranscript(log.ID, "session-buffered", "first line\n")
+	svc.appendSessionTranscript(log.ID, "session-buffered", "second line")
+
+	if _, err := store.GetSessionTranscript(log.ID, vault); !errors.Is(err, db.ErrSessionTranscriptNotFound) {
+		t.Fatalf("store.GetSessionTranscript() before flush error = %v, want %v", err, db.ErrSessionTranscriptNotFound)
+	}
+
+	transcript, err := svc.GetSessionTranscript(log.ID)
+	if err != nil {
+		t.Fatalf("GetSessionTranscript() error = %v", err)
+	}
+	if transcript.Content != "first line\nsecond line" {
+		t.Fatalf("SessionTranscript.Content = %q", transcript.Content)
+	}
+}
+
 func TestListSessionLogsClosesStaleActiveLog(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
