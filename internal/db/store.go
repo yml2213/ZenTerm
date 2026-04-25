@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ var (
 	ErrHostNotFound         = errors.New("host not found")
 	ErrCredentialIDRequired = errors.New("credential id is required")
 	ErrCredentialNotFound   = errors.New("credential not found")
+	ErrSessionLogIDRequired = errors.New("session log id is required")
+	ErrSessionLogNotFound   = errors.New("session log not found")
 )
 
 // Store 将 ZenTerm 数据持久化到本地 JSON 文件 / persists ZenTerm data in a local JSON file.
@@ -34,11 +37,12 @@ type Store struct {
 }
 
 type fileData struct {
-	Version     int               `json:"version"`
-	Vault       vaultData         `json:"vault"`
-	Window      model.WindowState `json:"window,omitempty"`
-	Hosts       []hostEntry       `json:"hosts"`
-	Credentials []credentialEntry `json:"credentials"`
+	Version     int                `json:"version"`
+	Vault       vaultData          `json:"vault"`
+	Window      model.WindowState  `json:"window,omitempty"`
+	Hosts       []hostEntry        `json:"hosts"`
+	Credentials []credentialEntry  `json:"credentials"`
+	SessionLogs []model.SessionLog `json:"session_logs,omitempty"`
 }
 
 type vaultData struct {
@@ -221,6 +225,7 @@ func (s *Store) ResetVault() error {
 	data.Vault = vaultData{}
 	data.Hosts = []hostEntry{}
 	data.Credentials = []credentialEntry{}
+	data.SessionLogs = []model.SessionLog{}
 	return s.saveLocked(data)
 }
 
@@ -465,6 +470,175 @@ func (s *Store) DeleteHost(hostID string) error {
 	return s.saveLocked(data)
 }
 
+// CreateSessionLog 保存新的连接历史记录 / stores a new connection history record.
+func (s *Store) CreateSessionLog(log model.SessionLog) error {
+	if log.ID == "" {
+		return ErrSessionLogIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.SessionLogs {
+		if data.SessionLogs[i].ID == log.ID {
+			data.SessionLogs[i] = log
+			return s.saveLocked(data)
+		}
+	}
+
+	data.SessionLogs = append(data.SessionLogs, log)
+	return s.saveLocked(data)
+}
+
+// GetSessionLog 返回指定连接历史记录 / returns the requested connection history record.
+func (s *Store) GetSessionLog(logID string) (model.SessionLog, error) {
+	if logID == "" {
+		return model.SessionLog{}, ErrSessionLogIDRequired
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return model.SessionLog{}, err
+	}
+
+	for _, log := range data.SessionLogs {
+		if log.ID == logID {
+			return log, nil
+		}
+	}
+
+	return model.SessionLog{}, ErrSessionLogNotFound
+}
+
+// UpdateSessionLog 更新已有连接历史记录 / updates an existing connection history record.
+func (s *Store) UpdateSessionLog(log model.SessionLog) error {
+	if log.ID == "" {
+		return ErrSessionLogIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.SessionLogs {
+		if data.SessionLogs[i].ID == log.ID {
+			data.SessionLogs[i] = log
+			return s.saveLocked(data)
+		}
+	}
+
+	return ErrSessionLogNotFound
+}
+
+// ListSessionLogs 返回按开始时间倒序排列的连接历史记录 / returns connection history records sorted newest first.
+func (s *Store) ListSessionLogs(limit int) ([]model.SessionLog, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	logs := append([]model.SessionLog(nil), data.SessionLogs...)
+	sort.SliceStable(logs, func(i, j int) bool {
+		return logs[i].StartedAt.After(logs[j].StartedAt)
+	})
+	if limit > 0 && len(logs) > limit {
+		logs = logs[:limit]
+	}
+	return logs, nil
+}
+
+// ToggleSessionLogFavorite 更新连接历史收藏状态 / updates the favorite state for a connection history record.
+func (s *Store) ToggleSessionLogFavorite(logID string, favorite bool) error {
+	if logID == "" {
+		return ErrSessionLogIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.SessionLogs {
+		if data.SessionLogs[i].ID == logID {
+			data.SessionLogs[i].Favorite = favorite
+			return s.saveLocked(data)
+		}
+	}
+
+	return ErrSessionLogNotFound
+}
+
+// DeleteSessionLog 删除一条连接历史记录 / deletes a connection history record.
+func (s *Store) DeleteSessionLog(logID string) error {
+	if logID == "" {
+		return ErrSessionLogIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	filtered := data.SessionLogs[:0]
+	deleted := false
+	for _, log := range data.SessionLogs {
+		if log.ID == logID {
+			deleted = true
+			continue
+		}
+		filtered = append(filtered, log)
+	}
+	if !deleted {
+		return ErrSessionLogNotFound
+	}
+	data.SessionLogs = filtered
+	return s.saveLocked(data)
+}
+
+// PruneSessionLogs 保留最新的 maxEntries 条连接历史记录 / keeps only the newest maxEntries connection history records.
+func (s *Store) PruneSessionLogs(maxEntries int) error {
+	if maxEntries <= 0 {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	sort.SliceStable(data.SessionLogs, func(i, j int) bool {
+		return data.SessionLogs[i].StartedAt.After(data.SessionLogs[j].StartedAt)
+	})
+	if len(data.SessionLogs) > maxEntries {
+		data.SessionLogs = data.SessionLogs[:maxEntries]
+	}
+	return s.saveLocked(data)
+}
+
 // LoadWindowState 读取最近一次持久化的窗口状态 / loads the last persisted window state.
 func (s *Store) LoadWindowState() (model.WindowState, error) {
 	s.mu.RLock()
@@ -496,7 +670,7 @@ func (s *Store) loadLocked() (fileData, error) {
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fileData{Version: currentVersion, Hosts: []hostEntry{}}, nil
+			return fileData{Version: currentVersion, Hosts: []hostEntry{}, SessionLogs: []model.SessionLog{}}, nil
 		}
 
 		return fileData{}, fmt.Errorf("read store: %w", err)
@@ -515,6 +689,9 @@ func (s *Store) loadLocked() (fileData, error) {
 	}
 	if data.Credentials == nil {
 		data.Credentials = []credentialEntry{}
+	}
+	if data.SessionLogs == nil {
+		data.SessionLogs = []model.SessionLog{}
 	}
 
 	return data, nil

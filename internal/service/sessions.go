@@ -22,25 +22,30 @@ func (s *Service) Connect(hostID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	logID := s.beginSessionLog(host)
 
 	identity, err := s.store.GetIdentity(hostID, s.vault)
 	if err != nil {
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", err
 	}
 
 	config, err := s.newClientConfig(host, identity)
 	if err != nil {
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", err
 	}
 
 	client, remoteAddr, err := s.openSSHClient(host, config)
 	if err != nil {
+		s.markSessionLogFinished(logID, statusForConnectError(err), err.Error())
 		return "", err
 	}
 
 	sshSession, err := client.NewSession()
 	if err != nil {
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("create ssh session: %w", err)
 	}
 
@@ -48,6 +53,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 	if err != nil {
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("create stdin pipe: %w", err)
 	}
 
@@ -56,6 +62,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = stdin.Close()
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("create stdout pipe: %w", err)
 	}
 
@@ -64,6 +71,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = stdin.Close()
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("create stderr pipe: %w", err)
 	}
 
@@ -75,6 +83,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = stdin.Close()
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("request pty: %w", err)
 	}
 
@@ -82,6 +91,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = stdin.Close()
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("start shell: %w", err)
 	}
 
@@ -90,6 +100,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = stdin.Close()
 		_ = sshSession.Close()
 		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("generate session id: %w", err)
 	}
 
@@ -104,10 +115,12 @@ func (s *Service) Connect(hostID string) (string, error) {
 		client: client,
 		ssh:    sshSession,
 		stdin:  stdin,
+		logID:  logID,
 	}
 	managed := s.sessions[sessionID]
 	s.sessionMu.Unlock()
 
+	s.markSessionLogActive(logID, sessionID, remoteAddr)
 	go s.forwardOutput(sessionID, stdout)
 	go s.forwardOutput(sessionID, stderr)
 	go s.waitForSession(sessionID, managed)
@@ -132,6 +145,7 @@ func (s *Service) Disconnect(sessionID string) error {
 		return err
 	}
 
+	s.markSessionLogFinished(session.logID, model.SessionLogStatusClosed, "")
 	s.emit("term:closed:"+sessionID, nil)
 	return nil
 }
@@ -207,6 +221,7 @@ func (s *Service) CloseAll() error {
 		if err := session.close(); err != nil && closeErr == nil {
 			closeErr = err
 		}
+		s.markSessionLogFinished(session.logID, model.SessionLogStatusClosed, "")
 		s.emit("term:closed:"+sessionID, nil)
 	}
 	for _, confirmation := range pending {
@@ -422,5 +437,6 @@ func (s *Service) waitForSession(sessionID string, session *managedSession) {
 		s.emit("term:error:"+sessionID, err.Error())
 	}
 	_ = detached.close()
+	s.markSessionLogFinished(detached.logID, model.SessionLogStatusClosed, "")
 	s.emit("term:closed:"+sessionID, nil)
 }

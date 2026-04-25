@@ -28,6 +28,10 @@ func normalizeFrontendError(err error) error {
 		return db.ErrHostNotFound
 	case errors.Is(err, db.ErrStorePathEmpty):
 		return db.ErrStorePathEmpty
+	case errors.Is(err, db.ErrSessionLogIDRequired):
+		return db.ErrSessionLogIDRequired
+	case errors.Is(err, db.ErrSessionLogNotFound):
+		return db.ErrSessionLogNotFound
 	case errors.Is(err, service.ErrNilDependency):
 		return service.ErrNilDependency
 	case errors.Is(err, service.ErrNoIdentityAuth):

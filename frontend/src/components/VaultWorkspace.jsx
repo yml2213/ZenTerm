@@ -16,6 +16,7 @@ import HostList from './HostList.jsx'
 const VaultSettingsPanel = lazy(() => import('./VaultSettingsPanel.jsx'))
 const KnownHostsPanel = lazy(() => import('./KnownHostsPanel.jsx'))
 const KeychainPanel = lazy(() => import('./KeychainPanel.jsx'))
+const SessionLogPanel = lazy(() => import('./SessionLogPanel.jsx'))
 
 export default function VaultWorkspace({
   navigationItems,
@@ -61,6 +62,7 @@ export default function VaultWorkspace({
   PanelFallback,
   isKnownHostsPage,
   isKeychainPage,
+  isLogsPage,
   keychainStatus,
   keychainLoading,
   vaultInitialized,
@@ -202,7 +204,7 @@ export default function VaultWorkspace({
 
       <section className="page-shell">
         <header className="page-toolbar">
-          <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : isKeychainPage ? ' keychain' : isKnownHostsPage ? ' known-hosts' : ''}`}>
+          <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : isKeychainPage ? ' keychain' : isKnownHostsPage ? ' known-hosts' : isLogsPage ? ' logs' : ''}`}>
             {isHostsPage ? (
               <div className="page-toolbar-search-slot">
                 <label className="search-bar search-bar-compact">
@@ -221,6 +223,8 @@ export default function VaultWorkspace({
               <div id="keychain-toolbar-slot" className="page-toolbar-keychain-slot" />
             ) : isKnownHostsPage ? (
               <div id="known-hosts-toolbar-slot" className="page-toolbar-known-hosts-slot" />
+            ) : isLogsPage ? (
+              <div id="session-log-toolbar-slot" className="page-toolbar-session-log-slot" />
             ) : (
               <div className="page-toolbar-main">
                 <div className="page-intro-copy page-toolbar-copy">
@@ -335,6 +339,20 @@ export default function VaultWorkspace({
                 vaultUnlocked={vaultUnlocked}
                 hostCount={hosts.length}
                 onRefresh={onRefreshKeychainStatus}
+              />
+            </Suspense>
+          ) : isLogsPage ? (
+            <Suspense
+              fallback={(
+                <PanelFallback
+                  title="正在加载连接日志"
+                  description="连接历史会在进入日志页后按需加载。"
+                />
+              )}
+            >
+              <SessionLogPanel
+                vaultUnlocked={vaultUnlocked}
+                onReconnect={onConnectHost}
               />
             </Suspense>
           ) : null}

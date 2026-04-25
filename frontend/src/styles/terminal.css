@@ -1,11 +1,13 @@
 .terminal-panel {
+  box-sizing: border-box;
   min-height: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
 .terminal-panel {
-  height: 100%;
-  display: block;
+  display: flex;
   border-radius: 0;
   background: var(--terminal-bg);
   box-shadow: none;
@@ -13,13 +15,23 @@
 }
 
 .terminal-surface {
+  box-sizing: border-box;
+  flex: 1;
   min-height: 0;
+  width: 100%;
   height: 100%;
   padding: 0.9rem 1rem 1rem;
   background: var(--terminal-bg);
   border-top: 0;
+  overflow: hidden;
 }
 
 .terminal-surface .xterm {
+  width: 100%;
   height: 100%;
+}
+
+.terminal-surface .xterm-screen,
+.terminal-surface .xterm-viewport {
+  width: 100% !important;
 }

@@ -87,6 +87,165 @@ func TestConnectCreatesManagedSession(t *testing.T) {
 	if sessions[0].HostID != host.ID {
 		t.Fatalf("ListSessions()[0].HostID = %q, want %q", sessions[0].HostID, host.ID)
 	}
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if logs[0].Status != model.SessionLogStatusActive {
+		t.Fatalf("SessionLog.Status = %q, want %q", logs[0].Status, model.SessionLogStatusActive)
+	}
+	if logs[0].SessionID != sessionID {
+		t.Fatalf("SessionLog.SessionID = %q, want %q", logs[0].SessionID, sessionID)
+	}
+	if logs[0].HostName != host.Name {
+		t.Fatalf("SessionLog.HostName = %q, want %q", logs[0].HostName, host.Name)
+	}
+}
+
+func TestDisconnectClosesSessionLog(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-log-close", Address: "example.com", Port: 22, Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	if err := svc.Disconnect(sessionID); err != nil {
+		t.Fatalf("Disconnect() error = %v", err)
+	}
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if logs[0].Status != model.SessionLogStatusClosed {
+		t.Fatalf("SessionLog.Status = %q, want %q", logs[0].Status, model.SessionLogStatusClosed)
+	}
+	if logs[0].EndedAt.IsZero() {
+		t.Fatal("SessionLog.EndedAt is zero, want close time")
+	}
+}
+
+func TestListSessionLogsClosesStaleActiveLog(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	startedAt := time.Now().UTC().Add(-2 * time.Minute)
+	log := model.SessionLog{
+		ID:            "stale-log",
+		SessionID:     "missing-session",
+		HostID:        "host-stale",
+		HostAddress:   "example.com",
+		HostPort:      22,
+		SSHUsername:   "zen",
+		Protocol:      sessionLogProtocolSSH,
+		Status:        model.SessionLogStatusActive,
+		StartedAt:     startedAt,
+		LocalUsername: "tester",
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+
+	logs, err := svc.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if logs[0].Status != model.SessionLogStatusClosed {
+		t.Fatalf("SessionLog.Status = %q, want %q", logs[0].Status, model.SessionLogStatusClosed)
+	}
+	if logs[0].EndedAt.IsZero() {
+		t.Fatal("SessionLog.EndedAt is zero, want close time")
+	}
+	if logs[0].DurationMillis <= 0 {
+		t.Fatalf("SessionLog.DurationMillis = %d, want positive", logs[0].DurationMillis)
+	}
+}
+
+func TestConnectFailureWritesFailedSessionLog(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-log-failed", Address: "example.com", Port: 22, Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{err: errors.New("network down")})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	if _, err := svc.Connect(host.ID); err == nil {
+		t.Fatal("Connect() error = nil, want failure")
+	}
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if logs[0].Status != model.SessionLogStatusFailed {
+		t.Fatalf("SessionLog.Status = %q, want %q", logs[0].Status, model.SessionLogStatusFailed)
+	}
+	if logs[0].ErrorMessage == "" {
+		t.Fatal("SessionLog.ErrorMessage = empty, want error summary")
+	}
 }
 
 func TestConnectDetectsAndPersistsHostSystemType(t *testing.T) {

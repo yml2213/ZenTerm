@@ -53,6 +53,35 @@ type CredentialUsage struct {
 	ActiveSessions int      `json:"active_sessions"`
 }
 
+const (
+	SessionLogStatusConnecting = "connecting"
+	SessionLogStatusActive     = "active"
+	SessionLogStatusClosed     = "closed"
+	SessionLogStatusFailed     = "failed"
+	SessionLogStatusRejected   = "rejected"
+)
+
+// SessionLog 保存一次 SSH 连接尝试或会话的元数据 / stores metadata for one SSH connection attempt or session.
+type SessionLog struct {
+	ID             string    `json:"id"`
+	SessionID      string    `json:"session_id,omitempty"`
+	HostID         string    `json:"host_id"`
+	HostName       string    `json:"host_name,omitempty"`
+	HostAddress    string    `json:"host_address"`
+	HostPort       int       `json:"host_port"`
+	SSHUsername    string    `json:"ssh_username"`
+	LocalUsername  string    `json:"local_username,omitempty"`
+	Protocol       string    `json:"protocol"`
+	Status         string    `json:"status"`
+	StartedAt      time.Time `json:"started_at"`
+	EndedAt        time.Time `json:"ended_at,omitempty"`
+	DurationMillis int64     `json:"duration_millis,omitempty"`
+	RemoteAddr     string    `json:"remote_addr,omitempty"`
+	ErrorMessage   string    `json:"error_message,omitempty"`
+	Favorite       bool      `json:"favorite,omitempty"`
+	Note           string    `json:"note,omitempty"`
+}
+
 // WindowState 保存窗口尺寸与启动状态 / stores persisted window dimensions and startup state.
 type WindowState struct {
 	Width     int  `json:"width,omitempty"`

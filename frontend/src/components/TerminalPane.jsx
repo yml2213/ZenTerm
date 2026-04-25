@@ -3,6 +3,38 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { onRuntimeEvent } from '../lib/backend.js'
 
+function readPixelValue(style, property) {
+  const value = Number.parseFloat(style.getPropertyValue(property))
+  return Number.isFinite(value) ? value : 0
+}
+
+function measureTerminalGeometry(terminal, container, fitAddon) {
+  const bounds = container.getBoundingClientRect()
+  if (bounds.width <= 0 || bounds.height <= 0) {
+    return null
+  }
+
+  const core = terminal._core
+  const cell = core?._renderService?.dimensions?.css?.cell
+  if (!cell || cell.width <= 0 || cell.height <= 0) {
+    return fitAddon.proposeDimensions() || null
+  }
+
+  const style = window.getComputedStyle(container)
+  const availableWidth = bounds.width
+    - readPixelValue(style, 'padding-left')
+    - readPixelValue(style, 'padding-right')
+    - (terminal.options.scrollback === 0 ? 0 : (core?.viewport?.scrollBarWidth || 0))
+  const availableHeight = bounds.height
+    - readPixelValue(style, 'padding-top')
+    - readPixelValue(style, 'padding-bottom')
+
+  return {
+    cols: Math.max(2, Math.floor(availableWidth / cell.width)),
+    rows: Math.max(1, Math.floor(availableHeight / cell.height)),
+  }
+}
+
 export default function TerminalPane({
   sessions,
   activeSessionId,
@@ -16,19 +48,28 @@ export default function TerminalPane({
   const terminalRef = useRef(null)
   const fitAddonRef = useRef(null)
   const activeSessionIdRef = useRef(null)
+  const fitFrameRef = useRef(null)
   const buffersRef = useRef(new Map())
   const unsubscribeMapRef = useRef(new Map())
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
     const fitAddon = fitAddonRef.current
+    const container = terminalContainerRef.current
     const sessionId = activeSessionIdRef.current
 
-    if (!terminal || !fitAddon) {
+    if (!terminal || !fitAddon || !container) {
       return
     }
 
-    fitAddon.fit()
+    const geometry = measureTerminalGeometry(terminal, container, fitAddon)
+    if (!geometry) {
+      return
+    }
+
+    if (terminal.cols !== geometry.cols || terminal.rows !== geometry.rows) {
+      terminal.resize(geometry.cols, geometry.rows)
+    }
 
     if (sessionId && terminal.cols > 0 && terminal.rows > 0) {
       try {
@@ -37,6 +78,19 @@ export default function TerminalPane({
         onError(error)
       }
     }
+  })
+
+  const scheduleSyncSize = useEffectEvent(() => {
+    if (fitFrameRef.current) {
+      window.cancelAnimationFrame(fitFrameRef.current)
+    }
+
+    fitFrameRef.current = window.requestAnimationFrame(() => {
+      fitFrameRef.current = window.requestAnimationFrame(() => {
+        fitFrameRef.current = null
+        void syncSize()
+      })
+    })
   })
 
   const renderActiveBuffer = useEffectEvent(() => {
@@ -51,6 +105,7 @@ export default function TerminalPane({
     if (!activeSessionId) {
       terminal.writeln('\x1b[33mNo active session.\x1b[0m')
       terminal.writeln('Connect a host to begin.')
+      scheduleSyncSize()
       return
     }
 
@@ -58,7 +113,7 @@ export default function TerminalPane({
     buffersRef.current.set(activeSessionId, output)
     terminal.write(output)
     terminal.focus()
-    void syncSize()
+    scheduleSyncSize()
   })
 
   const appendChunk = useEffectEvent((sessionId, chunk) => {
@@ -121,23 +176,34 @@ export default function TerminalPane({
     terminal.loadAddon(fitAddon)
 
     terminal.open(terminalContainerRef.current)
+    terminalRef.current = terminal
+    fitAddonRef.current = fitAddon
+
     terminal.write('\x1b[1;32mZenTerm\x1b[0m workspace ready.\r\n')
     terminal.write('Select a host card and start a new tab to open your shell.\r\n')
-    fitAddon.fit()
+    scheduleSyncSize()
+
+    if (document.fonts?.ready) {
+      void document.fonts.ready.then(() => {
+        scheduleSyncSize()
+      })
+    }
 
     const disposable = terminal.onData((data) => {
       void handleInput(data)
     })
 
-    terminalRef.current = terminal
-    fitAddonRef.current = fitAddon
-
     const resizeObserver = new ResizeObserver(() => {
-      void syncSize()
+      scheduleSyncSize()
     })
     resizeObserver.observe(terminalContainerRef.current)
 
     return () => {
+      if (fitFrameRef.current) {
+        window.cancelAnimationFrame(fitFrameRef.current)
+        fitFrameRef.current = null
+      }
+
       resizeObserver.disconnect()
       disposable.dispose()
 
@@ -150,7 +216,7 @@ export default function TerminalPane({
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [handleInput, syncSize])
+  }, [handleInput, scheduleSyncSize])
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId

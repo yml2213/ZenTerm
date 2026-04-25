@@ -91,6 +91,9 @@ type ZenService interface {
 	Connect(hostID string) (string, error)
 	AcceptHostKey(hostID, key string) error
 	RejectHostKey(hostID string) error
+	ListSessionLogs(limit int) ([]model.SessionLog, error)
+	ToggleSessionLogFavorite(logID string, favorite bool) error
+	DeleteSessionLog(logID string) error
 	ListSessions() []Session
 	SendInput(sessionID, data string) error
 	ResizeTerminal(sessionID string, cols, rows int) error
@@ -111,6 +114,7 @@ type managedSession struct {
 	client    sshClient
 	ssh       sshSession
 	stdin     io.WriteCloser
+	logID     string
 	closeOnce sync.Once
 }
 

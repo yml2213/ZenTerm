@@ -64,13 +64,15 @@
 }
 
 .page-toolbar-actions.keychain,
-.page-toolbar-actions.known-hosts {
+.page-toolbar-actions.known-hosts,
+.page-toolbar-actions.logs {
   justify-content: stretch;
   width: 100%;
 }
 
 .page-toolbar-keychain-slot,
-.page-toolbar-known-hosts-slot {
+.page-toolbar-known-hosts-slot,
+.page-toolbar-session-log-slot {
   width: 100%;
   min-width: 0;
 }

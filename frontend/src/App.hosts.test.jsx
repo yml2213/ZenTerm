@@ -61,9 +61,8 @@ describe('App host management', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: '已知主机' }))
 
-    expect(await screen.findByText('可信记录')).toBeInTheDocument()
+    expect(await screen.findByText('Beta')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '已知主机' })).not.toBeInTheDocument()
-    expect(screen.getByText('Beta')).toBeInTheDocument()
     expect(screen.getByText('1 条已保存')).toBeInTheDocument()
     expect(screen.getByText(/ssh-ed25519/)).toBeInTheDocument()
   })
