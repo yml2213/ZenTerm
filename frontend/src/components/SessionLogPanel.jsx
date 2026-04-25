@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
 import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '../lib/backend.js'
@@ -90,9 +90,23 @@ export default function SessionLogPanel({
   const [transcript, setTranscript] = useState(null)
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [transcriptError, setTranscriptError] = useState(null)
-  const reloadLogs = useEffectEvent(() => {
-    void loadLogs()
-  })
+
+  const loadLogs = useCallback(async () => {
+    if (!vaultUnlocked) {
+      setLogs([])
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      setLogs(await listSessionLogs(200))
+    } catch (err) {
+      setError(err.message || String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [vaultUnlocked])
 
   useEffect(() => {
     setToolbarTarget(document.getElementById('session-log-toolbar-slot'))
@@ -100,7 +114,7 @@ export default function SessionLogPanel({
 
   useEffect(() => {
     void loadLogs()
-  }, [vaultUnlocked])
+  }, [loadLogs])
 
   useEffect(() => {
     if (!vaultUnlocked) {
@@ -116,29 +130,14 @@ export default function SessionLogPanel({
     }
 
     const unsubscribes = activeSessionIDs.map((sessionID) => (
-      onRuntimeEvent(`term:closed:${sessionID}`, reloadLogs)
+      onRuntimeEvent(`term:closed:${sessionID}`, () => {
+        void loadLogs()
+      })
     ))
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe())
     }
-  }, [logs, reloadLogs, vaultUnlocked])
-
-  async function loadLogs() {
-    if (!vaultUnlocked) {
-      setLogs([])
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    try {
-      setLogs(await listSessionLogs(200))
-    } catch (err) {
-      setError(err.message || String(err))
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [loadLogs, logs, vaultUnlocked])
 
   async function handleToggleFavorite(log) {
     const nextFavorite = !log.favorite
@@ -164,7 +163,7 @@ export default function SessionLogPanel({
 
     try {
       setTranscript(await getSessionTranscript(log.id))
-    } catch (err) {
+    } catch {
       setTranscriptError('暂无终端内容')
     } finally {
       setTranscriptLoading(false)

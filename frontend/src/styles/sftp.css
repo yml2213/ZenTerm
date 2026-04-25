@@ -49,8 +49,6 @@
 }
 
 .sftp-pane {
-  --sftp-pane-topbar-height: 72px;
-  --sftp-pane-toolbar-height: 64px;
   min-width: 0;
   min-height: 0;
   display: grid;

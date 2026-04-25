@@ -268,6 +268,54 @@ func TestGetSessionTranscriptFlushesBufferedOutput(t *testing.T) {
 	}
 }
 
+func TestAppendSessionTranscriptFlushesImmediatelyWhenBufferLimitReached(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+	svc.transcriptDelay = time.Hour
+
+	log := model.SessionLog{
+		ID:          "log-immediate-flush",
+		HostID:      "host-buffered",
+		HostAddress: "example.com",
+		HostPort:    22,
+		SSHUsername: "zen",
+		Protocol:    sessionLogProtocolSSH,
+		Status:      model.SessionLogStatusActive,
+		StartedAt:   time.Now().UTC(),
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+
+	largeChunk := strings.Repeat("x", maxBufferedTranscriptBytes)
+	svc.appendSessionTranscript(log.ID, "session-buffered", largeChunk)
+
+	transcript, err := store.GetSessionTranscript(log.ID, vault)
+	if err != nil {
+		t.Fatalf("store.GetSessionTranscript() error = %v", err)
+	}
+	if transcript.Content != largeChunk {
+		t.Fatalf("SessionTranscript.Content length = %d, want %d", len(transcript.Content), len(largeChunk))
+	}
+}
+
 func TestListSessionLogsClosesStaleActiveLog(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))

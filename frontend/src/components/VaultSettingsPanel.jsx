@@ -1,7 +1,6 @@
 import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2 } from 'lucide-react'
 
 export default function VaultSettingsPanel({
-  vaultUnlocked,
   changeForm,
   changeBusy,
   resetConfirmed,

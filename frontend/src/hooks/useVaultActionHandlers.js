@@ -1,4 +1,4 @@
-import { startTransition } from 'react'
+import { startTransition, useCallback } from 'react'
 import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils.js'
 import {
   changeMasterPassword,
@@ -51,7 +51,7 @@ export function useVaultActionHandlers({
   } = setters
   const { newTabCounterRef } = refs
 
-  function refreshKeychainStatus() {
+  const refreshKeychainStatus = useCallback(() => {
     setKeychainLoading(true)
 
     return getKeychainStatus()
@@ -60,7 +60,7 @@ export function useVaultActionHandlers({
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setKeychainLoading(false))
-  }
+  }, [setError, setKeychainLoading, setKeychainStatus])
 
   function handleInitializeVault(event) {
     event.preventDefault()

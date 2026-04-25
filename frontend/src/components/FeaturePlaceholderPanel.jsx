@@ -1,9 +1,4 @@
-export default function FeaturePlaceholderPanel({
-  kicker,
-  title,
-  description,
-  highlights,
-}) {
+export default function FeaturePlaceholderPanel({ highlights }) {
   return (
     <section className="placeholder-stage">
       <div className="placeholder-grid">

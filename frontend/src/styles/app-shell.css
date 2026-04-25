@@ -78,7 +78,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.75rem;
-  min-height: 56px;
+  min-height: var(--workspace-strip-height);
   padding: 0 1.25rem 0 7rem;
   border-bottom: 1px solid var(--window-top-border, var(--border-subtle));
   background: var(--window-top-bg, var(--toolbar-bg));
@@ -226,8 +226,8 @@
 }
 
 .workspace-new-tab-btn {
-  width: 34px;
-  height: 34px;
+  width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -251,8 +251,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
   border-radius: 11px;
   border: 1px solid var(--border-default);
   background: var(--panel-muted);
@@ -286,7 +286,7 @@
 }
 
 .session-tabs {
-  min-height: 36px;
+  min-height: var(--session-tab-height);
   display: flex;
   align-items: center;
   gap: 0.38rem;
@@ -329,7 +329,7 @@
   flex: 0 0 auto;
   min-width: 132px;
   max-width: 184px;
-  height: 36px;
+  height: var(--session-tab-height);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 32px;
   align-items: center;

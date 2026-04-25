@@ -135,7 +135,8 @@ export default function TerminalPane({
   })
 
   useEffect(() => {
-    if (!terminalContainerRef.current) {
+    const terminalContainer = terminalContainerRef.current
+    if (!terminalContainer) {
       return undefined
     }
 
@@ -155,7 +156,7 @@ export default function TerminalPane({
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
 
-    terminal.open(terminalContainerRef.current)
+    terminal.open(terminalContainer)
     terminalRef.current = terminal
     fitAddonRef.current = fitAddon
 
@@ -176,7 +177,10 @@ export default function TerminalPane({
     const resizeObserver = new ResizeObserver(() => {
       scheduleSyncSize()
     })
-    resizeObserver.observe(terminalContainerRef.current)
+    resizeObserver.observe(terminalContainer)
+
+    const unsubscribeMap = unsubscribeMapRef.current
+    const buffers = buffersRef.current
 
     return () => {
       if (fitFrameRef.current) {
@@ -187,21 +191,21 @@ export default function TerminalPane({
       resizeObserver.disconnect()
       disposable.dispose()
 
-      for (const [, unsubscribe] of unsubscribeMapRef.current) {
+      for (const [, unsubscribe] of unsubscribeMap) {
         unsubscribe()
       }
-      unsubscribeMapRef.current.clear()
-      buffersRef.current.clear()
+      unsubscribeMap.clear()
+      buffers.clear()
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [handleInput, scheduleSyncSize])
+  }, [])
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
     renderActiveBuffer()
-  }, [activeSessionId, activeSessionTitle, renderActiveBuffer])
+  }, [activeSessionId, activeSessionTitle])
 
   useEffect(() => {
     const activeIds = new Set(sessions.map((session) => session.sessionId))
@@ -241,7 +245,7 @@ export default function TerminalPane({
       unsubscribeMapRef.current.delete(sessionId)
       buffersRef.current.delete(sessionId)
     }
-  }, [appendChunk, appendClosed, appendError, sessions])
+  }, [sessions])
 
   return (
     <section className="panel terminal-panel">

@@ -85,7 +85,19 @@ export function useAppBootstrap({
       disposed = true
       offHostKey()
     }
-  }, [])
+  }, [
+    refreshKeychainStatus,
+    setActiveSessionId,
+    setActiveWorkspace,
+    setError,
+    setHostKeyPrompt,
+    setHosts,
+    setSelectedHostId,
+    setSessionTabs,
+    setVaultInitialized,
+    setVaultReady,
+    setVaultUnlocked,
+  ])
 }
 
 export function useWindowStatePersistence(setError) {
