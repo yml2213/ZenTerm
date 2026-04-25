@@ -93,6 +93,7 @@ export default function App() {
     isSettingsPage,
     isKnownHostsPage,
     isKeychainPage,
+    isLogsPage,
     shellClassName,
     resolvedPageHeader,
     vaultState,
@@ -301,6 +302,7 @@ export default function App() {
           PanelFallback={PanelFallback}
           isKnownHostsPage={isKnownHostsPage}
           isKeychainPage={isKeychainPage}
+          isLogsPage={isLogsPage}
           keychainStatus={keychainStatus}
           keychainLoading={keychainLoading}
           vaultInitialized={vaultInitialized}

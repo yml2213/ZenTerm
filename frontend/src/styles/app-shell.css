@@ -42,6 +42,8 @@
 }
 
 .app-shell-tabbed.app-shell-ssh {
+  --window-top-bg: var(--terminal-toolbar-bg);
+  --window-top-border: rgba(148, 163, 184, 0.14);
   --terminal-toolbar-bg: #17182b;
   --terminal-control: #9aa2b8;
 }

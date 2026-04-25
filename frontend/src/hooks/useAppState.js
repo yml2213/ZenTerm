@@ -78,6 +78,7 @@ export function useAppState() {
   const isSettingsPage = activeSidebarPage === 'settings'
   const isKnownHostsPage = activeSidebarPage === 'knownHosts'
   const isKeychainPage = activeSidebarPage === 'keychain'
+  const isLogsPage = activeSidebarPage === 'logs'
   const shellClassName = [
     'app-shell',
     activeWorkspace === 'ssh' ? 'app-shell-tabbed' : '',
@@ -235,6 +236,7 @@ export function useAppState() {
     isSettingsPage,
     isKnownHostsPage,
     isKeychainPage,
+    isLogsPage,
     shellClassName,
     resolvedPageHeader,
     vaultState,

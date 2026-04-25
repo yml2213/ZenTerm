@@ -114,6 +114,103 @@ func TestStoreUpdateLastConnectedAt(t *testing.T) {
 	}
 }
 
+func TestStoreSessionLogLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	startedAt := time.Date(2026, 4, 25, 10, 0, 0, 0, time.UTC)
+	log := model.SessionLog{
+		ID:          "log-1",
+		HostID:      "host-1",
+		HostAddress: "10.0.0.1",
+		HostPort:    22,
+		SSHUsername: "root",
+		Protocol:    "ssh",
+		Status:      model.SessionLogStatusConnecting,
+		StartedAt:   startedAt,
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+
+	log.Status = model.SessionLogStatusActive
+	log.SessionID = "session-1"
+	if err := store.UpdateSessionLog(log); err != nil {
+		t.Fatalf("UpdateSessionLog() error = %v", err)
+	}
+	if err := store.ToggleSessionLogFavorite(log.ID, true); err != nil {
+		t.Fatalf("ToggleSessionLogFavorite() error = %v", err)
+	}
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if logs[0].SessionID != "session-1" {
+		t.Fatalf("SessionID = %q, want session-1", logs[0].SessionID)
+	}
+	if !logs[0].Favorite {
+		t.Fatal("Favorite = false, want true")
+	}
+
+	loaded, err := store.GetSessionLog(log.ID)
+	if err != nil {
+		t.Fatalf("GetSessionLog() error = %v", err)
+	}
+	if loaded.ID != log.ID {
+		t.Fatalf("GetSessionLog().ID = %q, want %q", loaded.ID, log.ID)
+	}
+
+	if err := store.DeleteSessionLog(log.ID); err != nil {
+		t.Fatalf("DeleteSessionLog() error = %v", err)
+	}
+	logs, err = store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() after delete error = %v", err)
+	}
+	if len(logs) != 0 {
+		t.Fatalf("len(ListSessionLogs()) after delete = %d, want 0", len(logs))
+	}
+}
+
+func TestStoreResetVaultClearsSessionLogs(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	if err := store.CreateSessionLog(model.SessionLog{
+		ID:          "log-reset",
+		HostID:      "host-1",
+		HostAddress: "10.0.0.1",
+		HostPort:    22,
+		SSHUsername: "root",
+		Protocol:    "ssh",
+		Status:      model.SessionLogStatusClosed,
+		StartedAt:   time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+	if err := store.ResetVault(); err != nil {
+		t.Fatalf("ResetVault() error = %v", err)
+	}
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 0 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 0", len(logs))
+	}
+}
+
 func TestStoreEnsureSaltPersistsAcrossRestarts(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.zen")

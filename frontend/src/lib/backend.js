@@ -17,7 +17,7 @@ async function callApp(method, ...args) {
   const fn = binding?.[method]
 
   if (typeof fn !== 'function') {
-    if (method === 'ListHosts' || method === 'ListSessions') {
+    if (method === 'ListHosts' || method === 'ListSessions' || method === 'ListSessionLogs') {
       return []
     }
 
@@ -177,6 +177,18 @@ export async function disconnect(sessionID) {
 
 export async function listSessions() {
   return callApp('ListSessions')
+}
+
+export async function listSessionLogs(limit = 200) {
+  return callApp('ListSessionLogs', limit)
+}
+
+export async function toggleSessionLogFavorite(logID, favorite) {
+  return callApp('ToggleSessionLogFavorite', logID, favorite)
+}
+
+export async function deleteSessionLog(logID) {
+  return callApp('DeleteSessionLog', logID)
 }
 
 async function callRuntime(method, fallbackValue, ...args) {

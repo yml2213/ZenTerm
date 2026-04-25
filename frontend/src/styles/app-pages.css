@@ -16,7 +16,15 @@
   padding: 0;
 }
 
+.ssh-page {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .ssh-page .content-area-terminal {
+  grid-row: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   background-color: var(--terminal-bg);
   background-image: none;
 }

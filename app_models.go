@@ -57,6 +57,26 @@ type Session struct {
 	ConnectedAt string `json:"ConnectedAt"`
 }
 
+type SessionLog struct {
+	ID             string `json:"id"`
+	SessionID      string `json:"session_id,omitempty"`
+	HostID         string `json:"host_id"`
+	HostName       string `json:"host_name,omitempty"`
+	HostAddress    string `json:"host_address"`
+	HostPort       int    `json:"host_port"`
+	SSHUsername    string `json:"ssh_username"`
+	LocalUsername  string `json:"local_username,omitempty"`
+	Protocol       string `json:"protocol"`
+	Status         string `json:"status"`
+	StartedAt      string `json:"started_at"`
+	EndedAt        string `json:"ended_at,omitempty"`
+	DurationMillis int64  `json:"duration_millis,omitempty"`
+	RemoteAddr     string `json:"remote_addr,omitempty"`
+	ErrorMessage   string `json:"error_message,omitempty"`
+	Favorite       bool   `json:"favorite,omitempty"`
+	Note           string `json:"note,omitempty"`
+}
+
 func hostFromModel(host model.Host) Host {
 	return Host{
 		ID:               host.ID,
@@ -159,6 +179,36 @@ func sessionsFromService(sessions []service.Session) []Session {
 	result := make([]Session, 0, len(sessions))
 	for _, session := range sessions {
 		result = append(result, sessionFromService(session))
+	}
+	return result
+}
+
+func sessionLogFromModel(log model.SessionLog) SessionLog {
+	return SessionLog{
+		ID:             log.ID,
+		SessionID:      log.SessionID,
+		HostID:         log.HostID,
+		HostName:       log.HostName,
+		HostAddress:    log.HostAddress,
+		HostPort:       log.HostPort,
+		SSHUsername:    log.SSHUsername,
+		LocalUsername:  log.LocalUsername,
+		Protocol:       log.Protocol,
+		Status:         log.Status,
+		StartedAt:      formatTime(log.StartedAt),
+		EndedAt:        formatTime(log.EndedAt),
+		DurationMillis: log.DurationMillis,
+		RemoteAddr:     log.RemoteAddr,
+		ErrorMessage:   log.ErrorMessage,
+		Favorite:       log.Favorite,
+		Note:           log.Note,
+	}
+}
+
+func sessionLogsFromModel(logs []model.SessionLog) []SessionLog {
+	result := make([]SessionLog, 0, len(logs))
+	for _, log := range logs {
+		result = append(result, sessionLogFromModel(log))
 	}
 	return result
 }

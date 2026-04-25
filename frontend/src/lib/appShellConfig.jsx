@@ -1,9 +1,10 @@
-import { KeyRound, LayoutGrid, Shield } from 'lucide-react'
+import { History, KeyRound, LayoutGrid, Shield } from 'lucide-react'
 
 export const navigationItems = [
   { id: 'hosts', label: '主机', icon: LayoutGrid },
   { id: 'keychain', label: '钥匙串', icon: KeyRound },
   { id: 'knownHosts', label: '已知主机', icon: Shield },
+  { id: 'logs', label: '日志', icon: History },
 ]
 
 export const sidebarPages = {
@@ -37,5 +38,12 @@ export const sidebarPages = {
       { title: '信任同步', description: '为未来的导入、导出和批量清理 known_hosts 预留位置。' },
       { title: '风险提醒', description: '后续可补主机指纹变化、冲突记录和人工确认轨迹。' },
     ],
+  },
+  logs: {
+    label: '日志',
+    icon: History,
+    title: '连接日志',
+    kicker: 'Logs',
+    description: '记录 SSH 连接历史，默认只保存元数据。',
   },
 }

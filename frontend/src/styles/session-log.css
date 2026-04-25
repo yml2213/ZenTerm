@@ -1,0 +1,239 @@
+.session-log-stage {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.session-log-toolbar {
+  width: 100%;
+  min-height: 40px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) max-content max-content;
+  align-items: center;
+  gap: 0.55rem;
+  overflow: hidden;
+}
+
+.session-log-search {
+  min-width: 0;
+}
+
+.session-log-filter {
+  flex: 0 0 auto;
+  min-width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.22rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--panel-muted);
+  white-space: nowrap;
+}
+
+.session-log-filter button {
+  white-space: nowrap;
+  padding: 0.48rem 0.62rem;
+  border-radius: 9px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.session-log-filter button:hover,
+.session-log-filter button.active {
+  color: var(--text-primary);
+  background: var(--panel-bg-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.session-log-refresh {
+  flex: 0 0 auto;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.session-log-table {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 40px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.session-log-head,
+.session-log-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(180px, 1fr) minmax(240px, 1.45fr) minmax(150px, 0.8fr) 72px;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.session-log-head {
+  padding: 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--toolbar-bg);
+}
+
+.session-log-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.session-log-row {
+  min-height: 72px;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--panel-bg) 68%, transparent);
+  cursor: default;
+}
+
+.session-log-row:hover,
+.session-log-row:focus {
+  background: var(--card-hover);
+  outline: none;
+}
+
+.session-log-time,
+.session-log-user,
+.session-log-host,
+.session-log-status {
+  min-width: 0;
+}
+
+.session-log-time,
+.session-log-user > div,
+.session-log-host > div,
+.session-log-status {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.session-log-user,
+.session-log-host {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+}
+
+.session-log-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--accent-secondary);
+  background: var(--surface-info-bg);
+}
+
+.session-log-time strong,
+.session-log-user strong,
+.session-log-host strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.session-log-time span,
+.session-log-user span,
+.session-log-host span,
+.session-log-status small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.session-log-state {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.24rem 0.5rem;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--surface-neutral-bg);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.session-log-state.active,
+.session-log-state.connecting {
+  color: var(--accent-secondary);
+  background: var(--surface-info-bg);
+}
+
+.session-log-state.closed {
+  color: var(--accent-success);
+  background: var(--surface-success-bg);
+}
+
+.session-log-state.failed,
+.session-log-state.rejected {
+  color: var(--accent-danger);
+  background: var(--surface-danger-bg-soft);
+}
+
+.session-log-favorite {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.session-log-empty {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.session-log-empty svg {
+  width: 58px;
+  height: 58px;
+  padding: 1rem;
+  border-radius: 18px;
+  color: var(--text-tertiary);
+  background: var(--panel-muted);
+}
+
+.session-log-empty strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 920px) {
+  .session-log-head,
+  .session-log-row {
+    grid-template-columns: minmax(180px, 1fr) minmax(210px, 1.2fr) minmax(120px, 0.7fr) 56px;
+  }
+
+  .session-log-user {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .session-log-toolbar {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-content: center;
+    padding: 0.45rem 0;
+  }
+
+  .session-log-search {
+    grid-column: 1 / -1;
+  }
+}

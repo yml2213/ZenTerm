@@ -59,6 +59,34 @@ func (a *App) RejectHostKey(hostID string) error {
 	return nil
 }
 
+// ListSessionLogs 返回连接历史记录 / returns SSH connection history records.
+func (a *App) ListSessionLogs(limit int) ([]SessionLog, error) {
+	logs, err := a.service.ListSessionLogs(limit)
+	if err != nil {
+		return nil, normalizeFrontendError(err)
+	}
+
+	return sessionLogsFromModel(logs), nil
+}
+
+// ToggleSessionLogFavorite 更新连接历史收藏状态 / updates the favorite state for a connection history record.
+func (a *App) ToggleSessionLogFavorite(logID string, favorite bool) error {
+	if err := a.service.ToggleSessionLogFavorite(logID, favorite); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
+// DeleteSessionLog 删除一条连接历史记录 / deletes a connection history record.
+func (a *App) DeleteSessionLog(logID string) error {
+	if err := a.service.DeleteSessionLog(logID); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
 // SendInput 将前端按键输入写入对应会话 / writes frontend keystrokes into the target session.
 func (a *App) SendInput(sessionID, data string) error {
 	if err := a.service.SendInput(sessionID, data); err != nil {
