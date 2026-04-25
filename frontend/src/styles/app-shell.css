@@ -321,12 +321,13 @@
   max-width: 184px;
   height: 36px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 32px;
   align-items: center;
   border-radius: 11px;
   background: var(--chrome-tab-bg);
   box-shadow: var(--shadow-sm);
   opacity: 0.78;
+  overflow: hidden;
   transition:
     min-width 180ms ease,
     max-width 180ms ease,
@@ -373,15 +374,15 @@
 
 .session-tab-main,
 .session-tab-close {
-  padding: 0 0.56rem;
+  min-width: 0;
 }
 
 .session-tab-main {
-  min-width: 0;
   height: 100%;
   display: flex;
   align-items: center;
   gap: 0.38rem;
+  padding: 0 0.64rem;
   text-align: left;
   color: var(--text-primary);
 }
@@ -411,15 +412,42 @@
 }
 
 .session-tab-close {
-  display: flex;
+  width: 28px;
+  height: 28px;
+  margin-right: 0.22rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  border-radius: 8px;
   color: var(--text-tertiary);
-  padding-left: 0.18rem;
-  padding-right: 0.44rem;
+  opacity: 0.78;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 .app-shell-tabbed .session-tab-close {
   color: var(--terminal-control);
+}
+
+.session-tab.active .session-tab-close {
+  color: color-mix(in srgb, var(--text-primary) 74%, transparent);
+  opacity: 0.9;
+}
+
+.app-shell-tabbed .session-tab.active .session-tab-close {
+  color: color-mix(in srgb, var(--terminal-tab-active-text) 72%, transparent);
+}
+
+.session-tab-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.app-shell-tabbed .session-tab-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--terminal-tab-active-text);
 }
