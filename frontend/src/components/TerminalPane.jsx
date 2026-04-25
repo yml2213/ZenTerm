@@ -2,37 +2,17 @@ import { useEffect, useEffectEvent, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { onRuntimeEvent } from '../lib/backend.js'
+import { measureTerminalGeometry } from '../lib/terminalGeometry.js'
 
-function readPixelValue(style, property) {
-  const value = Number.parseFloat(style.getPropertyValue(property))
-  return Number.isFinite(value) ? value : 0
-}
+const MAX_SESSION_BUFFER_CHARS = 1_000_000
+const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
 
-function measureTerminalGeometry(terminal, container, fitAddon) {
-  const bounds = container.getBoundingClientRect()
-  if (bounds.width <= 0 || bounds.height <= 0) {
-    return null
+function trimSessionBuffer(content) {
+  if (content.length <= MAX_SESSION_BUFFER_CHARS) {
+    return content
   }
 
-  const core = terminal._core
-  const cell = core?._renderService?.dimensions?.css?.cell
-  if (!cell || cell.width <= 0 || cell.height <= 0) {
-    return fitAddon.proposeDimensions() || null
-  }
-
-  const style = window.getComputedStyle(container)
-  const availableWidth = bounds.width
-    - readPixelValue(style, 'padding-left')
-    - readPixelValue(style, 'padding-right')
-    - (terminal.options.scrollback === 0 ? 0 : (core?.viewport?.scrollBarWidth || 0))
-  const availableHeight = bounds.height
-    - readPixelValue(style, 'padding-top')
-    - readPixelValue(style, 'padding-bottom')
-
-  return {
-    cols: Math.max(2, Math.floor(availableWidth / cell.width)),
-    rows: Math.max(1, Math.floor(availableHeight / cell.height)),
-  }
+  return TRUNCATED_BUFFER_NOTICE + content.slice(-MAX_SESSION_BUFFER_CHARS)
 }
 
 export default function TerminalPane({
@@ -119,7 +99,7 @@ export default function TerminalPane({
   const appendChunk = useEffectEvent((sessionId, chunk) => {
     const text = typeof chunk === 'string' ? chunk : String(chunk ?? '')
     const previous = buffersRef.current.get(sessionId) || ''
-    const next = previous + text
+    const next = trimSessionBuffer(previous + text)
     buffersRef.current.set(sessionId, next)
 
     if (sessionId === activeSessionIdRef.current && terminalRef.current) {
