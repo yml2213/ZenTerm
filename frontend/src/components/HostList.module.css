@@ -1,0 +1,388 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 0.72rem;
+  align-items: stretch;
+}
+
+.gridList {
+  grid-template-columns: 1fr;
+  gap: 0.52rem;
+}
+
+.gridEmpty {
+  flex: 1;
+  min-height: clamp(320px, 58vh, 560px);
+}
+
+.card {
+  border-radius: 16px;
+  padding: 0.88rem;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 0.7rem;
+  min-width: 0;
+  cursor: pointer;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.card:hover {
+  background: var(--card-hover);
+  border-color: var(--border-default);
+  transform: translateY(-1px);
+}
+
+.card.active {
+  background: var(--card-active);
+  border-color: var(--border-strong);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    0 10px 26px rgba(79, 116, 160, 0.1);
+}
+
+.cardHeader,
+.badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.cardFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-self: end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.badges {
+  align-self: flex-start;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  justify-content: flex-end;
+}
+
+.identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.favoriteBtn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  background: var(--favorite-btn-bg);
+}
+
+.favoriteBtn:hover {
+  color: var(--accent-amber);
+  background: var(--favorite-btn-hover-bg);
+}
+
+.favoriteBtn.favoriteActive {
+  color: var(--accent-amber);
+  border-color: var(--favorite-btn-active-border);
+  background: var(--favorite-btn-active-bg);
+}
+
+.favoriteBtn.favoriteActive svg {
+  fill: currentColor;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-inverse);
+  flex: 0 0 auto;
+}
+
+.avatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.avatarUbuntu {
+  background: linear-gradient(135deg, #fb6a2a, #e95420);
+}
+
+.avatarDebian {
+  background: linear-gradient(135deg, #d22552, #a91239);
+}
+
+.avatarCommon {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+}
+
+.avatarWindows {
+  background: linear-gradient(135deg, #60a5fa, #0ea5e9);
+}
+
+.avatarDatabase {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+}
+
+.avatarCache {
+  background: linear-gradient(135deg, #fb7185, #e11d48);
+}
+
+.avatarGateway {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+}
+
+.title {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.title strong {
+  font-size: 0.98rem;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title span,
+.summary {
+  color: var(--text-secondary);
+}
+
+.title span {
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.72rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.metaRow span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow span:last-child {
+  color: var(--text-tertiary);
+}
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tagRow span {
+  max-width: 7.5rem;
+  padding: 0.18rem 0.46rem;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--pill-subtle-bg);
+  font-size: 0.68rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inlineState {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  padding: 0.26rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.inlineState.trusted {
+  background: var(--surface-success-bg);
+  color: var(--accent-success);
+}
+
+.inlineState.pending {
+  background: var(--surface-warning-bg);
+  color: var(--accent-amber);
+}
+
+.summary {
+  min-width: 0;
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
+.compact {
+  padding: 0.48rem 0.66rem;
+  border-radius: 11px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.deleteBtn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  opacity: 0.62;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  color: var(--accent-danger);
+  border-color: var(--surface-danger-hover-border);
+  background: var(--surface-danger-hover-bg);
+  opacity: 1;
+}
+
+.gridList .card {
+  grid-template-columns: minmax(240px, 1.1fr) minmax(180px, 0.8fr) minmax(140px, 0.6fr) auto;
+  grid-template-rows: auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.72rem 0.82rem;
+  min-height: 84px;
+}
+
+.gridList .cardHeader,
+.gridList .cardFooter {
+  min-width: 0;
+}
+
+.gridList .badges,
+.gridList .actions {
+  flex-wrap: nowrap;
+}
+
+.gridList .badges {
+  align-self: center;
+}
+
+.gridList .metaRow {
+  justify-content: flex-start;
+}
+
+.gridList .tagRow {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.gridList .summary {
+  display: none;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 50;
+  min-width: 156px;
+  padding: 0.35rem;
+  border: 1px solid var(--border-default);
+  border-radius: 13px;
+  background: var(--panel-bg-strong);
+  box-shadow: 0 18px 42px rgba(21, 31, 44, 0.16);
+}
+
+.contextMenu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.58rem 0.68rem;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.contextMenu button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--panel-muted);
+}
+
+.contextMenu button.danger:hover:not(:disabled) {
+  color: var(--accent-danger);
+  background: var(--surface-danger-hover-bg);
+}
+
+.emptyCard {
+  grid-column: 1 / -1;
+  min-height: 100%;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 1rem;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  text-align: center;
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+}
+
+.gridEmpty .emptyCard {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.emptyCardIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+  background: rgba(24, 149, 194, 0.1);
+}
+
+.emptyCard strong {
+  display: block;
+  font-size: 1.08rem;
+}
+
+.emptyCard p {
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+  max-width: 26rem;
+}

@@ -1,0 +1,147 @@
+.sessionTabs {
+  min-height: var(--session-tab-height);
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  overflow: auto hidden;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-width: 132px;
+  max-width: 184px;
+  height: var(--session-tab-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  border-radius: 11px;
+  background: var(--chrome-tab-bg);
+  box-shadow: var(--shadow-sm);
+  opacity: 0.78;
+  overflow: hidden;
+  transition:
+    min-width 180ms ease,
+    max-width 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+  border: 1px solid var(--border-subtle);
+}
+
+.tab.active {
+  min-width: 188px;
+  max-width: 248px;
+  background: var(--chrome-tab-active-bg);
+  border-color: var(--chrome-tab-active-border);
+  opacity: 1;
+  box-shadow: var(--chrome-tab-active-shadow);
+  transform: translateY(-1px);
+}
+
+:global(.app-shell-tabbed) .tab {
+  border-color: transparent;
+  background: var(--terminal-tab-bg);
+  color: var(--terminal-control);
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+:global(.app-shell-tabbed) .tab.active {
+  min-width: 196px;
+  max-width: 268px;
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(6, 10, 20, 0.22);
+  opacity: 1;
+}
+
+:global(.app-shell-ssh) .tab.sshTab.active,
+:global(.app-shell-log) .tab.logTab.active {
+  border-color: var(--terminal-tab-active-border);
+  background: var(--terminal-tab-active-bg);
+}
+
+.tabMain {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0 0.64rem;
+  text-align: left;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+:global(.app-shell-tabbed) .tabMain {
+  color: var(--terminal-tab-hover-text);
+}
+
+:global(.app-shell-ssh) .tab.sshTab .tabMain {
+  color: #2ed58b;
+}
+
+:global(.app-shell-log) .tab.logTab .tabMain {
+  color: var(--terminal-tab-active-text);
+}
+
+.tabIcon {
+  flex: 0 0 auto;
+}
+
+.tabMain strong {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab.active .tabMain strong {
+  font-size: 0.84rem;
+  color: inherit;
+}
+
+.tabClose {
+  width: 28px;
+  height: 28px;
+  margin-right: 0.22rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  opacity: 0.78;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease,
+    transform 150ms ease;
+  min-width: 0;
+}
+
+:global(.app-shell-tabbed) .tabClose {
+  color: var(--terminal-control);
+}
+
+.tab.active .tabClose {
+  color: color-mix(in srgb, var(--text-primary) 74%, transparent);
+  opacity: 0.9;
+}
+
+:global(.app-shell-tabbed) .tab.active .tabClose {
+  color: color-mix(in srgb, var(--terminal-tab-active-text) 72%, transparent);
+}
+
+.tabClose:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+:global(.app-shell-tabbed) .tabClose:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--terminal-tab-active-text);
+}
