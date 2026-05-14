@@ -1,10 +1,9 @@
-import { useEffect } from 'react'
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
 import AppOverlays from './components/AppOverlays.jsx'
 import LogWorkspace from './components/LogWorkspace.jsx'
 import NewTabWorkspace from './components/NewTabWorkspace.jsx'
-import SftpWorkspacePage, { preloadSftpWorkspace } from './components/SftpWorkspacePage.jsx'
+import SftpWorkspacePage from './components/SftpWorkspacePage.jsx'
 import SshWorkspace from './components/SshWorkspace.jsx'
 import VaultWorkspace from './components/VaultWorkspace'
 import WorkspaceStrip from './components/WorkspaceStrip'
@@ -22,30 +21,6 @@ import { useAppState } from './hooks/useAppState'
 import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers'
 import { HostFormModel, WorkspaceTab } from './types'
 
-function PanelFallback({
-  className = 'panel',
-  kicker = 'Loading',
-  title = '正在加载面板',
-  description = 'ZenTerm 正在准备当前工作区内容，请稍候。',
-}: {
-  className?: string
-  kicker?: string
-  title?: string
-  description?: string
-}) {
-  return (
-    <section className={className}>
-      <div className="terminal-toolbar">
-        <div className="terminal-toolbar-main">
-          <span className="panel-kicker">{kicker}</span>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
@@ -58,7 +33,6 @@ export default function App() {
     newTabSearchQuery,
     hostViewMode,
     hostFilterKey,
-    vaultInitialized,
     vaultUnlocked,
     vaultSetupForm,
     vaultSetupBusy,
@@ -79,8 +53,6 @@ export default function App() {
     activeSessionId,
     activeLogTabId,
     connectingHostIds,
-    keychainStatus,
-    keychainLoading,
     filteredHosts,
     hostGroups,
     hostTags,
@@ -139,7 +111,6 @@ export default function App() {
 
   const {
     closeHostDialog,
-    refreshKeychainStatus,
     openEditHost,
     handleInitializeVault,
     handleAccessPassword,
@@ -180,7 +151,6 @@ export default function App() {
     setVaultInitialized: setters.setVaultInitialized,
     setVaultUnlocked: setters.setVaultUnlocked,
     setVaultReady: setters.setVaultReady,
-    refreshKeychainStatus,
     setError: setters.setError,
     setHostKeyPrompt: setters.setHostKeyPrompt,
   })
@@ -202,17 +172,6 @@ export default function App() {
     setActiveWorkspace: setters.setActiveWorkspace,
     setActiveSidebarPage: setters.setActiveSidebarPage,
   })
-
-  useEffect(() => {
-    const runPreload = () => preloadSftpWorkspace()
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(runPreload, { timeout: 1800 })
-      return () => window.cancelIdleCallback(id)
-    }
-
-    const id = window.setTimeout(runPreload, 400)
-    return () => window.clearTimeout(id)
-  }, [])
 
   function handleWorkspaceTabClose(tab: WorkspaceTab) {
     if (tab.type === 'new') {
@@ -265,7 +224,6 @@ export default function App() {
         onWorkspaceTabClose={handleWorkspaceTabClose}
         onOpenNewTab={openNewTab}
         onCycleTheme={cycleTheme}
-        onPreloadSftp={preloadSftpWorkspace}
         themeIcon={ThemeIcon}
         vaultsLabel={t('vaults')}
         sftpLabel={t('sftp')}
@@ -313,14 +271,9 @@ export default function App() {
           onChangeMasterPassword={handleChangeMasterPassword}
           onResetVaultConfirmedChange={setters.setResetVaultConfirmed}
           onResetVault={handleResetVault}
-          PanelFallback={PanelFallback}
           isKnownHostsPage={isKnownHostsPage}
           isKeychainPage={isKeychainPage}
           isLogsPage={isLogsPage}
-          keychainStatus={keychainStatus}
-          keychainLoading={keychainLoading}
-          vaultInitialized={vaultInitialized}
-          onRefreshKeychainStatus={refreshKeychainStatus}
           onOpenLogTab={openLogTab}
           hostDrawer={hostDrawer}
         />
@@ -365,17 +318,22 @@ export default function App() {
           sessionTabs={sessionTabs.filter(tab => tab.sessionId).map(tab => ({
             sessionId: tab.sessionId!,
             title: tab.title,
+            hostID: tab.hostID,
+            remoteAddr: tab.remoteAddr,
+            connectedAt: tab.connectedAt,
           }))}
           activeSessionId={activeSessionId}
           activeSession={activeSession && activeSession.sessionId ? {
             sessionId: activeSession.sessionId,
             title: activeSession.title,
+            hostID: activeSession.hostID,
+            remoteAddr: activeSession.remoteAddr,
+            connectedAt: activeSession.connectedAt,
           } : null}
           onSendInput={handleSendInput}
           onResize={handleResizeTerminal}
           onSessionClosed={handleSessionClosed}
           onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
-          PanelFallback={PanelFallback}
         />
       )}
 

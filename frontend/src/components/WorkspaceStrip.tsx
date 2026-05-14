@@ -13,7 +13,6 @@ interface WorkspaceStripProps {
   onWorkspaceTabClose: (tab: WorkspaceTab) => void
   onOpenNewTab: () => void
   onCycleTheme: () => void
-  onPreloadSftp: () => void
   themeIcon: LucideIcon
   vaultsLabel: string
   sftpLabel: string
@@ -29,7 +28,6 @@ export default function WorkspaceStrip({
   onWorkspaceTabClose,
   onOpenNewTab,
   onCycleTheme,
-  onPreloadSftp,
   themeIcon: ThemeIcon,
   vaultsLabel,
   sftpLabel,
@@ -49,8 +47,6 @@ export default function WorkspaceStrip({
         <button
           type="button"
           className={`workspace-module${activeWorkspace === 'sftp' ? ' active' : ''}`}
-          onFocus={onPreloadSftp}
-          onMouseEnter={onPreloadSftp}
           onClick={() => onWorkspaceChange('sftp')}
           aria-pressed={activeWorkspace === 'sftp'}
         >

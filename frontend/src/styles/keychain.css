@@ -11,13 +11,8 @@
   padding: 0;
   overflow: hidden;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  align-content: start;
-  gap: 1rem;
-}
-
-.keychain-stage.toolbar-portaled {
   grid-template-rows: minmax(0, 1fr);
+  align-content: start;
   gap: 0;
 }
 

@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useLayoutEffect, useMemo, type ReactNode } from 'react'
 import { Fingerprint, Server, ShieldCheck, ShieldQuestion } from 'lucide-react'
 
 interface Host {
@@ -25,6 +24,7 @@ interface KnownHostGroup {
 
 interface KnownHostsPanelProps {
   hosts: Host[]
+  onToolbarChange: (toolbar: ReactNode | null) => void
 }
 
 function parseKnownHostLine(line: string, index: number): KnownHostEntry {
@@ -56,94 +56,90 @@ function buildKnownHostGroups(hosts: Host[]): KnownHostGroup[] {
     .filter((group) => group.entries.length > 0)
 }
 
-export default function KnownHostsPanel({ hosts }: KnownHostsPanelProps) {
-  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
-  const groups = buildKnownHostGroups(hosts)
+export default function KnownHostsPanel({ hosts, onToolbarChange }: KnownHostsPanelProps) {
+  const groups = useMemo(() => buildKnownHostGroups(hosts), [hosts])
   const trustedHostCount = groups.length
   const trustedKeyCount = groups.reduce((sum, group) => sum + group.entries.length, 0)
 
-  useEffect(() => {
-    setToolbarTarget(document.getElementById('known-hosts-toolbar-slot'))
-  }, [])
-
-  const toolbar = (
-    <div className="known-hosts-toolbar">
-      <div className="known-hosts-stats known-hosts-toolbar-stats" aria-label="已知主机统计">
-        <div className="known-hosts-stat">
-          <strong>{trustedKeyCount}</strong>
-          <span>可信记录</span>
-        </div>
-        <div className="known-hosts-stat">
-          <strong>{trustedHostCount}</strong>
-          <span>关联主机</span>
+  const toolbar = useMemo(
+    () => (
+      <div className="known-hosts-toolbar">
+        <div className="known-hosts-stats known-hosts-toolbar-stats" aria-label="已知主机统计">
+          <div className="known-hosts-stat">
+            <strong>{trustedKeyCount}</strong>
+            <span>可信记录</span>
+          </div>
+          <div className="known-hosts-stat">
+            <strong>{trustedHostCount}</strong>
+            <span>关联主机</span>
+          </div>
         </div>
       </div>
-    </div>
+    ),
+    [trustedHostCount, trustedKeyCount],
   )
-  const toolbarNode = toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar
+
+  useLayoutEffect(() => {
+    onToolbarChange(toolbar)
+    return () => onToolbarChange(null)
+  }, [onToolbarChange, toolbar])
 
   if (groups.length === 0) {
     return (
-      <>
-        {toolbarNode}
-        <section className="known-hosts-stage">
-          <div className="empty-card">
-            <div className="empty-card-icon">
-              <ShieldQuestion size={20} />
-            </div>
-            <div>
-              <strong>首次连接后会自动累积可信记录</strong>
-              <p>当你接受某台主机的指纹后，对应的公钥会写入这里，后续再次连接时就能直接校验。</p>
-            </div>
+      <section className="known-hosts-stage">
+        <div className="empty-card">
+          <div className="empty-card-icon">
+            <ShieldQuestion size={20} />
           </div>
-        </section>
-      </>
+          <div>
+            <strong>首次连接后会自动累积可信记录</strong>
+            <p>当你接受某台主机的指纹后，对应的公钥会写入这里，后续再次连接时就能直接校验。</p>
+          </div>
+        </div>
+      </section>
     )
   }
 
   return (
-    <>
-      {toolbarNode}
-      <section className="known-hosts-stage">
-        <div className="known-hosts-grid">
-          {groups.map(({ host, entries }) => (
-            <article key={host.id} className="known-host-card">
-              <div className="known-host-card-head">
-                <div className="known-host-card-identity">
-                  <div className="known-host-card-icon">
-                    <Server size={16} />
+    <section className="known-hosts-stage">
+      <div className="known-hosts-grid">
+        {groups.map(({ host, entries }) => (
+          <article key={host.id} className="known-host-card">
+            <div className="known-host-card-head">
+              <div className="known-host-card-identity">
+                <div className="known-host-card-icon">
+                  <Server size={16} />
+                </div>
+                <div>
+                  <h2>{host.name || host.id}</h2>
+                  <p>{host.username}@{host.address}:{host.port || 22}</p>
+                  <small>{host.id}</small>
+                </div>
+              </div>
+
+              <span className="pill success">
+                <ShieldCheck size={14} />
+                {entries.length} 条已保存
+              </span>
+            </div>
+
+            <div className="known-host-entry-list">
+              {entries.map((entry) => (
+                <div key={entry.id} className="known-host-entry">
+                  <div className="known-host-entry-main">
+                    <span className="known-host-entry-type">{entry.algorithm}</span>
+                    <span className="known-host-entry-preview">{entry.preview}</span>
                   </div>
-                  <div>
-                    <h2>{host.name || host.id}</h2>
-                    <p>{host.username}@{host.address}:{host.port || 22}</p>
-                    <small>{host.id}</small>
+                  <div className="known-host-entry-meta">
+                    <Fingerprint size={13} />
+                    <span>{entry.comment || '已接受的主机公钥'}</span>
                   </div>
                 </div>
-
-                <span className="pill success">
-                  <ShieldCheck size={14} />
-                  {entries.length} 条已保存
-                </span>
-              </div>
-
-              <div className="known-host-entry-list">
-                {entries.map((entry) => (
-                  <div key={entry.id} className="known-host-entry">
-                    <div className="known-host-entry-main">
-                      <span className="known-host-entry-type">{entry.algorithm}</span>
-                      <span className="known-host-entry-preview">{entry.preview}</span>
-                    </div>
-                    <div className="known-host-entry-meta">
-                      <Fingerprint size={13} />
-                      <span>{entry.comment || '已接受的主机公钥'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-    </>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   )
 }

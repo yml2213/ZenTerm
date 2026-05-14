@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import { useHostState } from './useHostState'
 import { useSessionWorkspaceState } from './useSessionWorkspaceState'
 import { useVaultState } from './useVaultState'
-import { model } from '../wailsjs/wailsjs/go/models'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)
@@ -14,8 +13,6 @@ export function useAppState() {
   const vault = useVaultState()
 
   const [error, setError] = useState<string | null>(null)
-  const [keychainStatus, setKeychainStatus] = useState<model.KeychainStatus | null>(null)
-  const [keychainLoading, setKeychainLoading] = useState(false)
   const {
     activeWorkspace,
     setActiveWorkspace,
@@ -176,8 +173,6 @@ export function useAppState() {
     setError,
     setHostForm,
     setHostDialogMode,
-    setKeychainLoading,
-    setKeychainStatus,
     setHosts,
     setSelectedHostId,
     setSelectedSftpHostId,
@@ -257,8 +252,6 @@ export function useAppState() {
     logTabs,
     activeLogTabId,
     connectingHostIds,
-    keychainStatus,
-    keychainLoading,
     filteredHosts,
     hostGroups,
     hostTags,

@@ -9,16 +9,22 @@ import {
   Star,
   Tags,
 } from 'lucide-react'
-import { Suspense, lazy, type ComponentType, type FormEvent, type ReactNode, type RefObject } from 'react'
+import { useCallback, useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import HostList from './HostList'
+import KeychainPanel from './KeychainPanel'
+import KnownHostsPanel from './KnownHostsPanel'
+import SessionLogPanel from './SessionLogPanel'
+import VaultSettingsPanel from './VaultSettingsPanel'
 import { NavigationItem } from '../lib/appShellConfig'
 import { ChangeMasterForm } from '../types'
-import { main, model } from '../wailsjs/wailsjs/go/models'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-const VaultSettingsPanel = lazy(() => import('./VaultSettingsPanel.jsx')) as ComponentType<any>
-const KnownHostsPanel = lazy(() => import('./KnownHostsPanel.jsx')) as ComponentType<any>
-const KeychainPanel = lazy(() => import('./KeychainPanel.jsx')) as ComponentType<any>
-const SessionLogPanel = lazy(() => import('./SessionLogPanel.jsx')) as ComponentType<any>
+type PageToolbarId = 'keychain' | 'knownHosts' | 'logs'
+
+interface PageToolbarRegistration {
+  page: PageToolbarId
+  node: ReactNode
+}
 
 interface VaultWorkspaceProps {
   navigationItems: NavigationItem[]
@@ -65,14 +71,9 @@ interface VaultWorkspaceProps {
   onChangeMasterPassword: (event: FormEvent) => void
   onResetVaultConfirmedChange: (confirmed: boolean) => void
   onResetVault: () => void
-  PanelFallback: ComponentType<{ title?: string; description?: string }>
   isKnownHostsPage: boolean
   isKeychainPage: boolean
   isLogsPage: boolean
-  keychainStatus: model.KeychainStatus | null
-  keychainLoading: boolean
-  vaultInitialized: boolean
-  onRefreshKeychainStatus: () => void
   onOpenLogTab: (log: main.SessionLog) => void
   hostDrawer: ReactNode
 }
@@ -118,17 +119,45 @@ export default function VaultWorkspace({
   onChangeMasterPassword,
   onResetVaultConfirmedChange,
   onResetVault,
-  PanelFallback,
   isKnownHostsPage,
   isKeychainPage,
   isLogsPage,
-  keychainStatus,
-  keychainLoading,
-  vaultInitialized,
-  onRefreshKeychainStatus,
   onOpenLogTab,
   hostDrawer,
 }: VaultWorkspaceProps) {
+  const [pageToolbar, setPageToolbar] = useState<PageToolbarRegistration | null>(null)
+
+  const registerPageToolbar = useCallback((page: PageToolbarId, node: ReactNode | null) => {
+    setPageToolbar((current) => {
+      if (!node) {
+        return current?.page === page ? null : current
+      }
+
+      if (current?.page === page && current.node === node) {
+        return current
+      }
+
+      return { page, node }
+    })
+  }, [])
+
+  const handleKeychainToolbarChange = useCallback(
+    (node: ReactNode | null) => registerPageToolbar('keychain', node),
+    [registerPageToolbar],
+  )
+  const handleKnownHostsToolbarChange = useCallback(
+    (node: ReactNode | null) => registerPageToolbar('knownHosts', node),
+    [registerPageToolbar],
+  )
+  const handleLogsToolbarChange = useCallback(
+    (node: ReactNode | null) => registerPageToolbar('logs', node),
+    [registerPageToolbar],
+  )
+  const activePageToolbar = useMemo(
+    () => (pageToolbar?.page === activeSidebarPage ? pageToolbar.node : null),
+    [activeSidebarPage, pageToolbar],
+  )
+
   return (
     <div className={`app-content${hostDrawer ? ' app-content-drawer-open' : ''}`}>
       <aside className="sidebar">
@@ -280,11 +309,11 @@ export default function VaultWorkspace({
                 </label>
               </div>
             ) : isKeychainPage ? (
-              <div id="keychain-toolbar-slot" className="page-toolbar-keychain-slot" />
+              <div className="page-toolbar-keychain-slot">{activePageToolbar}</div>
             ) : isKnownHostsPage ? (
-              <div id="known-hosts-toolbar-slot" className="page-toolbar-known-hosts-slot" />
+              <div className="page-toolbar-known-hosts-slot">{activePageToolbar}</div>
             ) : isLogsPage ? (
-              <div id="session-log-toolbar-slot" className="page-toolbar-session-log-slot" />
+              <div className="page-toolbar-session-log-slot">{activePageToolbar}</div>
             ) : (
               <div className="page-toolbar-main">
                 <div className="page-intro-copy page-toolbar-copy">
@@ -352,70 +381,30 @@ export default function VaultWorkspace({
               />
             </section>
           ) : isSettingsPage ? (
-            <Suspense
-              fallback={(
-                <PanelFallback
-                  title="正在加载保险箱设置"
-                  description="设置页会在真正访问时加载，避免主流程跟着一起进入首屏包。"
-                />
-              )}
-            >
-              <VaultSettingsPanel
-                vaultUnlocked={vaultUnlocked}
-                changeForm={changeMasterForm}
-                changeBusy={changeMasterBusy}
-                resetConfirmed={resetVaultConfirmed}
-                resetBusy={resetVaultBusy}
-                onChangeField={onChangeMasterField}
-                onChangePassword={onChangeMasterPassword}
-                onResetConfirmedChange={onResetVaultConfirmedChange}
-                onResetVault={onResetVault}
-              />
-            </Suspense>
+            <VaultSettingsPanel
+              changeForm={changeMasterForm}
+              changeBusy={changeMasterBusy}
+              resetConfirmed={resetVaultConfirmed}
+              resetBusy={resetVaultBusy}
+              onChangeField={onChangeMasterField}
+              onChangePassword={onChangeMasterPassword}
+              onResetConfirmedChange={onResetVaultConfirmedChange}
+              onResetVault={onResetVault}
+            />
           ) : isKnownHostsPage ? (
-            <Suspense
-              fallback={(
-                <PanelFallback
-                  title="正在加载已知主机"
-                  description="可信指纹面板会在切换到该页面后再按需加载。"
-                />
-              )}
-            >
-              <KnownHostsPanel hosts={hosts} />
-            </Suspense>
+            <KnownHostsPanel hosts={hosts} onToolbarChange={handleKnownHostsToolbarChange} />
           ) : isKeychainPage ? (
-            <Suspense
-              fallback={(
-                <PanelFallback
-                  title="正在加载钥匙串"
-                  description="凭据中心会在进入对应页面后再拉起，减少主机页初始负担。"
-                />
-              )}
-            >
-              <KeychainPanel
-                status={keychainStatus}
-                loading={keychainLoading}
-                vaultInitialized={vaultInitialized}
-                vaultUnlocked={vaultUnlocked}
-                hostCount={hosts.length}
-                onRefresh={onRefreshKeychainStatus}
-              />
-            </Suspense>
+            <KeychainPanel
+              vaultUnlocked={vaultUnlocked}
+              onToolbarChange={handleKeychainToolbarChange}
+            />
           ) : isLogsPage ? (
-            <Suspense
-              fallback={(
-                <PanelFallback
-                  title="正在加载连接日志"
-                  description="连接历史会在进入日志页后按需加载。"
-                />
-              )}
-            >
-              <SessionLogPanel
-                vaultUnlocked={vaultUnlocked}
-                onReconnect={onConnectHost}
-                onOpenLogTab={onOpenLogTab}
-              />
-            </Suspense>
+            <SessionLogPanel
+              vaultUnlocked={vaultUnlocked}
+              onReconnect={onConnectHost}
+              onOpenLogTab={onOpenLogTab}
+              onToolbarChange={handleLogsToolbarChange}
+            />
           ) : null}
         </main>
       </section>

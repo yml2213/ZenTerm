@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   FileKey2,
   Folder,
@@ -57,6 +56,7 @@ interface ImportKeyForm {
 
 interface KeychainPanelProps {
   vaultUnlocked: boolean
+  onToolbarChange: (toolbar: ReactNode | null) => void
 }
 
 const credentialTypes: CredentialType[] = [
@@ -113,12 +113,12 @@ function formatDate(dateString: string | undefined): string {
 
 export default function KeychainPanel({
   vaultUnlocked,
+  onToolbarChange,
 }: KeychainPanelProps) {
-  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
   const [activeType, setActiveType] = useState('ssh_key')
   const [activeDrawer, setActiveDrawer] = useState<'generateKey' | 'importKey' | null>(null)
   const [credentials, setCredentials] = useState<Credential[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(vaultUnlocked)
   const [generateForm, setGenerateForm] = useState(createGenerateKeyForm)
   const [importForm, setImportForm] = useState(createImportKeyForm)
   const [operationLoading, setOperationLoading] = useState(false)
@@ -135,7 +135,12 @@ export default function KeychainPanel({
   }, [credentials, activeType])
 
   const loadCredentials = useCallback(async () => {
-    if (!vaultUnlocked) return
+    if (!vaultUnlocked) {
+      setCredentials([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -149,14 +154,8 @@ export default function KeychainPanel({
   }, [vaultUnlocked])
 
   useEffect(() => {
-    setToolbarTarget(document.getElementById('keychain-toolbar-slot'))
-  }, [])
-
-  useEffect(() => {
-    if (vaultUnlocked) {
-      void loadCredentials()
-    }
-  }, [loadCredentials, vaultUnlocked, activeType])
+    void loadCredentials()
+  }, [loadCredentials])
 
   function openDrawer(drawer: 'generateKey' | 'importKey') {
     setActiveDrawer(drawer)
@@ -172,10 +171,10 @@ export default function KeychainPanel({
     setError(null)
   }
 
-  function handleTypeChange(type: string) {
+  const handleTypeChange = useCallback((type: string) => {
     setActiveType(type)
     setActiveDrawer(null)
-  }
+  }, [])
 
   function handleGenerateField<K extends keyof GenerateKeyForm>(field: K, value: GenerateKeyForm[K]) {
     setGenerateForm((current) => ({
@@ -263,50 +262,67 @@ export default function KeychainPanel({
 
   const TypeIcon = activeTypeConfig.icon
 
-  const toolbar = (
-    <div className="keychain-toolbar">
-      <div className="keychain-sections" role="tablist" aria-label="凭据类型">
-        {credentialTypes.map((type) => {
-          const Icon = type.icon
-          const count = credentials.filter((c) => c.type === type.id).length
+  const toolbar = useMemo(
+    () => (
+      <div className="keychain-toolbar">
+        <div className="keychain-sections" role="tablist" aria-label="凭据类型">
+          {credentialTypes.map((type) => {
+            const Icon = type.icon
+            const count = credentials.filter((c) => c.type === type.id).length
 
-          return (
-            <button
-              key={type.id}
-              type="button"
-              role="tab"
-              aria-selected={activeType === type.id}
-              className={`keychain-section-tab${activeType === type.id ? ' active' : ''}`}
-              onClick={() => handleTypeChange(type.id)}
-            >
-              <Icon size={15} />
-              <span>{type.label}</span>
-              <small>{count}</small>
-            </button>
-          )
-        })}
-      </div>
+            return (
+              <button
+                key={type.id}
+                type="button"
+                role="tab"
+                aria-selected={activeType === type.id}
+                className={`keychain-section-tab${activeType === type.id ? ' active' : ''}`}
+                onClick={() => handleTypeChange(type.id)}
+              >
+                <Icon size={15} />
+                <span>{type.label}</span>
+                <small>{count}</small>
+              </button>
+            )
+          })}
+        </div>
 
-      <div className="keychain-toolbar-actions">
-        <button
-          type="button"
-          className="ghost-button compact"
-          onClick={loadCredentials}
-          disabled={loading || !vaultUnlocked}
-        >
-          <RefreshCw size={14} className={loading ? 'spin' : undefined} />
-          刷新
-        </button>
+        <div className="keychain-toolbar-actions">
+          <button
+            type="button"
+            className="ghost-button compact"
+            onClick={loadCredentials}
+            disabled={loading || !vaultUnlocked}
+          >
+            <RefreshCw size={14} className={loading ? 'spin' : undefined} />
+            刷新
+          </button>
+        </div>
       </div>
-    </div>
+    ),
+    [activeType, credentials, handleTypeChange, loadCredentials, loading, vaultUnlocked],
   )
 
+  useLayoutEffect(() => {
+    onToolbarChange(toolbar)
+    return () => onToolbarChange(null)
+  }, [onToolbarChange, toolbar])
+
   return (
-    <section className={`keychain-stage${toolbarTarget ? ' toolbar-portaled' : ''}`}>
-      {toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar}
+    <section className="keychain-stage">
       <div className={`keychain-workbench${activeDrawer ? ' drawer-open' : ''}`}>
         <div className="keychain-canvas">
-          {filteredCredentials.length === 0 ? (
+          {loading && filteredCredentials.length === 0 ? (
+            <div className="keychain-empty-state">
+              <div className="keychain-empty-icon">
+                <TypeIcon size={28} />
+              </div>
+              <div className="keychain-empty-copy">
+                <strong>正在读取{activeTypeConfig.label}</strong>
+                <p>ZenTerm 正在从保险箱中同步凭据列表。</p>
+              </div>
+            </div>
+          ) : filteredCredentials.length === 0 ? (
             <div className="keychain-empty-state">
               <div className="keychain-empty-icon">
                 <TypeIcon size={28} />

@@ -1,13 +1,12 @@
-import { startTransition, useCallback } from 'react'
+import { startTransition } from 'react'
 import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils'
 import {
   changeMasterPassword,
-  getKeychainStatus,
   initializeVaultWithPreferences,
   resetVault,
   unlockWithPreferences,
 } from '../lib/backend'
-import { main, model } from '../wailsjs/wailsjs/go/models'
+import { main } from '../wailsjs/wailsjs/go/models'
 import { VaultSetupForm, ChangeMasterForm, HostFormModel, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../types'
 
 interface VaultActionHandlersProps {
@@ -19,8 +18,6 @@ interface VaultActionHandlersProps {
   }
   setters: {
     setError: (error: string | null) => void
-    setKeychainLoading: (loading: boolean) => void
-    setKeychainStatus: (status: model.KeychainStatus | null) => void
     setVaultSetupBusy: (busy: boolean) => void
     setVaultInitialized: (initialized: boolean) => void
     setVaultUnlocked: (unlocked: boolean) => void
@@ -65,8 +62,6 @@ export function useVaultActionHandlers({
   } = state
   const {
     setError,
-    setKeychainLoading,
-    setKeychainStatus,
     setVaultSetupBusy,
     setVaultInitialized,
     setVaultUnlocked,
@@ -95,17 +90,6 @@ export function useVaultActionHandlers({
   } = setters
   const { newTabCounterRef } = refs
 
-  const refreshKeychainStatus = useCallback(() => {
-    setKeychainLoading(true)
-
-    return getKeychainStatus()
-      .then((status) => {
-        setKeychainStatus(status)
-      })
-      .catch((err) => setError(err.message || String(err)))
-      .finally(() => setKeychainLoading(false))
-  }, [setError, setKeychainLoading, setKeychainStatus])
-
   function handleInitializeVault(event: React.FormEvent) {
     event.preventDefault()
 
@@ -126,7 +110,6 @@ export function useVaultActionHandlers({
         setVaultInitialized(true)
         setVaultUnlocked(true)
         setVaultSetupForm(createVaultSetupForm())
-        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setVaultSetupBusy(false))
@@ -141,7 +124,6 @@ export function useVaultActionHandlers({
       .then(() => {
         setVaultUnlocked(true)
         setAccessPassword('')
-        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setAccessBusy(false))
@@ -172,7 +154,6 @@ export function useVaultActionHandlers({
     )
       .then(() => {
         setChangeMasterForm(createChangeMasterForm())
-        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setChangeMasterBusy(false))
@@ -212,16 +193,13 @@ export function useVaultActionHandlers({
           setNewTabs([])
           setActiveNewTabId(null)
           setConnectingHostIds([])
-          setKeychainStatus(null)
         })
-        refreshKeychainStatus()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setResetVaultBusy(false))
   }
 
   return {
-    refreshKeychainStatus,
     handleInitializeVault,
     handleAccessPassword,
     handleChangeMasterField,

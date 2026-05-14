@@ -197,7 +197,7 @@ export function useHostActionHandlers({
   }
 
   function handlePickSftpHost(hostId?: string | null) {
-    if (hostId === null || hostId === undefined) {
+    if (hostId === null) {
       setSelectedSftpHostId(null)
       return
     }

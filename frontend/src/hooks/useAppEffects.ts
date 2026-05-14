@@ -20,7 +20,6 @@ interface AppBootstrapProps {
   setVaultInitialized: (initialized: boolean) => void
   setVaultUnlocked: (unlocked: boolean) => void
   setVaultReady: (ready: boolean) => void
-  refreshKeychainStatus: () => void
   setError: (error: string | null) => void
   setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
 }
@@ -34,7 +33,6 @@ export function useAppBootstrap({
   setVaultInitialized,
   setVaultUnlocked,
   setVaultReady,
-  refreshKeychainStatus,
   setError,
   setHostKeyPrompt,
 }: AppBootstrapProps) {
@@ -82,8 +80,6 @@ export function useAppBootstrap({
         setVaultUnlocked(Boolean(unlocked))
         setVaultReady(true)
       })
-
-      refreshKeychainStatus()
     }
 
     bootstrap().catch((err) => {
@@ -102,7 +98,6 @@ export function useAppBootstrap({
       offHostKey()
     }
   }, [
-    refreshKeychainStatus,
     setActiveSessionId,
     setActiveWorkspace,
     setError,
