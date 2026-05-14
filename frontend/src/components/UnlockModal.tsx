@@ -1,4 +1,18 @@
 import { LockKeyhole, ShieldEllipsis } from 'lucide-react'
+import type { FormEvent } from 'react'
+
+interface UnlockModalProps {
+  open: boolean
+  mode?: 'continue' | 'setup'
+  password: string
+  confirmPassword?: string
+  busy: boolean
+  riskAcknowledged?: boolean
+  onPasswordChange: (value: string) => void
+  onConfirmPasswordChange?: (value: string) => void
+  onRiskAcknowledgedChange?: (value: boolean) => void
+  onSubmit: (event: FormEvent) => void
+}
 
 export default function UnlockModal({
   open,
@@ -11,7 +25,7 @@ export default function UnlockModal({
   onConfirmPasswordChange,
   onRiskAcknowledgedChange,
   onSubmit,
-}) {
+}: UnlockModalProps) {
   if (!open) {
     return null
   }

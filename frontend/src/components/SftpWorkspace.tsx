@@ -14,12 +14,13 @@ import {
   Trash2,
   Upload,
   X,
+  type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import ContextMenu from './sftp/ContextMenu.jsx'
-import EntryDialog from './sftp/EntryDialog.jsx'
-import PaneEmptyState from './sftp/PaneEmptyState.jsx'
-import SortButton from './sftp/SortButton.jsx'
+import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import ContextMenu from './sftp/ContextMenu'
+import EntryDialog from './sftp/EntryDialog'
+import PaneEmptyState from './sftp/PaneEmptyState'
+import SortButton from './sftp/SortButton'
 import {
   createLocalDirectory,
   createRemoteDirectory,
@@ -31,7 +32,7 @@ import {
   renameLocalEntry,
   renameRemoteEntry,
   uploadFile,
-} from '../lib/backend.js'
+} from '../lib/backend'
 import {
   buildActionSuccessMessage,
   buildRows,
@@ -52,7 +53,83 @@ import {
   splitLocalPath,
   splitRemotePath,
   uniquePaths,
-} from '../lib/sftpUtils.js'
+  type FileEntry,
+  type FileListing,
+  type SortConfig,
+  type PathSegment as BreadcrumbItem,
+  type ContextMenuState,
+  type TransferResult,
+  type DialogState,
+} from '../lib/sftpUtils'
+import { main } from '../wailsjs/wailsjs/go/models'
+
+type Host = main.Host
+
+interface ExtendedContextMenuState extends ContextMenuState {
+  transferLabel?: string
+  deleteSelectionLabel?: string
+  hiddenFilesLabel?: string
+}
+
+interface ExtendedDialogState extends DialogState {
+  value?: string
+  direction?: 'upload' | 'download'
+  sourcePath?: string
+  sourcePaths?: string[]
+  startIndex?: number
+  completedCount?: number
+  targetDirectory?: string
+  targetPath?: string
+}
+
+interface Notice {
+  tone: 'success' | 'error' | 'warning'
+  message: string
+}
+
+interface FilePaneProps {
+  className?: string
+  scope: 'local' | 'remote'
+  sourceLabel: string
+  sourceIcon: LucideIcon
+  listing: FileListing | null
+  loading: boolean
+  hostLabel?: string
+  hostMeta?: string
+  headerActions?: React.ReactNode
+  showHiddenFiles: boolean
+  sort: SortConfig
+  onSortChange: (key: string) => void
+  onNavigate: (path: string) => void
+  onRefresh: () => void
+  breadcrumbItems: BreadcrumbItem[]
+  selectedPath: string | null
+  selectedPaths: string[]
+  onSelectOnlyPath: (path: string | null) => void
+  onTogglePathSelection: (path: string) => void
+  onSelectRange: (path: string, orderedPaths: string[]) => void
+  onToggleAllSelection: () => void
+  transferLabel: string | null
+  transferBusy: boolean
+  transferDisabled: boolean
+  onTransfer: () => void
+  onCreateDirectory: () => void
+  onRenameEntry: (entry: FileEntry) => void
+  onDeleteEntry: (entry: FileEntry) => void
+  onDeleteSelection: (entries: FileEntry[]) => void
+  onClearSelection: () => void
+  onContextMenu: (state: Omit<ContextMenuState, 'transferLabel' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) => void
+}
+
+interface SftpWorkspaceProps {
+  hosts: Host[]
+  selectedHost: Host | null
+  vaultUnlocked: boolean
+  onChooseHost: (hostId?: string | null) => void
+  onCreateHost: () => void
+  onBackToVaults: () => void
+  onError: (message: string) => void
+}
 
 function FilePane({
   className = '',
@@ -86,7 +163,7 @@ function FilePane({
   onDeleteSelection,
   onClearSelection,
   onContextMenu,
-}) {
+}: FilePaneProps) {
   const visibleEntries = useMemo(
     () => filterVisibleEntries(listing?.entries, showHiddenFiles),
     [listing, showHiddenFiles],
@@ -131,7 +208,7 @@ function FilePane({
   const sourceMetaTitle = [hostLabel, hostMeta].filter(Boolean).join(' · ') || sourceLabel
   const transferIcon = transferActionLabel?.includes('上传') ? <Upload size={15} /> : <Download size={15} />
 
-  function handleRowClick(event, entry) {
+  function handleRowClick(event: React.MouseEvent, entry: FileEntry) {
     if (entry.parent) {
       onSelectOnlyPath(entry.path)
       return
@@ -243,7 +320,7 @@ function FilePane({
                   onClick={() => (
                     selectedEntries.length > 1
                       ? onDeleteSelection(selectedEntries)
-                      : onDeleteEntry(singleSelectedEntry)
+                      : onDeleteEntry(singleSelectedEntry!)
                   )}
                 >
                   <Trash2 size={15} />
@@ -254,8 +331,8 @@ function FilePane({
                 <button
                   type="button"
                   className="icon-button sftp-tool-button"
-                  aria-label={transferActionAriaLabel}
-                  title={transferActionAriaLabel}
+                  aria-label={transferActionAriaLabel || ''}
+                  title={transferActionAriaLabel || ''}
                   disabled={transferDisabled}
                   onClick={onTransfer}
                 >
@@ -307,16 +384,21 @@ function FilePane({
         <div
           className="sftp-file-body"
           onContextMenu={(event) => {
-            if (event.target.closest('.sftp-file-row')) {
+            if (event.target instanceof Element && event.target.closest('.sftp-file-row')) {
               return
             }
 
             event.preventDefault()
             onContextMenu({
               scope,
-              entry: null,
+              entry: undefined,
               x: event.clientX,
               y: event.clientY,
+              useSelectionActions: false,
+              selectionCount: 0,
+              canTransferSelection: false,
+              canClearSelection: false,
+              canDeleteSelection: false,
             })
           }}
         >
@@ -354,6 +436,11 @@ function FilePane({
                     entry,
                     x: event.clientX,
                     y: event.clientY,
+                    useSelectionActions: false,
+                    selectionCount: 0,
+                    canTransferSelection: false,
+                    canClearSelection: false,
+                    canDeleteSelection: false,
                   })
                 }}
                 onKeyDown={(event) => {
@@ -426,28 +513,28 @@ export default function SftpWorkspace({
   onCreateHost,
   onBackToVaults,
   onError,
-}) {
-  const [localListing, setLocalListing] = useState(null)
-  const [remoteListing, setRemoteListing] = useState(null)
+}: SftpWorkspaceProps) {
+  const [localListing, setLocalListing] = useState<FileListing | null>(null)
+  const [remoteListing, setRemoteListing] = useState<FileListing | null>(null)
   const [localLoading, setLocalLoading] = useState(false)
   const [remoteLoading, setRemoteLoading] = useState(false)
   const [showHiddenLocalFiles, setShowHiddenLocalFiles] = useState(false)
   const [showHiddenRemoteFiles, setShowHiddenRemoteFiles] = useState(false)
-  const [selectedLocalPath, setSelectedLocalPath] = useState(null)
-  const [selectedRemotePath, setSelectedRemotePath] = useState(null)
-  const [selectedLocalPaths, setSelectedLocalPaths] = useState([])
-  const [selectedRemotePaths, setSelectedRemotePaths] = useState([])
-  const [localSelectionAnchor, setLocalSelectionAnchor] = useState(null)
-  const [remoteSelectionAnchor, setRemoteSelectionAnchor] = useState(null)
-  const [transferBusy, setTransferBusy] = useState(null)
-  const [notice, setNotice] = useState(null)
-  const [localSort, setLocalSort] = useState(defaultSort)
-  const [remoteSort, setRemoteSort] = useState(defaultSort)
-  const [contextMenu, setContextMenu] = useState(null)
-  const [dialogState, setDialogState] = useState(null)
+  const [selectedLocalPath, setSelectedLocalPath] = useState<string | null>(null)
+  const [selectedRemotePath, setSelectedRemotePath] = useState<string | null>(null)
+  const [selectedLocalPaths, setSelectedLocalPaths] = useState<string[]>([])
+  const [selectedRemotePaths, setSelectedRemotePaths] = useState<string[]>([])
+  const [localSelectionAnchor, setLocalSelectionAnchor] = useState<string | null>(null)
+  const [remoteSelectionAnchor, setRemoteSelectionAnchor] = useState<string | null>(null)
+  const [transferBusy, setTransferBusy] = useState<'upload' | 'download' | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
+  const [localSort, setLocalSort] = useState<SortConfig>(defaultSort)
+  const [remoteSort, setRemoteSort] = useState<SortConfig>(defaultSort)
+  const [contextMenu, setContextMenu] = useState<ExtendedContextMenuState | null>(null)
+  const [dialogState, setDialogState] = useState<ExtendedDialogState | null>(null)
   const [dialogBusy, setDialogBusy] = useState(false)
 
-  function toggleHiddenFiles(scope) {
+  function toggleHiddenFiles(scope: 'local' | 'remote') {
     clearScopeSelection(scope)
     if (scope === 'remote') {
       setShowHiddenRemoteFiles((current) => !current)
@@ -457,18 +544,18 @@ export default function SftpWorkspace({
     setShowHiddenLocalFiles((current) => !current)
   }
 
-  function getShowHiddenState(scope) {
+  function getShowHiddenState(scope: 'local' | 'remote'): boolean {
     return scope === 'remote' ? showHiddenRemoteFiles : showHiddenLocalFiles
   }
 
-  function getVisibleListing(scope) {
+  function getVisibleListing(scope: 'local' | 'remote'): FileListing | null {
     const listing = scope === 'remote' ? remoteListing : localListing
     return listing
       ? { ...listing, entries: filterVisibleEntries(listing.entries, getShowHiddenState(scope)) }
       : listing
   }
 
-  function clearScopeSelection(scope) {
+  function clearScopeSelection(scope: 'local' | 'remote') {
     if (scope === 'remote') {
       setSelectedRemotePath(null)
       setSelectedRemotePaths([])
@@ -481,7 +568,7 @@ export default function SftpWorkspace({
     setLocalSelectionAnchor(null)
   }
 
-  function selectOnlyPath(scope, path) {
+  function selectOnlyPath(scope: 'local' | 'remote', path: string | null) {
     if (scope === 'remote') {
       setSelectedRemotePath(path || null)
       setSelectedRemotePaths(path ? [path] : [])
@@ -494,7 +581,7 @@ export default function SftpWorkspace({
     setLocalSelectionAnchor(path || null)
   }
 
-  function togglePathSelection(scope, path) {
+  function togglePathSelection(scope: 'local' | 'remote', path: string) {
     const setter = scope === 'remote' ? setSelectedRemotePaths : setSelectedLocalPaths
     const setPrimary = scope === 'remote' ? setSelectedRemotePath : setSelectedLocalPath
     const setAnchor = scope === 'remote' ? setRemoteSelectionAnchor : setLocalSelectionAnchor
@@ -508,10 +595,10 @@ export default function SftpWorkspace({
     })
   }
 
-  function selectRange(scope, path, orderedPaths) {
+  function selectRange(scope: 'local' | 'remote', path: string, orderedPaths: string[]) {
     const anchor = scope === 'remote' ? remoteSelectionAnchor : localSelectionAnchor
-    const resolvedAnchor = orderedPaths.includes(anchor) ? anchor : path
-    const anchorIndex = orderedPaths.indexOf(resolvedAnchor)
+    const resolvedAnchor = orderedPaths.includes(anchor || '') ? anchor : path
+    const anchorIndex = orderedPaths.indexOf(resolvedAnchor || '')
     const currentIndex = orderedPaths.indexOf(path)
 
     if (anchorIndex === -1 || currentIndex === -1) {
@@ -536,7 +623,7 @@ export default function SftpWorkspace({
     setLocalSelectionAnchor(resolvedAnchor)
   }
 
-  function toggleAllSelection(scope, listing) {
+  function toggleAllSelection(scope: 'local' | 'remote', listing: FileListing | null) {
     const allPaths = uniquePaths((listing?.entries || []).map((entry) => entry.path))
     const currentPaths = scope === 'remote' ? selectedRemotePaths : selectedLocalPaths
     const allSelected = allPaths.length > 0 && allPaths.every((path) => currentPaths.includes(path))
@@ -569,9 +656,9 @@ export default function SftpWorkspace({
           clearScopeSelection('local')
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          onError(error?.message || String(error))
+          onError((error as Error)?.message || String(error))
         }
       })
       .finally(() => {
@@ -605,9 +692,9 @@ export default function SftpWorkspace({
           clearScopeSelection('remote')
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          onError(error?.message || String(error))
+          onError((error as Error)?.message || String(error))
         }
       })
       .finally(() => {
@@ -630,7 +717,7 @@ export default function SftpWorkspace({
       setContextMenu(null)
     }
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         closeMenu()
       }
@@ -659,29 +746,30 @@ export default function SftpWorkspace({
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  function updateSort(scope, columnKey) {
+  function updateSort(scope: 'local' | 'remote', columnKey: string) {
     const setter = scope === 'remote' ? setRemoteSort : setLocalSort
-    setter((current) => (
-      current.key === columnKey
-        ? { key: columnKey, direction: current.direction === 'asc' ? 'desc' : 'asc' }
-        : { key: columnKey, direction: columnKey === 'name' ? 'asc' : 'desc' }
-    ))
+    setter((current) => {
+      const key = columnKey as SortConfig['key']
+      return current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: key === 'name' ? 'asc' : 'desc' }
+    })
   }
 
-  async function handleLocalNavigate(path) {
+  async function handleLocalNavigate(path: string) {
     setLocalLoading(true)
     try {
       const listing = await listLocalFiles(path)
       setLocalListing(listing)
       clearScopeSelection('local')
     } catch (error) {
-      onError(error?.message || String(error))
+      onError(error instanceof Error ? error.message : String(error))
     } finally {
       setLocalLoading(false)
     }
   }
 
-  async function handleRemoteNavigate(path) {
+  async function handleRemoteNavigate(path: string) {
     if (!selectedHost) {
       return
     }
@@ -692,13 +780,13 @@ export default function SftpWorkspace({
       setRemoteListing(listing)
       clearScopeSelection('remote')
     } catch (error) {
-      onError(error?.message || String(error))
+      onError(error instanceof Error ? error.message : String(error))
     } finally {
       setRemoteLoading(false)
     }
   }
 
-  async function refreshScope(scope) {
+  async function refreshScope(scope: 'local' | 'remote') {
     if (scope === 'remote') {
       await handleRemoteNavigate(remoteListing?.path || '')
       return
@@ -707,7 +795,7 @@ export default function SftpWorkspace({
     await handleLocalNavigate(localListing?.path || '')
   }
 
-  function openCreateDirectory(scope) {
+  function openCreateDirectory(scope: 'local' | 'remote') {
     setContextMenu(null)
     setDialogState({
       type: 'mkdir',
@@ -717,7 +805,7 @@ export default function SftpWorkspace({
     })
   }
 
-  function openRenameEntry(scope, entry) {
+  function openRenameEntry(scope: 'local' | 'remote', entry: FileEntry) {
     if (!entry || entry.parent) {
       return
     }
@@ -731,7 +819,7 @@ export default function SftpWorkspace({
     })
   }
 
-  function openDeleteEntry(scope, entry) {
+  function openDeleteEntry(scope: 'local' | 'remote', entry: FileEntry) {
     if (!entry || entry.parent) {
       return
     }
@@ -745,7 +833,7 @@ export default function SftpWorkspace({
     })
   }
 
-  function openDeleteSelection(scope, entries) {
+  function openDeleteSelection(scope: 'local' | 'remote', entries: FileEntry[]) {
     const actionableEntries = collapseEntriesForDelete((entries || []).filter((entry) => entry && !entry.parent))
     if (actionableEntries.length === 0) {
       return
@@ -765,7 +853,12 @@ export default function SftpWorkspace({
     })
   }
 
-  function openTransferConflictDialog(direction, state) {
+  function openTransferConflictDialog(direction: 'upload' | 'download', state: {
+    sourcePaths: string[]
+    targetDirectory: string
+    startIndex: number
+    completedCount: number
+  }) {
     const currentSourcePath = state.sourcePaths[state.startIndex]
     const sourceName = getBaseName(currentSourcePath)
 
@@ -785,7 +878,13 @@ export default function SftpWorkspace({
     })
   }
 
-  async function executeTransfer(direction, options = {}) {
+  async function executeTransfer(direction: 'upload' | 'download', options: {
+    sourcePaths?: string[]
+    targetDirectory?: string
+    startIndex?: number
+    completedCount?: number
+    overwriteCurrent?: boolean
+  } = {}) {
     const sourcePaths = uniquePaths(
       options.sourcePaths || (
         direction === 'upload'
@@ -846,10 +945,10 @@ export default function SftpWorkspace({
       setDialogState(null)
       setNotice({
         tone: 'success',
-        message: buildTransferNotice(direction, totalCount, targetDirectory, results.at(-1)),
+        message: buildTransferNotice(direction, totalCount, targetDirectory, results.at(-1) || null),
       })
     } catch (error) {
-      onError(error?.message || String(error))
+      onError(error instanceof Error ? error.message : String(error))
     } finally {
       setTransferBusy(null)
     }
@@ -864,7 +963,7 @@ export default function SftpWorkspace({
     setDialogBusy(true)
     try {
       if (currentDialog.type === 'overwrite-transfer') {
-        await executeTransfer(currentDialog.direction, {
+        await executeTransfer(currentDialog.direction!, {
           sourcePaths: currentDialog.sourcePaths,
           targetDirectory: currentDialog.targetDirectory,
           startIndex: currentDialog.startIndex,
@@ -879,16 +978,16 @@ export default function SftpWorkspace({
           if (!selectedHost) {
             return
           }
-          await createRemoteDirectory(selectedHost.id, currentDialog.parentPath, currentDialog.value)
-          await handleRemoteNavigate(currentDialog.parentPath)
+          await createRemoteDirectory(selectedHost.id, currentDialog.parentPath!, currentDialog.value!)
+          await handleRemoteNavigate(currentDialog.parentPath!)
         } else {
-          await createLocalDirectory(currentDialog.parentPath, currentDialog.value)
-          await handleLocalNavigate(currentDialog.parentPath)
+          await createLocalDirectory(currentDialog.parentPath!, currentDialog.value!)
+          await handleLocalNavigate(currentDialog.parentPath!)
         }
 
         setNotice({
           tone: 'success',
-          message: buildActionSuccessMessage('mkdir', currentDialog.scope, { name: currentDialog.value.trim() }),
+          message: buildActionSuccessMessage('mkdir', currentDialog.scope, { name: currentDialog.value!.trim() }),
         })
       }
 
@@ -897,11 +996,11 @@ export default function SftpWorkspace({
           if (!selectedHost) {
             return
           }
-          await renameRemoteEntry(selectedHost.id, currentDialog.entry.path, currentDialog.value)
+          await renameRemoteEntry(selectedHost.id, currentDialog.entry!.path, currentDialog.value!)
           await handleRemoteNavigate(remoteListing?.path || '')
           clearScopeSelection('remote')
         } else {
-          await renameLocalEntry(currentDialog.entry.path, currentDialog.value)
+          await renameLocalEntry(currentDialog.entry!.path, currentDialog.value!)
           await handleLocalNavigate(localListing?.path || '')
           clearScopeSelection('local')
         }
@@ -909,8 +1008,8 @@ export default function SftpWorkspace({
         setNotice({
           tone: 'success',
           message: buildActionSuccessMessage('rename', currentDialog.scope, {
-            entry: currentDialog.entry,
-            name: currentDialog.value.trim(),
+            entry: currentDialog.entry!,
+            name: currentDialog.value!.trim(),
           }),
         })
       }
@@ -920,18 +1019,18 @@ export default function SftpWorkspace({
           if (!selectedHost) {
             return
           }
-          await deleteRemoteEntry(selectedHost.id, currentDialog.entry.path)
+          await deleteRemoteEntry(selectedHost.id, currentDialog.entry!.path)
           await handleRemoteNavigate(remoteListing?.path || '')
           clearScopeSelection('remote')
         } else {
-          await deleteLocalEntry(currentDialog.entry.path)
+          await deleteLocalEntry(currentDialog.entry!.path)
           await handleLocalNavigate(localListing?.path || '')
           clearScopeSelection('local')
         }
 
         setNotice({
           tone: 'success',
-          message: buildActionSuccessMessage('delete', currentDialog.scope, { entry: currentDialog.entry }),
+          message: buildActionSuccessMessage('delete', currentDialog.scope, { entry: currentDialog.entry! }),
         })
       }
 
@@ -940,13 +1039,13 @@ export default function SftpWorkspace({
           if (!selectedHost) {
             return
           }
-          for (const entry of currentDialog.entries) {
+          for (const entry of currentDialog.entries!) {
             await deleteRemoteEntry(selectedHost.id, entry.path)
           }
           await handleRemoteNavigate(remoteListing?.path || '')
           clearScopeSelection('remote')
         } else {
-          for (const entry of currentDialog.entries) {
+          for (const entry of currentDialog.entries!) {
             await deleteLocalEntry(entry.path)
           }
           await handleLocalNavigate(localListing?.path || '')
@@ -955,19 +1054,19 @@ export default function SftpWorkspace({
 
         setNotice({
           tone: 'success',
-          message: buildActionSuccessMessage('delete-batch', currentDialog.scope, { count: currentDialog.entries.length }),
+          message: buildActionSuccessMessage('delete-batch', currentDialog.scope, { count: currentDialog.entries!.length }),
         })
       }
 
       setDialogState(null)
     } catch (error) {
-      onError(error?.message || String(error))
+      onError(error instanceof Error ? error.message : String(error))
     } finally {
       setDialogBusy(false)
     }
   }
 
-  function handleContextAction(action) {
+  function handleContextAction(action: string) {
     if (!contextMenu) {
       return
     }
@@ -1010,12 +1109,12 @@ export default function SftpWorkspace({
     }
 
     if (action === 'rename') {
-      openRenameEntry(contextMenu.scope, contextMenu.entry)
+      openRenameEntry(contextMenu.scope, contextMenu.entry!)
       return
     }
 
     if (action === 'delete') {
-      openDeleteEntry(contextMenu.scope, contextMenu.entry)
+      openDeleteEntry(contextMenu.scope, contextMenu.entry!)
       return
     }
 
@@ -1078,7 +1177,7 @@ export default function SftpWorkspace({
     </div>
   ) : null
 
-  function openContextMenu(nextState) {
+  function openContextMenu(nextState: Omit<ContextMenuState, 'useSelectionActions' | 'selectionCount' | 'transferLabel' | 'canTransferSelection' | 'canClearSelection' | 'canDeleteSelection' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) {
     const scope = nextState.scope
     const selectedPaths = scope === 'remote' ? selectedRemotePaths : selectedLocalPaths
     const listing = getVisibleListing(scope)
@@ -1253,3 +1352,4 @@ export default function SftpWorkspace({
     </section>
   )
 }
+

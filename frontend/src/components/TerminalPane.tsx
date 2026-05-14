@@ -1,13 +1,28 @@
 import { useEffect, useEffectEvent, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { onRuntimeEvent } from '../lib/backend.js'
-import { measureTerminalGeometry } from '../lib/terminalGeometry.js'
+import { onRuntimeEvent } from '../lib/backend'
+import { measureTerminalGeometry } from '../lib/terminalGeometry'
 
 const MAX_SESSION_BUFFER_CHARS = 1_000_000
 const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
 
-function trimSessionBuffer(content) {
+interface Session {
+  sessionId: string
+  title: string
+}
+
+interface TerminalPaneProps {
+  sessions: Session[]
+  activeSessionId: string | null
+  activeSessionTitle: string
+  onSendInput: (sessionId: string, data: string) => Promise<void>
+  onResize: (sessionId: string, cols: number, rows: number) => Promise<void>
+  onSessionClosed: (sessionId: string) => void
+  onError: (error: unknown) => void
+}
+
+function trimSessionBuffer(content: string): string {
   if (content.length <= MAX_SESSION_BUFFER_CHARS) {
     return content
   }
@@ -23,14 +38,14 @@ export default function TerminalPane({
   onResize,
   onSessionClosed,
   onError,
-}) {
-  const terminalContainerRef = useRef(null)
-  const terminalRef = useRef(null)
-  const fitAddonRef = useRef(null)
-  const activeSessionIdRef = useRef(null)
-  const fitFrameRef = useRef(null)
-  const buffersRef = useRef(new Map())
-  const unsubscribeMapRef = useRef(new Map())
+}: TerminalPaneProps) {
+  const terminalContainerRef = useRef<HTMLDivElement>(null)
+  const terminalRef = useRef<XTerm | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
+  const fitFrameRef = useRef<number | null>(null)
+  const buffersRef = useRef(new Map<string, string>())
+  const unsubscribeMapRef = useRef(new Map<string, () => void>())
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
@@ -96,7 +111,7 @@ export default function TerminalPane({
     scheduleSyncSize()
   })
 
-  const appendChunk = useEffectEvent((sessionId, chunk) => {
+  const appendChunk = useEffectEvent((sessionId: string, chunk: unknown) => {
     const text = typeof chunk === 'string' ? chunk : String(chunk ?? '')
     const previous = buffersRef.current.get(sessionId) || ''
     const next = trimSessionBuffer(previous + text)
@@ -107,7 +122,7 @@ export default function TerminalPane({
     }
   })
 
-  const appendError = useEffectEvent((sessionId, message) => {
+  const appendError = useEffectEvent((sessionId: string, message: unknown) => {
     const text = `\r\n\x1b[31m[error]\x1b[0m ${String(message ?? '')}`
     appendChunk(sessionId, text)
 
@@ -116,12 +131,12 @@ export default function TerminalPane({
     }
   })
 
-  const appendClosed = useEffectEvent((sessionId) => {
+  const appendClosed = useEffectEvent((sessionId: string) => {
     appendChunk(sessionId, '\r\n\x1b[33m[session closed]\x1b[0m\r\n')
     onSessionClosed(sessionId)
   })
 
-  const handleInput = useEffectEvent(async (data) => {
+  const handleInput = useEffectEvent(async (data: string) => {
     const sessionId = activeSessionIdRef.current
     if (!sessionId) {
       return

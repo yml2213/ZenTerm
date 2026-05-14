@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  FileKey2,
+  Folder,
   KeyRound,
   Plus,
   RefreshCw,
@@ -17,32 +19,71 @@ import {
   getCredentialUsage,
   deleteCredential,
 } from '../lib/backend'
+import { main, model } from '../wailsjs/wailsjs/go/models'
 
-const credentialTypes = [
+type Credential = main.Credential
+type CredentialUsage = model.CredentialUsage
+
+interface CredentialType {
+  id: string
+  label: string
+  icon: typeof KeyRound
+}
+
+interface KeyAlgorithm {
+  id: string
+  label: string
+  bits: number[] | null
+}
+
+interface KeySize {
+  value: number
+  label: string
+}
+
+interface GenerateKeyForm {
+  label: string
+  algorithm: string
+  keyBits: number | null
+  passphrase: string
+  rememberPassphrase: boolean
+}
+
+interface ImportKeyForm {
+  label: string
+  privateKeyPEM: string
+  passphrase: string
+}
+
+interface KeychainPanelProps {
+  vaultUnlocked: boolean
+}
+
+const credentialTypes: CredentialType[] = [
   { id: 'ssh_key', label: 'SSH 密钥', icon: KeyRound },
   { id: 'password', label: '密码', icon: ShieldCheck },
   { id: 'certificate', label: '证书', icon: ShieldQuestion },
 ]
 
-const keyAlgorithms = [
+const keyAlgorithms: KeyAlgorithm[] = [
   { id: 'ed25519', label: 'ED25519', bits: null },
   { id: 'rsa', label: 'RSA', bits: [1024, 2048, 4096] },
   { id: 'ecdsa', label: 'ECDSA', bits: [256, 384, 521] },
 ]
 
-const rsaKeySizes = [
+const rsaKeySizes: KeySize[] = [
   { value: 1024, label: '1024 位 (兼容性好)' },
   { value: 2048, label: '2048 位 (推荐)' },
   { value: 4096, label: '4096 位 (高安全)' },
 ]
 
-const ecdsaCurves = [
+const ecdsaCurves: KeySize[] = [
   { value: 256, label: 'P-256 (快速)' },
   { value: 384, label: 'P-384 (推荐)' },
   { value: 521, label: 'P-521 (高安全)' },
 ]
 
-function createGenerateKeyForm() {
+function createGenerateKeyForm(): GenerateKeyForm {
   return {
     label: '',
     algorithm: 'ed25519',
@@ -52,7 +93,7 @@ function createGenerateKeyForm() {
   }
 }
 
-function createImportKeyForm() {
+function createImportKeyForm(): ImportKeyForm {
   return {
     label: '',
     privateKeyPEM: '',
@@ -60,7 +101,7 @@ function createImportKeyForm() {
   }
 }
 
-function formatDate(dateString) {
+function formatDate(dateString: string | undefined): string {
   if (!dateString) return '从未使用'
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN', {
@@ -72,16 +113,16 @@ function formatDate(dateString) {
 
 export default function KeychainPanel({
   vaultUnlocked,
-}) {
-  const [toolbarTarget, setToolbarTarget] = useState(null)
+}: KeychainPanelProps) {
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
   const [activeType, setActiveType] = useState('ssh_key')
-  const [activeDrawer, setActiveDrawer] = useState(null)
-  const [credentials, setCredentials] = useState([])
+  const [activeDrawer, setActiveDrawer] = useState<'generateKey' | 'importKey' | null>(null)
+  const [credentials, setCredentials] = useState<Credential[]>([])
   const [loading, setLoading] = useState(false)
   const [generateForm, setGenerateForm] = useState(createGenerateKeyForm)
   const [importForm, setImportForm] = useState(createImportKeyForm)
   const [operationLoading, setOperationLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   const activeTypeConfig = useMemo(
     () => credentialTypes.find((t) => t.id === activeType) || credentialTypes[0],
@@ -101,7 +142,7 @@ export default function KeychainPanel({
       const creds = await getCredentials()
       setCredentials(creds || [])
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }
@@ -117,7 +158,7 @@ export default function KeychainPanel({
     }
   }, [loadCredentials, vaultUnlocked, activeType])
 
-  function openDrawer(drawer) {
+  function openDrawer(drawer: 'generateKey' | 'importKey') {
     setActiveDrawer(drawer)
     if (drawer === 'generateKey') {
       setGenerateForm(createGenerateKeyForm())
@@ -131,19 +172,19 @@ export default function KeychainPanel({
     setError(null)
   }
 
-  function handleTypeChange(type) {
+  function handleTypeChange(type: string) {
     setActiveType(type)
     setActiveDrawer(null)
   }
 
-  function handleGenerateField(field, value) {
+  function handleGenerateField<K extends keyof GenerateKeyForm>(field: K, value: GenerateKeyForm[K]) {
     setGenerateForm((current) => ({
       ...current,
       [field]: value,
     }))
   }
 
-  function handleImportField(field, value) {
+  function handleImportField<K extends keyof ImportKeyForm>(field: K, value: ImportKeyForm[K]) {
     setImportForm((current) => ({
       ...current,
       [field]: value,
@@ -162,13 +203,13 @@ export default function KeychainPanel({
       await generateCredential(
         generateForm.label,
         generateForm.algorithm,
-        generateForm.keyBits,
+        generateForm.keyBits || 0,
         generateForm.passphrase
       )
       closeDrawer()
       await loadCredentials()
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setOperationLoading(false)
     }
@@ -195,19 +236,19 @@ export default function KeychainPanel({
       closeDrawer()
       await loadCredentials()
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setOperationLoading(false)
     }
   }
 
-  async function handleDeleteCredential(credentialID) {
+  async function handleDeleteCredential(credentialID: string) {
     if (!confirm('确定要删除此凭据吗？删除后无法恢复。')) {
       return
     }
 
     try {
-      const usage = await getCredentialUsage(credentialID)
+      const usage: CredentialUsage = await getCredentialUsage(credentialID)
       if (usage.host_ids && usage.host_ids.length > 0) {
         setError('此凭据正在被以下主机使用，无法删除')
         return
@@ -216,7 +257,7 @@ export default function KeychainPanel({
       await deleteCredential(credentialID)
       await loadCredentials()
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 

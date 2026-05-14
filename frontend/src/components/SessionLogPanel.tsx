@@ -1,9 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
-import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '../lib/backend.js'
+import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '../lib/backend'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-const statusFilters = [
+type SessionLog = main.SessionLog
+type SessionTranscript = main.SessionTranscript
+
+interface SessionLogPanelProps {
+  vaultUnlocked: boolean
+  onReconnect: (hostId: string) => void
+  onOpenLogTab?: (log: SessionLog) => void
+}
+
+interface StatusFilter {
+  id: string
+  label: string
+}
+
+const statusFilters: StatusFilter[] = [
   { id: 'all', label: '全部' },
   { id: 'closed', label: '成功' },
   { id: 'failed', label: '失败' },
@@ -11,7 +26,7 @@ const statusFilters = [
   { id: 'favorite', label: '收藏' },
 ]
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   connecting: '连接中',
   active: '进行中',
   closed: '已关闭',
@@ -19,7 +34,7 @@ const statusLabels = {
   rejected: '已拒绝',
 }
 
-function formatDateTime(value) {
+function formatDateTime(value: string | undefined): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -32,7 +47,7 @@ function formatDateTime(value) {
   })
 }
 
-function formatTime(value) {
+function formatTime(value: string | undefined): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -42,7 +57,7 @@ function formatTime(value) {
   })
 }
 
-function formatDuration(durationMillis) {
+function formatDuration(durationMillis: number | undefined): string {
   if (!durationMillis) return ''
   const totalMinutes = Math.max(1, Math.round(durationMillis / 60000))
   const hours = Math.floor(totalMinutes / 60)
@@ -53,7 +68,7 @@ function formatDuration(durationMillis) {
   return `${minutes}分钟`
 }
 
-function matchesLog(log, query) {
+function matchesLog(log: SessionLog, query: string): boolean {
   const value = query.trim().toLowerCase()
   if (!value) return true
 
@@ -67,7 +82,7 @@ function matchesLog(log, query) {
   ].some((field) => String(field || '').toLowerCase().includes(value))
 }
 
-function filterLog(log, filterKey) {
+function filterLog(log: SessionLog, filterKey: string): boolean {
   if (filterKey === 'favorite') return Boolean(log.favorite)
   if (filterKey === 'all') return true
   if (filterKey === 'closed') return log.status === 'closed'
@@ -79,17 +94,17 @@ export default function SessionLogPanel({
   vaultUnlocked,
   onReconnect,
   onOpenLogTab,
-}) {
-  const [toolbarTarget, setToolbarTarget] = useState(null)
-  const [logs, setLogs] = useState([])
+}: SessionLogPanelProps) {
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
+  const [logs, setLogs] = useState<SessionLog[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filterKey, setFilterKey] = useState('all')
-  const [selectedLog, setSelectedLog] = useState(null)
-  const [transcript, setTranscript] = useState(null)
+  const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null)
+  const [transcript, setTranscript] = useState<SessionTranscript | null>(null)
   const [transcriptLoading, setTranscriptLoading] = useState(false)
-  const [transcriptError, setTranscriptError] = useState(null)
+  const [transcriptError, setTranscriptError] = useState<string | null>(null)
 
   const loadLogs = useCallback(async () => {
     if (!vaultUnlocked) {
@@ -102,7 +117,7 @@ export default function SessionLogPanel({
     try {
       setLogs(await listSessionLogs(200))
     } catch (err) {
-      setError(err.message || String(err))
+      setError((err as Error).message || String(err))
     } finally {
       setLoading(false)
     }
@@ -123,7 +138,7 @@ export default function SessionLogPanel({
 
     const activeSessionIDs = Array.from(new Set(logs
       .filter((log) => log.status === 'active' && log.session_id)
-      .map((log) => log.session_id)))
+      .map((log) => log.session_id!)))
 
     if (activeSessionIDs.length === 0) {
       return undefined
@@ -139,7 +154,7 @@ export default function SessionLogPanel({
     }
   }, [loadLogs, logs, vaultUnlocked])
 
-  async function handleToggleFavorite(log) {
+  async function handleToggleFavorite(log: SessionLog) {
     const nextFavorite = !log.favorite
     setLogs((current) => current.map((item) => (
       item.id === log.id ? { ...item, favorite: nextFavorite } : item
@@ -151,11 +166,11 @@ export default function SessionLogPanel({
       setLogs((current) => current.map((item) => (
         item.id === log.id ? { ...item, favorite: log.favorite } : item
       )))
-      setError(err.message || String(err))
+      setError((err as Error).message || String(err))
     }
   }
 
-  async function handleSelectLog(log) {
+  async function handleSelectLog(log: SessionLog) {
     setSelectedLog(log)
     setTranscript(null)
     setTranscriptError(null)
@@ -176,12 +191,12 @@ export default function SessionLogPanel({
     setTranscriptError(null)
   }
 
-  function handleOpenFullLog(log = selectedLog) {
+  function handleOpenFullLog(log: SessionLog | null = selectedLog) {
     if (!log) return
     onOpenLogTab?.(log)
   }
 
-  function handleReconnect(log) {
+  function handleReconnect(log: SessionLog) {
     if (!vaultUnlocked || !log.host_id) return
     onReconnect(log.host_id)
   }

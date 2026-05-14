@@ -1,6 +1,18 @@
-import { getContextMenuPosition, getContextMenuTitle, getScopeLabel } from '../../lib/sftpUtils.js'
+import { getContextMenuPosition, getContextMenuTitle, getScopeLabel, type ContextMenuState } from '../../lib/sftpUtils'
 
-export default function ContextMenu({ state, onClose, onAction }) {
+interface ExtendedContextMenuState extends ContextMenuState {
+  transferLabel?: string
+  deleteSelectionLabel?: string
+  hiddenFilesLabel?: string
+}
+
+interface ContextMenuProps {
+  state: ExtendedContextMenuState | null
+  onClose: () => void
+  onAction: (action: string) => void
+}
+
+export default function ContextMenu({ state, onClose, onAction }: ContextMenuProps) {
   if (!state) {
     return null
   }

@@ -1,4 +1,13 @@
-export default function FeaturePlaceholderPanel({ highlights }) {
+interface FeatureHighlight {
+  title: string
+  description: string
+}
+
+interface FeaturePlaceholderPanelProps {
+  highlights: FeatureHighlight[]
+}
+
+export default function FeaturePlaceholderPanel({ highlights }: FeaturePlaceholderPanelProps) {
   return (
     <section className="placeholder-stage">
       <div className="placeholder-grid">

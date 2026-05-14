@@ -1,14 +1,69 @@
-export const defaultSort = { key: 'name', direction: 'asc' }
+export interface FileEntry {
+  name: string
+  path: string
+  size: number
+  modTime: string
+  type: string
+  isDir: boolean
+  parent?: boolean
+  mode?: string
+}
 
-export function getScopeLabel(scope) {
+export interface FileListing {
+  path: string
+  parentPath?: string
+  entries: FileEntry[]
+}
+
+export interface PathSegment {
+  label: string
+  path: string
+}
+
+export interface SortConfig {
+  key: 'name' | 'modTime' | 'size' | 'type'
+  direction: 'asc' | 'desc'
+}
+
+export interface ContextMenuState {
+  scope: 'local' | 'remote'
+  entry?: FileEntry
+  x: number
+  y: number
+  useSelectionActions: boolean
+  selectionCount: number
+  canTransferSelection: boolean
+  canClearSelection: boolean
+  canDeleteSelection: boolean
+}
+
+export interface DialogState {
+  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'overwrite-transfer'
+  scope: 'local' | 'remote'
+  entry?: FileEntry
+  entries?: FileEntry[]
+  parentPath?: string
+  targetScope?: 'local' | 'remote'
+  targetName?: string
+  sourceName?: string
+}
+
+export interface TransferResult {
+  sourcePath: string
+  targetPath: string
+}
+
+export const defaultSort: SortConfig = { key: 'name', direction: 'asc' }
+
+export function getScopeLabel(scope: 'local' | 'remote'): string {
   return scope === 'remote' ? '远端' : '本地'
 }
 
-export function isHiddenEntry(entry) {
+export function isHiddenEntry(entry: FileEntry | null | undefined): boolean {
   return Boolean(entry && !entry.parent && entry.name?.startsWith('.'))
 }
 
-export function filterVisibleEntries(entries, showHiddenFiles) {
+export function filterVisibleEntries(entries: FileEntry[] | null | undefined, showHiddenFiles: boolean): FileEntry[] {
   if (showHiddenFiles) {
     return entries || []
   }
@@ -16,7 +71,7 @@ export function filterVisibleEntries(entries, showHiddenFiles) {
   return (entries || []).filter((entry) => !isHiddenEntry(entry))
 }
 
-export function splitLocalPath(path) {
+export function splitLocalPath(path: string | null | undefined): PathSegment[] {
   const normalized = path || ''
   const parts = normalized.split('/').filter(Boolean)
 
@@ -33,7 +88,7 @@ export function splitLocalPath(path) {
   ]
 }
 
-export function splitRemotePath(path) {
+export function splitRemotePath(path: string | null | undefined): PathSegment[] {
   const normalized = path || '/'
   const parts = normalized.split('/').filter(Boolean)
 
@@ -50,7 +105,7 @@ export function splitRemotePath(path) {
   ]
 }
 
-export function formatSize(size, isDir) {
+export function formatSize(size: number, isDir: boolean): string {
   if (isDir) {
     return '--'
   }
@@ -70,7 +125,7 @@ export function formatSize(size, isDir) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
 }
 
-export function formatTime(value) {
+export function formatTime(value: string | null | undefined): string {
   if (!value) {
     return '--'
   }
@@ -89,7 +144,7 @@ export function formatTime(value) {
   }).format(date).replace(/\//g, '-')
 }
 
-export function buildRows(listing) {
+export function buildRows(listing: FileListing | null | undefined): FileEntry[] {
   const rows = listing?.entries || []
   if (!listing?.parentPath) {
     return rows
@@ -109,7 +164,7 @@ export function buildRows(listing) {
   ]
 }
 
-export function getEntryTypeLabel(entry) {
+export function getEntryTypeLabel(entry: FileEntry): string {
   if (entry.parent) {
     return '返回上级'
   }
@@ -129,7 +184,7 @@ export function getEntryTypeLabel(entry) {
   return '文件'
 }
 
-export function getEntryKindLabel(entry) {
+export function getEntryKindLabel(entry: FileEntry | null | undefined): string {
   if (entry?.parent || entry?.isDir) {
     return '目录'
   }
@@ -137,26 +192,26 @@ export function getEntryKindLabel(entry) {
   return '文件'
 }
 
-export function getEntryPermissionLabel(entry) {
+export function getEntryPermissionLabel(entry: FileEntry | null | undefined): string {
   if (entry?.parent) {
     return '双击返回上级目录'
   }
 
-  return entry?.mode || getEntryTypeLabel(entry)
+  return entry?.mode || getEntryTypeLabel(entry!)
 }
 
-export function isTransferConflictError(error) {
-  const message = error?.message || String(error || '')
+export function isTransferConflictError(error: unknown): boolean {
+  const message = error && typeof error === 'object' && 'message' in error ? (error as Error).message : String(error || '')
   return message === 'transfer target already exists'
 }
 
-export function getBaseName(path) {
+export function getBaseName(path: string | null | undefined): string {
   const normalized = String(path || '').replace(/\\/g, '/')
   const segments = normalized.split('/').filter(Boolean)
   return segments.at(-1) || normalized || '--'
 }
 
-export function joinTransferTargetPath(scope, directory, name) {
+export function joinTransferTargetPath(scope: 'local' | 'remote', directory: string, name: string): string {
   if (!directory) {
     return name
   }
@@ -170,21 +225,21 @@ export function joinTransferTargetPath(scope, directory, name) {
   return `${prefix}/${name}`
 }
 
-export function uniquePaths(paths) {
-  return Array.from(new Set((paths || []).filter(Boolean)))
+export function uniquePaths(paths: (string | null | undefined)[]): string[] {
+  return Array.from(new Set((paths || []).filter(Boolean) as string[]))
 }
 
-function normalizeComparePath(path) {
+function normalizeComparePath(path: string | null | undefined): string {
   return String(path || '').replace(/\\/g, '/').replace(/\/+$/, '') || '/'
 }
 
-function isNestedUnderDirectory(childPath, parentPath) {
+function isNestedUnderDirectory(childPath: string, parentPath: string): boolean {
   const child = normalizeComparePath(childPath)
   const parent = normalizeComparePath(parentPath)
   return child !== parent && child.startsWith(`${parent}/`)
 }
 
-export function collapseEntriesForDelete(entries) {
+export function collapseEntriesForDelete(entries: FileEntry[]): FileEntry[] {
   const sorted = [...entries].sort((left, right) => {
     const leftWeight = left.isDir ? 0 : 1
     const rightWeight = right.isDir ? 0 : 1
@@ -201,7 +256,11 @@ export function collapseEntriesForDelete(entries) {
   ))
 }
 
-export function buildActionSuccessMessage(type, scope, payload = {}) {
+export function buildActionSuccessMessage(
+  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch',
+  scope: 'local' | 'remote',
+  payload: { name?: string; entry?: FileEntry; count?: number } = {}
+): string {
   const scopeLabel = getScopeLabel(scope)
 
   if (type === 'mkdir') {
@@ -223,7 +282,12 @@ export function buildActionSuccessMessage(type, scope, payload = {}) {
   return ''
 }
 
-export function buildTransferNotice(direction, count, targetDirectory, lastResult) {
+export function buildTransferNotice(
+  direction: 'upload' | 'download',
+  count: number,
+  targetDirectory: string,
+  lastResult: TransferResult | null
+): string {
   if (count === 1 && lastResult) {
     return `已${direction === 'upload' ? '上传' : '下载'} ${lastResult.sourcePath.split('/').at(-1)} → ${lastResult.targetPath}`
   }
@@ -231,12 +295,12 @@ export function buildTransferNotice(direction, count, targetDirectory, lastResul
   return `已${direction === 'upload' ? '上传' : '下载'} ${count} 个文件到 ${targetDirectory}`
 }
 
-export function buildDialogDescription(state) {
+export function buildDialogDescription(state: DialogState): string {
   const scopeLabel = getScopeLabel(state.scope)
   const entryKind = getEntryKindLabel(state.entry)
 
   if (state.type === 'overwrite-transfer') {
-    return `目标${getScopeLabel(state.targetScope)}文件 ${state.targetName} 已存在。确认后将用 ${state.sourceName} 覆盖现有文件。`
+    return `目标${getScopeLabel(state.targetScope!)}文件 ${state.targetName} 已存在。确认后将用 ${state.sourceName} 覆盖现有文件。`
   }
 
   if (state.type === 'delete-batch') {
@@ -261,7 +325,7 @@ export function buildDialogDescription(state) {
   return `将在当前${scopeLabel}目录 ${state.parentPath || '--'} 下创建新文件夹。`
 }
 
-export function getContextMenuTitle(state) {
+export function getContextMenuTitle(state: ContextMenuState): string {
   if (state.useSelectionActions) {
     return `${getScopeLabel(state.scope)}已选 ${state.selectionCount} 项`
   }
@@ -277,7 +341,7 @@ export function getContextMenuTitle(state) {
   return `${getScopeLabel(state.scope)}当前目录`
 }
 
-export function getContextMenuPosition(state) {
+export function getContextMenuPosition(state: ContextMenuState): { left: number; top: number } {
   const menuWidth = 196
   const actionCount = state.useSelectionActions
     ? [
@@ -307,7 +371,7 @@ export function getContextMenuPosition(state) {
   }
 }
 
-export function sortRows(rows, sort) {
+export function sortRows(rows: FileEntry[], sort: SortConfig): FileEntry[] {
   const parentRows = rows.filter((entry) => entry.parent)
   const normalRows = rows.filter((entry) => !entry.parent)
   const direction = sort.direction === 'desc' ? -1 : 1
@@ -344,7 +408,7 @@ export function sortRows(rows, sort) {
   return [...parentRows, ...normalRows]
 }
 
-export function findSelectedEntry(listing, selectedPath) {
+export function findSelectedEntry(listing: FileListing | null | undefined, selectedPath: string | null | undefined): FileEntry | null {
   if (!selectedPath) {
     return null
   }
@@ -364,7 +428,7 @@ export function findSelectedEntry(listing, selectedPath) {
   return (listing?.entries || []).find((entry) => entry.path === selectedPath) || null
 }
 
-export function findSelectedEntries(listing, selectedPaths) {
+export function findSelectedEntries(listing: FileListing | null | undefined, selectedPaths: string[]): FileEntry[] {
   const pathSet = new Set(uniquePaths(selectedPaths))
   if (pathSet.size === 0) {
     return []
@@ -373,6 +437,6 @@ export function findSelectedEntries(listing, selectedPaths) {
   return (listing?.entries || []).filter((entry) => pathSet.has(entry.path))
 }
 
-export function pickTransferableEntries(listing, selectedPaths) {
+export function pickTransferableEntries(listing: FileListing | null | undefined, selectedPaths: string[]): FileEntry[] {
   return findSelectedEntries(listing, selectedPaths).filter((entry) => !entry.isDir)
 }

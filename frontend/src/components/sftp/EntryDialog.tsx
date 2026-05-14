@@ -1,6 +1,19 @@
-import { getScopeLabel, buildDialogDescription } from '../../lib/sftpUtils.js'
+import { getScopeLabel, buildDialogDescription, type DialogState } from '../../lib/sftpUtils'
 
-export default function EntryDialog({ state, busy, onClose, onConfirm, onChange }) {
+interface ExtendedDialogState extends DialogState {
+  value?: string
+  direction?: 'upload' | 'download'
+}
+
+interface EntryDialogProps {
+  state: ExtendedDialogState | null
+  busy: boolean
+  onClose: () => void
+  onConfirm: () => void
+  onChange: (value: string) => void
+}
+
+export default function EntryDialog({ state, busy, onClose, onConfirm, onChange }: EntryDialogProps) {
   if (!state) {
     return null
   }

@@ -2,10 +2,28 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, FileText, Palette, ShieldCheck, X } from 'lucide-react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { getSessionTranscript } from '../lib/backend.js'
-import { measureTerminalGeometry } from '../lib/terminalGeometry.js'
+import { getSessionTranscript } from '../lib/backend'
+import { measureTerminalGeometry } from '../lib/terminalGeometry'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-function formatDateTime(value) {
+interface LogTab {
+  logId: string
+  title?: string
+  hostTitle?: string
+  startedAt?: string
+  endedAt?: string
+  sshUsername?: string
+  localUsername?: string
+  remoteAddr?: string
+}
+
+interface LogWorkspaceProps {
+  activeLogTab: LogTab | null
+  onCloseLog: () => void
+  onError?: (error: unknown) => void
+}
+
+function formatDateTime(value: string | undefined): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -18,7 +36,7 @@ function formatDateTime(value) {
   })
 }
 
-function formatTime(value) {
+function formatTime(value: string | undefined): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -28,7 +46,7 @@ function formatTime(value) {
   })
 }
 
-function downloadText(filename, content) {
+function downloadText(filename: string, content: string): void {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -42,14 +60,14 @@ export default function LogWorkspace({
   activeLogTab,
   onCloseLog,
   onError,
-}) {
-  const surfaceRef = useRef(null)
-  const terminalRef = useRef(null)
-  const fitAddonRef = useRef(null)
-  const fitFrameRef = useRef(null)
+}: LogWorkspaceProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const terminalRef = useRef<XTerm | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const fitFrameRef = useRef<number | null>(null)
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
-  const [meta, setMeta] = useState(null)
+  const [meta, setMeta] = useState<main.SessionTranscript | null>(null)
 
   useEffect(() => {
     if (!surfaceRef.current) {

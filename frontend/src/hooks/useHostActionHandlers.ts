@@ -196,13 +196,13 @@ export function useHostActionHandlers({
       .catch((err) => setError(toUserMessage(err)))
   }
 
-  function handlePickSftpHost(hostID: string | null) {
-    if (hostID === null) {
+  function handlePickSftpHost(hostId?: string | null) {
+    if (hostId === null || hostId === undefined) {
       setSelectedSftpHostId(null)
       return
     }
 
-    const nextHostID = hostID || selectedSftpHostId || selectedHostId || hosts[0]?.id || null
+    const nextHostID = hostId || selectedSftpHostId || selectedHostId || hosts[0]?.id || null
     if (!nextHostID) {
       openCreateHost()
       return

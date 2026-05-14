@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import {
   FileKey2,
   Folder,
@@ -16,8 +16,13 @@ import {
   X,
 } from 'lucide-react'
 import { getCredentials } from '../lib/backend'
+import type { HostFormModel } from '../types'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-const initialState = {
+type Credential = main.Credential
+type Host = main.Host
+
+const initialState: HostFormModel = {
   id: '',
   name: '',
   address: '',
@@ -34,11 +39,12 @@ const initialState = {
   credentialId: '',
 }
 
-export function createInitialHostForm() {
+export function createInitialHostForm(): HostFormModel {
   return { ...initialState }
 }
 
-export function createHostFormFromHost(host) {
+export function createHostFormFromHost(host: Host | null | undefined): HostFormModel {
+  const systemTypeSource = host?.system_type_source
   return {
     id: host?.id || '',
     name: host?.name || '',
@@ -49,12 +55,22 @@ export function createHostFormFromHost(host) {
     tags: host?.tags || '',
     favorite: Boolean(host?.favorite),
     systemType: host?.system_type || '',
-    systemTypeSource: host?.system_type_source || 'auto',
+    systemTypeSource: (systemTypeSource === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
     authType: host?.credential_id ? 'credential' : 'password',
     password: '',
     privateKey: '',
     credentialId: host?.credential_id || '',
   }
+}
+
+interface HostFormProps {
+  mode: 'create' | 'edit'
+  value: HostFormModel
+  onChange: (value: HostFormModel) => void
+  onSubmit: (event: FormEvent) => void
+  disabled: boolean
+  busy: boolean
+  onClose: () => void
 }
 
 export default function HostForm({
@@ -65,9 +81,9 @@ export default function HostForm({
   disabled,
   busy,
   onClose,
-}) {
+}: HostFormProps) {
   const isEdit = mode === 'edit'
-  const [credentials, setCredentials] = useState([])
+  const [credentials, setCredentials] = useState<Credential[]>([])
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
 
@@ -85,21 +101,21 @@ export default function HostForm({
     loadCredentials()
   }, [])
 
-  function update(field, nextValue) {
+  function update(field: keyof HostFormModel, nextValue: string | boolean) {
     onChange({
       ...value,
       [field]: nextValue,
     })
   }
 
-  function patch(nextFields) {
+  function patch(nextFields: Partial<HostFormModel>) {
     onChange({
       ...value,
       ...nextFields,
     })
   }
 
-  function handleCredentialSelect(credentialId) {
+  function handleCredentialSelect(credentialId: string) {
     patch({
       credentialId,
       ...(credentialId ? { password: '', privateKey: '' } : {}),
@@ -134,7 +150,7 @@ export default function HostForm({
     setAuthMenuOpen(false)
   }
 
-  function handleSystemTypeChange(nextValue) {
+  function handleSystemTypeChange(nextValue: string) {
     if (nextValue === 'auto') {
       patch({
         systemTypeSource: 'auto',
