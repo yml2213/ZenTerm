@@ -402,7 +402,12 @@ function FilePane({
             })
           }}
         >
-          {rows.length === 0 ? (
+          {loading && !listing ? (
+            <div className="sftp-file-empty">
+              <strong>正在加载目录</strong>
+              <small>正在读取 {sourceLabel} 文件列表</small>
+            </div>
+          ) : rows.length === 0 ? (
             <div className="sftp-file-empty">
               <strong>当前目录为空</strong>
               <small>可右键打开工作区菜单，快速新建目录或刷新</small>
@@ -516,8 +521,8 @@ export default function SftpWorkspace({
 }: SftpWorkspaceProps) {
   const [localListing, setLocalListing] = useState<FileListing | null>(null)
   const [remoteListing, setRemoteListing] = useState<FileListing | null>(null)
-  const [localLoading, setLocalLoading] = useState(false)
-  const [remoteLoading, setRemoteLoading] = useState(false)
+  const [localLoading, setLocalLoading] = useState(true)
+  const [remoteLoading, setRemoteLoading] = useState(Boolean(selectedHost && vaultUnlocked))
   const [showHiddenLocalFiles, setShowHiddenLocalFiles] = useState(false)
   const [showHiddenRemoteFiles, setShowHiddenRemoteFiles] = useState(false)
   const [selectedLocalPath, setSelectedLocalPath] = useState<string | null>(null)
@@ -1352,4 +1357,3 @@ export default function SftpWorkspace({
     </section>
   )
 }
-

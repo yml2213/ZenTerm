@@ -10,12 +10,16 @@ const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
 interface Session {
   sessionId: string
   title: string
+  hostID?: string
+  remoteAddr?: string
+  connectedAt?: string
 }
 
 interface TerminalPaneProps {
   sessions: Session[]
   activeSessionId: string | null
   activeSessionTitle: string
+  activeSessionMeta?: Session | null
   onSendInput: (sessionId: string, data: string) => Promise<void>
   onResize: (sessionId: string, cols: number, rows: number) => Promise<void>
   onSessionClosed: (sessionId: string) => void

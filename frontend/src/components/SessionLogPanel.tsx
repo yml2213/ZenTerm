@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
 import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '../lib/backend'
 import { main } from '../wailsjs/wailsjs/go/models'
@@ -11,6 +10,7 @@ interface SessionLogPanelProps {
   vaultUnlocked: boolean
   onReconnect: (hostId: string) => void
   onOpenLogTab?: (log: SessionLog) => void
+  onToolbarChange: (toolbar: ReactNode | null) => void
 }
 
 interface StatusFilter {
@@ -94,10 +94,10 @@ export default function SessionLogPanel({
   vaultUnlocked,
   onReconnect,
   onOpenLogTab,
+  onToolbarChange,
 }: SessionLogPanelProps) {
-  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
   const [logs, setLogs] = useState<SessionLog[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(vaultUnlocked)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filterKey, setFilterKey] = useState('all')
@@ -109,6 +109,7 @@ export default function SessionLogPanel({
   const loadLogs = useCallback(async () => {
     if (!vaultUnlocked) {
       setLogs([])
+      setLoading(false)
       return
     }
 
@@ -122,10 +123,6 @@ export default function SessionLogPanel({
       setLoading(false)
     }
   }, [vaultUnlocked])
-
-  useEffect(() => {
-    setToolbarTarget(document.getElementById('session-log-toolbar-slot'))
-  }, [])
 
   useEffect(() => {
     void loadLogs()
@@ -212,51 +209,63 @@ export default function SessionLogPanel({
     }
   }, [selectedLog, visibleLogs])
 
-  const toolbar = (
-    <div className="session-log-toolbar">
-      <label className="search-bar search-bar-compact session-log-search">
-        <Search size={15} />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索日志..."
-          aria-label="搜索日志"
-        />
-      </label>
-      <div className="session-log-filter" aria-label="日志筛选">
-        {statusFilters.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            className={filterKey === filter.id ? 'active' : ''}
-            aria-pressed={filterKey === filter.id}
-            onClick={() => setFilterKey(filter.id)}
-          >
-            {filter.label}
-          </button>
-        ))}
+  const toolbar = useMemo(
+    () => (
+      <div className="session-log-toolbar">
+        <label className="search-bar search-bar-compact session-log-search">
+          <Search size={15} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索日志..."
+            aria-label="搜索日志"
+          />
+        </label>
+        <div className="session-log-filter" aria-label="日志筛选">
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              className={filterKey === filter.id ? 'active' : ''}
+              aria-pressed={filterKey === filter.id}
+              onClick={() => setFilterKey(filter.id)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="ghost-button compact session-log-refresh"
+          onClick={loadLogs}
+          disabled={loading || !vaultUnlocked}
+        >
+          <RefreshCw size={14} className={loading ? 'spin' : undefined} />
+          刷新
+        </button>
       </div>
-      <button
-        type="button"
-        className="ghost-button compact session-log-refresh"
-        onClick={() => loadLogs()}
-        disabled={loading || !vaultUnlocked}
-      >
-        <RefreshCw size={14} className={loading ? 'spin' : undefined} />
-        刷新
-      </button>
-    </div>
+    ),
+    [filterKey, loadLogs, loading, query, vaultUnlocked],
   )
+
+  useLayoutEffect(() => {
+    onToolbarChange(toolbar)
+    return () => onToolbarChange(null)
+  }, [onToolbarChange, toolbar])
 
   return (
     <section className="session-log-stage">
-      {toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar}
       {error ? <div className="error-message">{error}</div> : null}
 
       {!vaultUnlocked ? (
         <div className="session-log-empty">
           <History size={26} />
           <strong>解锁后查看连接日志</strong>
+        </div>
+      ) : loading && logs.length === 0 ? (
+        <div className="session-log-empty">
+          <History size={26} />
+          <strong>正在读取连接日志</strong>
         </div>
       ) : visibleLogs.length === 0 ? (
         <div className="session-log-empty">
