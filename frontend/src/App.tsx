@@ -1,31 +1,37 @@
 import { useEffect } from 'react'
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import HostForm, { createInitialHostForm } from './components/HostForm.jsx'
 import AppOverlays from './components/AppOverlays.jsx'
 import LogWorkspace from './components/LogWorkspace.jsx'
 import NewTabWorkspace from './components/NewTabWorkspace.jsx'
 import SftpWorkspacePage, { preloadSftpWorkspace } from './components/SftpWorkspacePage.jsx'
 import SshWorkspace from './components/SshWorkspace.jsx'
-import VaultWorkspace from './components/VaultWorkspace.jsx'
-import WorkspaceStrip from './components/WorkspaceStrip.jsx'
-import { useTheme } from './contexts/ThemeProvider.jsx'
-import { useLanguage } from './contexts/LanguageProvider.jsx'
-import { navigationItems } from './lib/appShellConfig.jsx'
+import VaultWorkspace from './components/VaultWorkspace'
+import WorkspaceStrip from './components/WorkspaceStrip'
+import { useTheme } from './contexts/ThemeProvider'
+import { useLanguage } from './contexts/LanguageProvider'
+import { navigationItems } from './lib/appShellConfig'
 import {
   useAppBootstrap,
   useGlobalHostSearchHotkey,
   useWindowStatePersistence,
   useWorkspaceAutoFallback,
-} from './hooks/useAppEffects.js'
-import { useAppActionHandlers } from './hooks/useAppActionHandlers.js'
-import { useAppState } from './hooks/useAppState.js'
-import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers.js'
+} from './hooks/useAppEffects'
+import { useAppActionHandlers } from './hooks/useAppActionHandlers'
+import { useAppState } from './hooks/useAppState'
+import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers'
+import { HostFormModel, WorkspaceTab } from './types'
 
 function PanelFallback({
   className = 'panel',
   kicker = 'Loading',
   title = '正在加载面板',
   description = 'ZenTerm 正在准备当前工作区内容，请稍候。',
+}: {
+  className?: string
+  kicker?: string
+  title?: string
+  description?: string
 }) {
   return (
     <section className={className}>
@@ -110,7 +116,7 @@ export default function App() {
       return
     }
 
-    setters.setHostForm(createInitialHostForm())
+    setters.setHostForm(createInitialHostForm() as HostFormModel)
     setters.setActiveWorkspace('vaults')
     setters.setActiveSidebarPage('hosts')
     setters.setHostDialogMode('create')
@@ -208,7 +214,7 @@ export default function App() {
     return () => window.clearTimeout(id)
   }, [])
 
-  function handleWorkspaceTabClose(tab) {
+  function handleWorkspaceTabClose(tab: WorkspaceTab) {
     if (tab.type === 'new') {
       closeNewTab(tab.tabId)
       return
@@ -219,7 +225,9 @@ export default function App() {
       return
     }
 
-    handleCloseTab(tab.sessionId)
+    if (tab.sessionId) {
+      handleCloseTab(tab.sessionId)
+    }
   }
 
   function cycleTheme() {
@@ -232,7 +240,7 @@ export default function App() {
     }
   }
 
-  const ThemeIcon = theme === 'auto' ? Monitor : theme === 'light' ? Sun : Moon
+  const ThemeIcon: LucideIcon = theme === 'auto' ? Monitor : theme === 'light' ? Sun : Moon
   const hostDrawer = hostDialogMode ? (
     <HostForm
       mode={hostDialogMode}
@@ -341,7 +349,7 @@ export default function App() {
         <LogWorkspace
           activeLogTab={activeLogTab}
           onCloseLog={() => activeLogTabId ? closeLogTab(activeLogTabId) : null}
-          onError={(err) => setters.setError(err?.message || String(err))}
+          onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
         />
       ) : (
         <SshWorkspace
@@ -351,7 +359,7 @@ export default function App() {
           onSendInput={handleSendInput}
           onResize={handleResizeTerminal}
           onSessionClosed={handleSessionClosed}
-          onError={(err) => setters.setError(err?.message || String(err))}
+          onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
           PanelFallback={PanelFallback}
         />
       )}
@@ -360,9 +368,9 @@ export default function App() {
         showSetupModal={showSetupModal}
         vaultSetupForm={vaultSetupForm}
         vaultSetupBusy={vaultSetupBusy}
-        onVaultSetupPasswordChange={(value) => setters.setVaultSetupForm((current) => ({ ...current, password: value }))}
-        onVaultSetupConfirmPasswordChange={(value) => setters.setVaultSetupForm((current) => ({ ...current, confirmPassword: value }))}
-        onVaultSetupRiskAcknowledgedChange={(value) => setters.setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value }))}
+        onVaultSetupPasswordChange={(value: string) => setters.setVaultSetupForm((current) => ({ ...current, password: value }))}
+        onVaultSetupConfirmPasswordChange={(value: string) => setters.setVaultSetupForm((current) => ({ ...current, confirmPassword: value }))}
+        onVaultSetupRiskAcknowledgedChange={(value: boolean) => setters.setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value }))}
         onInitializeVault={handleInitializeVault}
         showAccessModal={showAccessModal}
         accessPassword={accessPassword}

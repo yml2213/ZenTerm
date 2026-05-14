@@ -67,7 +67,7 @@ export function useHostActionHandlers({
 
   function closeHostDialog() {
     setHostDialogMode(null)
-    setHostForm(createInitialHostForm())
+    setHostForm(createInitialHostForm() as HostFormModel)
   }
 
   function refreshHosts() {
@@ -109,7 +109,7 @@ export function useHostActionHandlers({
       return
     }
 
-    setHostForm(createHostFormFromHost(host))
+    setHostForm(createHostFormFromHost(host) as HostFormModel)
     setHostDialogMode('edit')
   }
 

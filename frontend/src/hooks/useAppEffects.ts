@@ -176,8 +176,8 @@ export function useWorkspaceAutoFallback({
 
 interface GlobalHostSearchHotkeyProps {
   activeWorkspace: WorkspaceType
-  newTabSearchInputRef: React.RefObject<HTMLInputElement>
-  hostSearchInputRef: React.RefObject<HTMLInputElement>
+  newTabSearchInputRef: React.RefObject<HTMLInputElement | null>
+  hostSearchInputRef: React.RefObject<HTMLInputElement | null>
   setActiveWorkspace: (workspace: WorkspaceType) => void
   setActiveSidebarPage: (page: string) => void
 }

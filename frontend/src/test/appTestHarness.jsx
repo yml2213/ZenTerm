@@ -41,6 +41,7 @@ import {
   unlockWithPreferences,
   updateHost,
   uploadFile,
+  windowSetBackgroundColour,
   windowToggleMaximise,
 } from '../lib/backend.js'
 
@@ -84,6 +85,7 @@ vi.mock('../lib/backend.js', () => ({
   onRuntimeEvent: vi.fn(),
   persistWindowState: vi.fn(),
   uploadFile: vi.fn(),
+  windowSetBackgroundColour: vi.fn(),
   windowToggleMaximise: vi.fn(),
 }))
 
@@ -256,6 +258,7 @@ export function registerAppHarness() {
       targetPath: '/home/root/notes.txt',
       bytesCopied: 42,
     })
+    windowSetBackgroundColour.mockResolvedValue(undefined)
     windowToggleMaximise.mockResolvedValue(undefined)
     listLocalFiles.mockResolvedValue({
       path: '/Users/yml',
@@ -392,5 +395,6 @@ export {
   unlockWithPreferences,
   updateHost,
   uploadFile,
+  windowSetBackgroundColour,
   windowToggleMaximise,
 }

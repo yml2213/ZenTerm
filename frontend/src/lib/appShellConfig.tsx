@@ -1,13 +1,33 @@
-import { History, KeyRound, LayoutGrid, Shield } from 'lucide-react'
+import { History, KeyRound, LayoutGrid, Shield, LucideIcon } from 'lucide-react'
 
-export const navigationItems = [
+export interface NavigationItem {
+  id: string
+  label: string
+  icon: LucideIcon
+}
+
+export interface SidebarHighlight {
+  title: string
+  description: string
+}
+
+export interface SidebarPage {
+  label: string
+  icon: LucideIcon
+  title: string
+  kicker: string
+  description: string
+  highlights?: SidebarHighlight[]
+}
+
+export const navigationItems: NavigationItem[] = [
   { id: 'hosts', label: '主机', icon: LayoutGrid },
   { id: 'keychain', label: '钥匙串', icon: KeyRound },
   { id: 'knownHosts', label: '已知主机', icon: Shield },
   { id: 'logs', label: '日志', icon: History },
 ]
 
-export const sidebarPages = {
+export const sidebarPages: Record<string, SidebarPage> = {
   hosts: {
     label: '主机',
     icon: LayoutGrid,

@@ -145,7 +145,10 @@ export function useWorkspaceActionHandlers({
     if (workspace === 'ssh') {
       if (sessionTabs.length === 0) {
         if (newTabs.length > 0) {
-          activateNewTab(activeNewTabId || newTabs.at(-1)?.tabId)
+          const fallbackNewTabId = activeNewTabId || newTabs.at(-1)?.tabId
+          if (fallbackNewTabId) {
+            activateNewTab(fallbackNewTabId)
+          }
         }
         return
       }

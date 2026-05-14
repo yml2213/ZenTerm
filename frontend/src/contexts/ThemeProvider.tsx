@@ -1,13 +1,22 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { windowSetBackgroundColour } from '../lib/backend.js'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { windowSetBackgroundColour } from '../lib/backend'
 
-const ThemeContext = createContext(undefined)
+type ThemeName = 'auto' | 'light' | 'dark'
+type ResolvedThemeName = 'light' | 'dark'
+
+interface ThemeContextValue {
+  theme: ThemeName
+  resolvedTheme: ResolvedThemeName
+  setTheme: (theme: ThemeName) => void
+}
+
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 
 const THEME_KEY = 'zenterm-theme'
 const NATIVE_WINDOW_BACKGROUND = {
   dark: [5, 7, 11, 255],
   light: [233, 238, 244, 255],
-}
+} satisfies Record<ResolvedThemeName, [number, number, number, number]>
 
 export function useTheme() {
   const context = useContext(ThemeContext)
@@ -17,22 +26,23 @@ export function useTheme() {
   return context
 }
 
-export default function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => {
+export default function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<ThemeName>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(THEME_KEY) || 'auto'
+      const saved = localStorage.getItem(THEME_KEY)
+      return saved === 'light' || saved === 'dark' || saved === 'auto' ? saved : 'auto'
     }
     return 'auto'
   })
 
-  const [resolvedTheme, setResolvedTheme] = useState('dark')
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedThemeName>('dark')
 
   useEffect(() => {
     const root = document.documentElement
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
 
     function resolveTheme() {
-      let resolved
+      let resolved: ResolvedThemeName
       if (theme === 'auto') {
         resolved = systemDark.matches ? 'dark' : 'light'
       } else {
@@ -50,7 +60,7 @@ export default function ThemeProvider({ children }) {
     return () => systemDark.removeEventListener('change', handler)
   }, [theme])
 
-  const setTheme = (newTheme) => {
+  const setTheme = (newTheme: ThemeName) => {
     setThemeState(newTheme)
     localStorage.setItem(THEME_KEY, newTheme)
   }
