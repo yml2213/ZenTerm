@@ -1,5 +1,24 @@
-export function buildHostPayload(form) {
-  const host = {
+import { main } from '../wailsjs/wailsjs/go/models'
+
+export interface HostForm {
+  id: string
+  name: string
+  address: string
+  port: string
+  username: string
+  group: string
+  tags: string
+  favorite: boolean
+  systemType: string
+  systemTypeSource: 'auto' | 'manual'
+  authType: 'password' | 'key' | 'credential'
+  password?: string
+  privateKey?: string
+  credentialId?: string
+}
+
+export function buildHostPayload(form: HostForm): main.Host {
+  const host = new main.Host({
     id: form.id.trim(),
     name: form.name.trim(),
     address: form.address.trim(),
@@ -9,7 +28,7 @@ export function buildHostPayload(form) {
     tags: form.tags.trim(),
     favorite: Boolean(form.favorite),
     system_type_source: form.systemTypeSource || 'auto',
-  }
+  })
 
   if (form.systemType) {
     host.system_type = form.systemType
@@ -21,7 +40,7 @@ export function buildHostPayload(form) {
   return host
 }
 
-export function buildIdentityPayload(form) {
+export function buildIdentityPayload(form: HostForm): { password?: string; private_key?: string } {
   if (form.credentialId) {
     return {}
   }
@@ -32,7 +51,7 @@ export function buildIdentityPayload(form) {
   }
 }
 
-export function hasConfiguredAuth(form) {
+export function hasConfiguredAuth(form: Partial<HostForm>): boolean {
   return Boolean(
     form?.credentialId
       || form?.password?.trim()
@@ -40,7 +59,7 @@ export function hasConfiguredAuth(form) {
   )
 }
 
-export function toUserMessage(error) {
+export function toUserMessage(error: any): string {
   const message = error?.message || String(error || '')
 
   if (
@@ -53,7 +72,7 @@ export function toUserMessage(error) {
   return message
 }
 
-export function matchesHost(host, query) {
+export function matchesHost(host: main.Host, query: string): boolean {
   const keyword = query.trim().toLowerCase()
   if (!keyword) {
     return true
@@ -61,17 +80,17 @@ export function matchesHost(host, query) {
 
   return [host.id, host.name, host.address, host.username, host.group, host.tags]
     .filter(Boolean)
-    .some((value) => value.toLowerCase().includes(keyword))
+    .some((value) => (value as string).toLowerCase().includes(keyword))
 }
 
-export function parseHostTags(tags) {
+export function parseHostTags(tags: string | undefined): string[] {
   return String(tags || '')
     .split(',')
     .map((tag) => tag.trim())
     .filter(Boolean)
 }
 
-export function getHostFilterLabel(filterKey) {
+export function getHostFilterLabel(filterKey: string): string {
   if (filterKey === 'favorite') {
     return '收藏主机'
   }
@@ -87,7 +106,7 @@ export function getHostFilterLabel(filterKey) {
   return '全部主机'
 }
 
-export function matchesHostFilter(host, filterKey) {
+export function matchesHostFilter(host: main.Host, filterKey: string): boolean {
   if (filterKey === 'favorite') {
     return Boolean(host.favorite)
   }
@@ -103,7 +122,7 @@ export function matchesHostFilter(host, filterKey) {
   return true
 }
 
-export function sortHosts(hosts) {
+export function sortHosts(hosts: main.Host[]): main.Host[] {
   return hosts.slice().sort((left, right) => {
     if (Boolean(left.favorite) !== Boolean(right.favorite)) {
       return left.favorite ? -1 : 1

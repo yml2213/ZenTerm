@@ -1,6 +1,13 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
-const LanguageContext = createContext(undefined)
+type Language = 'zh' | 'en'
+type TranslationKey = keyof typeof translations.zh
+
+interface LanguageContextValue {
+  language: Language
+  setLanguage: (language: Language) => void
+  t: (key: TranslationKey) => string
+}
 
 const LANGUAGE_KEY = 'zenterm-language'
 
@@ -53,7 +60,9 @@ const translations = {
     errorTitle: 'Error',
     confirm: 'OK',
   },
-}
+} as const
+
+const LanguageContext = createContext<LanguageContextValue | undefined>(undefined)
 
 export function useLanguage() {
   const context = useContext(LanguageContext)
@@ -63,11 +72,11 @@ export function useLanguage() {
   return context
 }
 
-export default function LanguageProvider({ children }) {
-  const [language, setLanguageState] = useState(() => {
+export default function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(LANGUAGE_KEY)
-      if (saved) return saved
+      if (saved === 'zh' || saved === 'en') return saved
       // Auto-detect from browser
       const browserLang = navigator.language.toLowerCase()
       return browserLang.startsWith('zh') ? 'zh' : 'en'
@@ -75,13 +84,13 @@ export default function LanguageProvider({ children }) {
     return 'zh'
   })
 
-  const setLanguage = (newLanguage) => {
+  const setLanguage = (newLanguage: Language) => {
     setLanguageState(newLanguage)
     localStorage.setItem(LANGUAGE_KEY, newLanguage)
   }
 
-  const t = (key) => {
-    return translations[language]?.[key] || key
+  const t = (key: TranslationKey) => {
+    return translations[language][key] || key
   }
 
   return (

@@ -9,13 +9,73 @@ import {
   Star,
   Tags,
 } from 'lucide-react'
-import { Suspense, lazy } from 'react'
-import HostList from './HostList.jsx'
+import { Suspense, lazy, type ComponentType, type FormEvent, type ReactNode, type RefObject } from 'react'
+import HostList from './HostList'
+import { NavigationItem } from '../lib/appShellConfig'
+import { ChangeMasterForm } from '../types'
+import { main, model } from '../wailsjs/wailsjs/go/models'
 
-const VaultSettingsPanel = lazy(() => import('./VaultSettingsPanel.jsx'))
-const KnownHostsPanel = lazy(() => import('./KnownHostsPanel.jsx'))
-const KeychainPanel = lazy(() => import('./KeychainPanel.jsx'))
-const SessionLogPanel = lazy(() => import('./SessionLogPanel.jsx'))
+const VaultSettingsPanel = lazy(() => import('./VaultSettingsPanel.jsx')) as ComponentType<any>
+const KnownHostsPanel = lazy(() => import('./KnownHostsPanel.jsx')) as ComponentType<any>
+const KeychainPanel = lazy(() => import('./KeychainPanel.jsx')) as ComponentType<any>
+const SessionLogPanel = lazy(() => import('./SessionLogPanel.jsx')) as ComponentType<any>
+
+interface VaultWorkspaceProps {
+  navigationItems: NavigationItem[]
+  activeSidebarPage: string
+  onSidebarPageChange: (page: string) => void
+  isHostsPage: boolean
+  hostFilterKey: string
+  onHostFilterChange: (filter: string) => void
+  hosts: main.Host[]
+  favoriteHostCount: number
+  recentHostCount: number
+  hostGroups: string[]
+  hostTags: string[]
+  resolvedPageHeader: {
+    kicker: string
+    title: string
+    description?: string
+  }
+  hostSearchInputRef: RefObject<HTMLInputElement | null>
+  searchQuery: string
+  onSearchQueryChange: (query: string) => void
+  searchPlaceholder: string
+  hostViewMode: 'grid' | 'list'
+  onHostViewModeChange: (mode: 'grid' | 'list') => void
+  onCreateHost: () => void
+  newHostLabel: string
+  filteredHosts: main.Host[]
+  selectedHostId: string | null
+  sessionCountByHost: Record<string, number>
+  connectingHostIds: string[]
+  onSelectHost: (id: string) => void
+  onConnectHost: (id: string) => void
+  onEditHost: (host: main.Host) => void
+  onDeleteHost: (host: main.Host) => void
+  onCopyHostAddress: (host: main.Host) => void
+  onToggleFavorite: (host: main.Host) => void
+  vaultUnlocked: boolean
+  isSettingsPage: boolean
+  changeMasterForm: ChangeMasterForm
+  changeMasterBusy: boolean
+  resetVaultConfirmed: boolean
+  resetVaultBusy: boolean
+  onChangeMasterField: (field: keyof ChangeMasterForm, value: string) => void
+  onChangeMasterPassword: (event: FormEvent) => void
+  onResetVaultConfirmedChange: (confirmed: boolean) => void
+  onResetVault: () => void
+  PanelFallback: ComponentType<{ title?: string; description?: string }>
+  isKnownHostsPage: boolean
+  isKeychainPage: boolean
+  isLogsPage: boolean
+  keychainStatus: model.KeychainStatus | null
+  keychainLoading: boolean
+  vaultInitialized: boolean
+  onRefreshKeychainStatus: () => void
+  onOpenLogTab: (log: main.SessionLog) => void
+  hostDrawer: ReactNode
+}
 
 export default function VaultWorkspace({
   navigationItems,
@@ -68,7 +128,7 @@ export default function VaultWorkspace({
   onRefreshKeychainStatus,
   onOpenLogTab,
   hostDrawer,
-}) {
+}: VaultWorkspaceProps) {
   return (
     <div className={`app-content${hostDrawer ? ' app-content-drawer-open' : ''}`}>
       <aside className="sidebar">

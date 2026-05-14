@@ -1,4 +1,13 @@
 import { FileText, Plus, X } from 'lucide-react'
+import { WorkspaceTab } from '../types'
+
+interface SessionTabsProps {
+  sessions: WorkspaceTab[]
+  activeSessionId: string | null
+  onSelect: (session: WorkspaceTab) => void
+  onClose: (session: WorkspaceTab) => void
+  className?: string
+}
 
 export default function SessionTabs({
   sessions,
@@ -6,7 +15,7 @@ export default function SessionTabs({
   onSelect,
   onClose,
   className = '',
-}) {
+}: SessionTabsProps) {
   if (sessions.length === 0) {
     return null
   }

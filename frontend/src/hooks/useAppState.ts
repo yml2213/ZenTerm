@@ -1,19 +1,20 @@
 import { useRef, useState } from 'react'
-import { useHostState } from './useHostState.js'
-import { useSessionWorkspaceState } from './useSessionWorkspaceState.js'
-import { useVaultState } from './useVaultState.js'
+import { useHostState } from './useHostState'
+import { useSessionWorkspaceState } from './useSessionWorkspaceState'
+import { useVaultState } from './useVaultState'
+import { model } from '../wailsjs/wailsjs/go/models'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)
-  const hostSearchInputRef = useRef(null)
-  const newTabSearchInputRef = useRef(null)
-  const rejectedHostIdsRef = useRef(new Set())
+  const hostSearchInputRef = useRef<HTMLInputElement>(null)
+  const newTabSearchInputRef = useRef<HTMLInputElement>(null)
+  const rejectedHostIdsRef = useRef<Set<string>>(new Set())
   const sessionWorkspace = useSessionWorkspaceState()
   const host = useHostState(sessionWorkspace.sessionTabs)
   const vault = useVaultState()
 
-  const [error, setError] = useState(null)
-  const [keychainStatus, setKeychainStatus] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [keychainStatus, setKeychainStatus] = useState<model.KeychainStatus | null>(null)
   const [keychainLoading, setKeychainLoading] = useState(false)
   const {
     activeWorkspace,

@@ -1,5 +1,23 @@
-import { FolderLock, FolderOpen, Plus } from 'lucide-react'
-import SessionTabs from './SessionTabs.jsx'
+import { FolderLock, FolderOpen, Plus, type LucideIcon } from 'lucide-react'
+import type { MouseEvent } from 'react'
+import SessionTabs from './SessionTabs'
+import { WorkspaceTab, WorkspaceType } from '../types'
+
+interface WorkspaceStripProps {
+  activeWorkspace: WorkspaceType
+  workspaceTabs: WorkspaceTab[]
+  activeWorkspaceTabId: string | null
+  onWorkspaceChange: (workspace: WorkspaceType) => void
+  onWorkspaceStripDoubleClick: (event: MouseEvent<HTMLElement>) => void
+  onWorkspaceTabSelect: (tab: WorkspaceTab) => void
+  onWorkspaceTabClose: (tab: WorkspaceTab) => void
+  onOpenNewTab: () => void
+  onCycleTheme: () => void
+  onPreloadSftp: () => void
+  themeIcon: LucideIcon
+  vaultsLabel: string
+  sftpLabel: string
+}
 
 export default function WorkspaceStrip({
   activeWorkspace,
@@ -15,7 +33,7 @@ export default function WorkspaceStrip({
   themeIcon: ThemeIcon,
   vaultsLabel,
   sftpLabel,
-}) {
+}: WorkspaceStripProps) {
   return (
     <section className="workspace-strip" onDoubleClick={onWorkspaceStripDoubleClick}>
       <div className="workspace-modules">
@@ -48,8 +66,6 @@ export default function WorkspaceStrip({
             activeSessionId={activeWorkspaceTabId}
             onSelect={onWorkspaceTabSelect}
             onClose={onWorkspaceTabClose}
-            emptyLabel="还没有打开的 SSH 终端标签"
-            emptyDescription="连接任意主机后，打开的 SSH 会话会显示在这条顶部工作条里。"
           />
         ) : null}
         <button

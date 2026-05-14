@@ -7,18 +7,25 @@ export interface SessionTab {
   sessionId?: string
   hostID?: string
   title: string
+  connectedAt?: string
   remoteAddr?: string
   type: 'ssh' | 'new' | 'log'
+  logId?: string
+  hostTitle?: string
+  startedAt?: string
+  endedAt?: string
+  sshUsername?: string
+  localUsername?: string
 }
 
 export interface WorkspaceTab extends SessionTab {}
 
 export interface HostKeyPrompt {
   hostID: string
-  hostname: string
-  port: number
+  remoteAddr: string
   key: string
-  fingerprint: string
+  sha256: string
+  md5: string
 }
 
 export interface VaultSetupForm {

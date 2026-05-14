@@ -1,7 +1,8 @@
 import { Clock3, Copy, Database, HardDrive, Monitor, PencilLine, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, TerminalSquare, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType, type KeyboardEvent, type MouseEvent } from 'react'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-function parseTags(tags) {
+function parseTags(tags?: string) {
   return String(tags || '')
     .split(',')
     .map((tag) => tag.trim())
@@ -44,7 +45,9 @@ function WindowsMark() {
   )
 }
 
-const systemProfiles = [
+type SystemIconComponent = ComponentType<{ size?: number }>
+
+const systemProfiles: Array<{ id: string; label: string; icon: SystemIconComponent }> = [
   { id: 'ubuntu', label: 'Ubuntu', icon: UbuntuMark },
   { id: 'debian', label: 'Debian', icon: DebianMark },
   { id: 'centos', label: 'CentOS', icon: TerminalSquare },
@@ -60,7 +63,7 @@ const systemProfiles = [
   { id: 'gateway', label: 'Gateway', icon: HardDrive },
 ]
 
-function getHostSystemProfile(systemType) {
+function getHostSystemProfile(systemType?: string) {
   return systemProfiles.find((profile) => profile.id === systemType) || {
     id: 'server',
     label: 'Server',
@@ -68,7 +71,7 @@ function getHostSystemProfile(systemType) {
   }
 }
 
-function formatLastConnected(value) {
+function formatLastConnected(value?: string) {
   if (!value) {
     return '暂无记录'
   }
@@ -86,6 +89,29 @@ function formatLastConnected(value) {
   })
 }
 
+interface HostContextMenu {
+  host: main.Host
+  x: number
+  y: number
+}
+
+interface HostListProps {
+  hosts: main.Host[]
+  hasAnyHosts: boolean
+  searchQuery: string
+  viewMode?: 'grid' | 'list'
+  selectedHostId: string | null
+  sessionCountByHost: Record<string, number>
+  connectingHostIds: string[]
+  onSelect: (id: string) => void
+  onConnect: (id: string) => void
+  onEdit: (host: main.Host) => void
+  onDelete: (host: main.Host) => void
+  onCopyAddress?: (host: main.Host) => void
+  onToggleFavorite?: (host: main.Host) => void
+  disabled: boolean
+}
+
 export default function HostList({
   hosts,
   hasAnyHosts,
@@ -101,8 +127,8 @@ export default function HostList({
   onCopyAddress,
   onToggleFavorite,
   disabled,
-}) {
-  const [contextMenu, setContextMenu] = useState(null)
+}: HostListProps) {
+  const [contextMenu, setContextMenu] = useState<HostContextMenu | null>(null)
 
   useEffect(() => {
     if (!contextMenu) {
@@ -113,7 +139,7 @@ export default function HostList({
       setContextMenu(null)
     }
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape') {
         closeContextMenu()
       }
@@ -169,7 +195,7 @@ export default function HostList({
             key={host.id}
             className={`host-card${active ? ' active' : ''}`}
             onClick={() => onSelect(host.id)}
-            onContextMenu={(event) => {
+            onContextMenu={(event: MouseEvent<HTMLElement>) => {
               event.preventDefault()
               onSelect(host.id)
               setContextMenu({ host, x: event.clientX, y: event.clientY })
@@ -182,7 +208,7 @@ export default function HostList({
             role="button"
             tabIndex={0}
             aria-label={`${host.name || host.id}，${host.username}@${host.address}:${host.port || 22}`}
-            onKeyDown={(event) => {
+            onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
                 if (canConnect) {
