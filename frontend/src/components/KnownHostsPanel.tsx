@@ -2,7 +2,32 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Fingerprint, Server, ShieldCheck, ShieldQuestion } from 'lucide-react'
 
-function parseKnownHostLine(line, index) {
+interface Host {
+  id: string
+  name?: string
+  address: string
+  port?: number
+  username: string
+  known_hosts?: string
+}
+
+interface KnownHostEntry {
+  id: string
+  algorithm: string
+  preview: string
+  comment: string
+}
+
+interface KnownHostGroup {
+  host: Host
+  entries: KnownHostEntry[]
+}
+
+interface KnownHostsPanelProps {
+  hosts: Host[]
+}
+
+function parseKnownHostLine(line: string, index: number): KnownHostEntry {
   const [algorithm = 'unknown', encoded = '', ...commentParts] = line.trim().split(/\s+/)
   const comment = commentParts.join(' ').trim()
 
@@ -14,7 +39,7 @@ function parseKnownHostLine(line, index) {
   }
 }
 
-function buildKnownHostGroups(hosts) {
+function buildKnownHostGroups(hosts: Host[]): KnownHostGroup[] {
   return hosts
     .map((host) => {
       const entries = String(host.known_hosts || '')
@@ -31,8 +56,8 @@ function buildKnownHostGroups(hosts) {
     .filter((group) => group.entries.length > 0)
 }
 
-export default function KnownHostsPanel({ hosts }) {
-  const [toolbarTarget, setToolbarTarget] = useState(null)
+export default function KnownHostsPanel({ hosts }: KnownHostsPanelProps) {
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null)
   const groups = buildKnownHostGroups(hosts)
   const trustedHostCount = groups.length
   const trustedKeyCount = groups.reduce((sum, group) => sum + group.entries.length, 0)

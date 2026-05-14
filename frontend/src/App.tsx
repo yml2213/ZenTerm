@@ -347,15 +347,30 @@ export default function App() {
         />
       ) : activeWorkspace === 'log' ? (
         <LogWorkspace
-          activeLogTab={activeLogTab}
+          activeLogTab={activeLogTab && activeLogTab.logId ? {
+            logId: activeLogTab.logId,
+            title: activeLogTab.title,
+            hostTitle: activeLogTab.hostTitle,
+            startedAt: activeLogTab.startedAt,
+            endedAt: activeLogTab.endedAt,
+            sshUsername: activeLogTab.sshUsername,
+            localUsername: activeLogTab.localUsername,
+            remoteAddr: activeLogTab.remoteAddr,
+          } : null}
           onCloseLog={() => activeLogTabId ? closeLogTab(activeLogTabId) : null}
           onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
         />
       ) : (
         <SshWorkspace
-          sessionTabs={sessionTabs}
+          sessionTabs={sessionTabs.filter(tab => tab.sessionId).map(tab => ({
+            sessionId: tab.sessionId!,
+            title: tab.title,
+          }))}
           activeSessionId={activeSessionId}
-          activeSession={activeSession}
+          activeSession={activeSession && activeSession.sessionId ? {
+            sessionId: activeSession.sessionId,
+            title: activeSession.title,
+          } : null}
           onSendInput={handleSendInput}
           onResize={handleResizeTerminal}
           onSessionClosed={handleSessionClosed}

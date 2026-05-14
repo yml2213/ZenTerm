@@ -1,10 +1,13 @@
 import { Suspense, lazy } from 'react'
+import { main } from '../wailsjs/wailsjs/go/models'
 
-let sftpWorkspaceModulePromise
+type Host = main.Host
+
+let sftpWorkspaceModulePromise: Promise<typeof import('./SftpWorkspace')> | undefined
 
 function loadSftpWorkspace() {
   if (!sftpWorkspaceModulePromise) {
-    sftpWorkspaceModulePromise = import('./SftpWorkspace.jsx')
+    sftpWorkspaceModulePromise = import('./SftpWorkspace')
   }
   return sftpWorkspaceModulePromise
 }
@@ -41,6 +44,16 @@ function SftpWorkspaceFallback() {
   )
 }
 
+interface SftpWorkspacePageProps {
+  hosts: Host[]
+  selectedHost: Host | null
+  vaultUnlocked: boolean
+  onChooseHost: (hostId?: string | null) => void
+  onCreateHost: () => void
+  onBackToVaults: () => void
+  onError: (message: string) => void
+}
+
 export default function SftpWorkspacePage({
   hosts,
   selectedHost,
@@ -49,7 +62,7 @@ export default function SftpWorkspacePage({
   onCreateHost,
   onBackToVaults,
   onError,
-}) {
+}: SftpWorkspacePageProps) {
   return (
     <section className="page-shell workspace-page sftp-page">
       <main className="content-area content-area-flush">

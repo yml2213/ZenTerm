@@ -1,4 +1,17 @@
 import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2 } from 'lucide-react'
+import type { FormEvent } from 'react'
+import type { ChangeMasterForm } from '../types'
+
+interface VaultSettingsPanelProps {
+  changeForm: ChangeMasterForm
+  changeBusy: boolean
+  resetConfirmed: boolean
+  resetBusy: boolean
+  onChangeField: (field: keyof ChangeMasterForm, value: string) => void
+  onChangePassword: (event: FormEvent) => void
+  onResetConfirmedChange: (value: boolean) => void
+  onResetVault: () => void
+}
 
 export default function VaultSettingsPanel({
   changeForm,
@@ -9,7 +22,7 @@ export default function VaultSettingsPanel({
   onChangePassword,
   onResetConfirmedChange,
   onResetVault,
-}) {
+}: VaultSettingsPanelProps) {
   return (
     <section className="settings-stage">
       <div className="settings-grid">

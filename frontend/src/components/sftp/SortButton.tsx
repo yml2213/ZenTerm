@@ -1,6 +1,19 @@
 import { ChevronDown } from 'lucide-react'
 
-export default function SortButton({ columnKey, label, sort, onSortChange, className = '' }) {
+interface SortConfig {
+  key: string
+  direction: 'asc' | 'desc'
+}
+
+interface SortButtonProps {
+  columnKey: string
+  label: string
+  sort: SortConfig
+  onSortChange: (key: string) => void
+  className?: string
+}
+
+export default function SortButton({ columnKey, label, sort, onSortChange, className = '' }: SortButtonProps) {
   const isActive = sort.key === columnKey
 
   return (

@@ -1,4 +1,14 @@
-import { HardDrive } from 'lucide-react'
+import { HardDrive, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+
+interface PaneEmptyStateProps {
+  sourceLabel: string
+  sourceIcon: LucideIcon
+  title: string
+  description: string
+  actions?: ReactNode
+  extra?: ReactNode
+}
 
 export default function PaneEmptyState({
   sourceLabel,
@@ -7,7 +17,7 @@ export default function PaneEmptyState({
   description,
   actions = null,
   extra = null,
-}) {
+}: PaneEmptyStateProps) {
   return (
     <section className="sftp-pane">
       <header className="sftp-pane-topbar">

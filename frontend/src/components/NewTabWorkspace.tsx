@@ -1,5 +1,29 @@
+import type { RefObject } from 'react'
 import { Clock3, Plus, Search, Server, TerminalSquare } from 'lucide-react'
-import { matchesHost, sortHosts } from '../lib/appHostUtils.js'
+import { matchesHost, sortHosts } from '../lib/appHostUtils'
+import { main } from '../wailsjs/wailsjs/go/models'
+
+type Host = main.Host
+
+interface NewTabPageProps {
+  hosts: Host[]
+  searchQuery: string
+  onConnect: (hostId: string) => void
+  onCreateHost: () => void
+  connectingHostIds: string[]
+  vaultUnlocked: boolean
+}
+
+interface NewTabWorkspaceProps {
+  searchInputRef: RefObject<HTMLInputElement>
+  searchQuery: string
+  onSearchQueryChange: (value: string) => void
+  onCreateHost: () => void
+  hosts: Host[]
+  onConnect: (hostId: string) => void
+  connectingHostIds: string[]
+  vaultUnlocked: boolean
+}
 
 function NewTabPage({
   hosts,
@@ -8,7 +32,7 @@ function NewTabPage({
   onCreateHost,
   connectingHostIds,
   vaultUnlocked,
-}) {
+}: NewTabPageProps) {
   const filteredHosts = sortHosts(hosts.filter((host) => matchesHost(host, searchQuery)))
 
   return (
@@ -85,7 +109,7 @@ export default function NewTabWorkspace({
   onConnect,
   connectingHostIds,
   vaultUnlocked,
-}) {
+}: NewTabWorkspaceProps) {
   return (
     <section className="page-shell workspace-page new-tab-page">
       <main className="content-area content-area-new-tab">

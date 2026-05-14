@@ -6,8 +6,8 @@ import { model } from '../wailsjs/wailsjs/go/models'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)
-  const hostSearchInputRef = useRef<HTMLInputElement>(null)
-  const newTabSearchInputRef = useRef<HTMLInputElement>(null)
+  const hostSearchInputRef = useRef<HTMLInputElement>(null!)
+  const newTabSearchInputRef = useRef<HTMLInputElement>(null!)
   const rejectedHostIdsRef = useRef<Set<string>>(new Set())
   const sessionWorkspace = useSessionWorkspaceState()
   const host = useHostState(sessionWorkspace.sessionTabs)
@@ -210,7 +210,12 @@ export function useAppState() {
     setIsSavingHost,
     setIsAcceptingKey,
   }
-  const refs = {
+  const refs: {
+    newTabCounterRef: React.MutableRefObject<number>
+    hostSearchInputRef: React.RefObject<HTMLInputElement>
+    newTabSearchInputRef: React.RefObject<HTMLInputElement>
+    rejectedHostIdsRef: React.MutableRefObject<Set<string>>
+  } = {
     newTabCounterRef,
     hostSearchInputRef,
     newTabSearchInputRef,

@@ -1,5 +1,38 @@
-import HostKeyModal from './HostKeyModal.jsx'
-import UnlockModal from './UnlockModal.jsx'
+import type { FormEvent } from 'react'
+import HostKeyModal from './HostKeyModal'
+import UnlockModal from './UnlockModal'
+import type { VaultSetupForm, HostKeyPrompt } from '../types'
+
+interface Host {
+  id: string
+  name?: string
+}
+
+interface AppOverlaysProps {
+  showSetupModal: boolean
+  vaultSetupForm: VaultSetupForm
+  vaultSetupBusy: boolean
+  onVaultSetupPasswordChange: (value: string) => void
+  onVaultSetupConfirmPasswordChange: (value: string) => void
+  onVaultSetupRiskAcknowledgedChange: (value: boolean) => void
+  onInitializeVault: (event: FormEvent) => void
+  showAccessModal: boolean
+  accessPassword: string
+  accessBusy: boolean
+  onAccessPasswordChange: (value: string) => void
+  onContinueAccess: (event: FormEvent) => void
+  deleteCandidate: Host | null
+  onCancelDeleteHost: () => void
+  onDeleteHost: () => void
+  errorTitle: string
+  error: string | null
+  confirmLabel: string
+  onClearError: () => void
+  hostKeyPrompt: HostKeyPrompt | null
+  isAcceptingKey: boolean
+  onAcceptHostKey: () => void
+  onRejectHostKey: () => void
+}
 
 export default function AppOverlays({
   showSetupModal,
@@ -25,7 +58,7 @@ export default function AppOverlays({
   isAcceptingKey,
   onAcceptHostKey,
   onRejectHostKey,
-}) {
+}: AppOverlaysProps) {
   return (
     <>
       <UnlockModal

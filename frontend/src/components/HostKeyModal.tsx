@@ -1,11 +1,19 @@
 import { Fingerprint, ShieldAlert } from 'lucide-react'
+import type { HostKeyPrompt } from '../types'
+
+interface HostKeyModalProps {
+  prompt: HostKeyPrompt | null
+  busy: boolean
+  onAccept: () => void
+  onReject: () => void
+}
 
 export default function HostKeyModal({
   prompt,
   busy,
   onAccept,
   onReject,
-}) {
+}: HostKeyModalProps) {
   if (!prompt) {
     return null
   }

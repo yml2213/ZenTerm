@@ -1,6 +1,27 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, type ComponentType } from 'react'
 
-const TerminalPane = lazy(() => import('./TerminalPane.jsx'))
+const TerminalPane = lazy(() => import('./TerminalPane'))
+
+interface Session {
+  sessionId: string
+  title: string
+}
+
+interface SshWorkspaceProps {
+  sessionTabs: Session[]
+  activeSessionId: string | null
+  activeSession: Session | null
+  onSendInput: (sessionId: string, data: string) => Promise<void>
+  onResize: (sessionId: string, cols: number, rows: number) => Promise<void>
+  onSessionClosed: (sessionId: string) => void
+  onError: (error: unknown) => void
+  PanelFallback: ComponentType<{
+    className?: string
+    kicker?: string
+    title?: string
+    description?: string
+  }>
+}
 
 export default function SshWorkspace({
   sessionTabs,
@@ -11,7 +32,7 @@ export default function SshWorkspace({
   onSessionClosed,
   onError,
   PanelFallback,
-}) {
+}: SshWorkspaceProps) {
   return (
     <section className="page-shell workspace-page ssh-page">
       <main className="content-area content-area-terminal">
@@ -30,7 +51,6 @@ export default function SshWorkspace({
               sessions={sessionTabs}
               activeSessionId={activeSessionId}
               activeSessionTitle={activeSession?.title || 'Zen Console'}
-              activeSessionMeta={activeSession}
               onSendInput={onSendInput}
               onResize={onResize}
               onSessionClosed={onSessionClosed}
