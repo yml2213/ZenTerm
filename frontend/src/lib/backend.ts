@@ -249,6 +249,51 @@ export async function persistWindowState(): Promise<void> {
   return callApp('PersistWindowState')
 }
 
+export interface WebDAVSyncConfig {
+  url: string
+  username: string
+  remote_path?: string
+  password?: string
+}
+
+export interface WebDAVSyncStatus {
+  configured: boolean
+  provider?: string
+  device_id?: string
+  url?: string
+  username?: string
+  remote_path?: string
+  last_remote_etag?: string
+  last_snapshot_hash?: string
+  last_sync_at?: string
+  updated_at?: string
+}
+
+export interface WebDAVSyncResult {
+  direction: 'push' | 'pull'
+  remote_etag?: string
+  bytes: number
+  conflict?: boolean
+  message?: string
+  synced_at?: string
+}
+
+export async function configureWebDAVSync(config: WebDAVSyncConfig): Promise<WebDAVSyncStatus> {
+  return callApp('ConfigureWebDAVSync', config)
+}
+
+export async function getWebDAVSyncStatus(): Promise<WebDAVSyncStatus> {
+  return callApp('GetWebDAVSyncStatus')
+}
+
+export async function pushWebDAVSync(overwrite: boolean = false): Promise<WebDAVSyncResult> {
+  return callApp('PushWebDAVSync', overwrite)
+}
+
+export async function pullWebDAVSync(masterPassword: string, overwrite: boolean = false): Promise<WebDAVSyncResult> {
+  return callApp('PullWebDAVSync', masterPassword, overwrite)
+}
+
 export async function generateCredential(label: string, algorithm: string, keyBits: number, passphrase: string): Promise<main.Credential> {
   return callApp('GenerateCredential', label, algorithm, keyBits, passphrase)
 }

@@ -224,6 +224,103 @@ func TestStoreSessionLogLifecycle(t *testing.T) {
 	}
 }
 
+func TestStoreSyncSnapshotExcludesLocalOnlyData(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-sync", Name: "Sync Host", Address: "sync.example.com", Port: 22, Username: "root"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+	if err := store.SaveWindowState(model.WindowState{Width: 1200, Height: 800, Maximised: true}); err != nil {
+		t.Fatalf("SaveWindowState() error = %v", err)
+	}
+	log := model.SessionLog{
+		ID:          "log-local",
+		HostID:      host.ID,
+		HostAddress: host.Address,
+		HostPort:    host.Port,
+		SSHUsername: host.Username,
+		Protocol:    "ssh",
+		Status:      model.SessionLogStatusClosed,
+		StartedAt:   time.Now().UTC(),
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+	if err := store.AppendSessionTranscript(log.ID, "session-local", "local only transcript", vault); err != nil {
+		t.Fatalf("AppendSessionTranscript() error = %v", err)
+	}
+
+	payload, err := store.ExportSyncSnapshot(false)
+	if err != nil {
+		t.Fatalf("ExportSyncSnapshot() error = %v", err)
+	}
+	content := string(payload)
+	if strings.Contains(content, "window") {
+		t.Fatal("sync snapshot contains window state")
+	}
+	if strings.Contains(content, "session_logs") {
+		t.Fatal("sync snapshot contains session logs when includeSessionLogs=false")
+	}
+	if strings.Contains(content, "local only transcript") {
+		t.Fatal("sync snapshot contains transcript plaintext")
+	}
+
+	nextStore, err := NewStore(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore(next) error = %v", err)
+	}
+	if err := nextStore.ImportSyncSnapshot(payload); err != nil {
+		t.Fatalf("ImportSyncSnapshot() error = %v", err)
+	}
+
+	nextVault := security.NewVault()
+	nextSalt, err := nextStore.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt(next) error = %v", err)
+	}
+	if err := nextVault.Unlock("master-password", nextSalt); err != nil {
+		t.Fatalf("Unlock(next) error = %v", err)
+	}
+	hosts, err := nextStore.GetHosts()
+	if err != nil {
+		t.Fatalf("GetHosts(next) error = %v", err)
+	}
+	if len(hosts) != 1 || hosts[0].ID != host.ID {
+		t.Fatalf("synced hosts = %#v, want host %q", hosts, host.ID)
+	}
+	identity, err := nextStore.GetIdentity(host.ID, nextVault)
+	if err != nil {
+		t.Fatalf("GetIdentity(next) error = %v", err)
+	}
+	if identity.Password != "secret" {
+		t.Fatalf("synced identity password = %q, want secret", identity.Password)
+	}
+	window, err := nextStore.LoadWindowState()
+	if err != nil {
+		t.Fatalf("LoadWindowState(next) error = %v", err)
+	}
+	if window.Width != 0 || window.Height != 0 || window.Maximised {
+		t.Fatalf("imported window state = %#v, want zero value", window)
+	}
+	if logs, err := nextStore.ListSessionLogs(0); err != nil || len(logs) != 0 {
+		t.Fatalf("imported session logs = %#v, err = %v, want none", logs, err)
+	}
+}
+
 func TestStoreResetVaultClearsSessionLogs(t *testing.T) {
 	dir := t.TempDir()
 	store, err := NewStore(filepath.Join(dir, "config.zen"))
