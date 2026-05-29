@@ -6,6 +6,7 @@ import (
 	"zenterm/internal/db"
 	"zenterm/internal/security"
 	"zenterm/internal/service"
+	"zenterm/internal/syncer"
 )
 
 func normalizeFrontendError(err error) error {
@@ -78,6 +79,12 @@ func normalizeFrontendError(err error) error {
 		return service.ErrFileNameRequired
 	case errors.Is(err, service.ErrFileEntryAlreadyExists):
 		return service.ErrFileEntryAlreadyExists
+	case errors.Is(err, syncer.ErrSyncNotConfigured):
+		return syncer.ErrSyncNotConfigured
+	case errors.Is(err, syncer.ErrSyncConflict):
+		return syncer.ErrSyncConflict
+	case errors.Is(err, syncer.ErrRemoteNotFound):
+		return syncer.ErrRemoteNotFound
 	default:
 		return err
 	}

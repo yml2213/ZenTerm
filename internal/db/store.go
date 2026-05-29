@@ -103,6 +103,14 @@ type sessionTranscriptFileChunk struct {
 	RecordedAt time.Time           `json:"recorded_at,omitempty"`
 }
 
+type syncSnapshotData struct {
+	Version     int                 `json:"version"`
+	Vault       vaultData           `json:"vault"`
+	Hosts       []hostEntry         `json:"hosts"`
+	Credentials []credentialEntry   `json:"credentials"`
+	SessionLogs *[]model.SessionLog `json:"session_logs,omitempty"`
+}
+
 // NewStore 为指定文件路径创建一个基于 JSON 的存储实现 / creates a JSON-backed store for the given file path.
 func NewStore(path string) (*Store, error) {
 	if path == "" {
@@ -870,6 +878,70 @@ func (s *Store) SaveWindowState(state model.WindowState) error {
 	return s.saveWindowStateFileLocked(state)
 }
 
+// ExportSyncSnapshot 导出可跨设备同步的数据快照，不包含本机窗口状态、活跃会话和 transcript 文件。
+// ExportSyncSnapshot exports data that can be synced across devices, excluding local-only state and transcript files.
+func (s *Store) ExportSyncSnapshot(includeSessionLogs bool) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot := syncSnapshotData{
+		Version:     currentVersion,
+		Vault:       data.Vault,
+		Hosts:       append([]hostEntry(nil), data.Hosts...),
+		Credentials: append([]credentialEntry(nil), data.Credentials...),
+	}
+	if includeSessionLogs {
+		logs := append([]model.SessionLog(nil), data.SessionLogs...)
+		snapshot.SessionLogs = &logs
+	}
+
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return nil, fmt.Errorf("encode sync snapshot: %w", err)
+	}
+	return payload, nil
+}
+
+// ImportSyncSnapshot 导入同步快照；只替换可同步数据，保留本机窗口状态和 transcript 文件。
+// ImportSyncSnapshot imports a sync snapshot while preserving local-only window state and transcript files.
+func (s *Store) ImportSyncSnapshot(payload []byte) error {
+	if len(payload) == 0 {
+		return errors.New("sync snapshot is empty")
+	}
+
+	var snapshot syncSnapshotData
+	if err := json.Unmarshal(payload, &snapshot); err != nil {
+		return fmt.Errorf("decode sync snapshot: %w", err)
+	}
+	if snapshot.Version <= 0 || snapshot.Version > currentVersion {
+		return fmt.Errorf("unsupported sync snapshot version: %d", snapshot.Version)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	data.Version = currentVersion
+	data.Vault = snapshot.Vault
+	data.Hosts = append([]hostEntry(nil), snapshot.Hosts...)
+	data.Credentials = append([]credentialEntry(nil), snapshot.Credentials...)
+	if snapshot.SessionLogs != nil {
+		data.SessionLogs = append([]model.SessionLog(nil), (*snapshot.SessionLogs)...)
+	}
+	data.SessionTranscripts = nil
+
+	return s.saveLocked(data)
+}
+
 func (s *Store) loadLocked() (fileData, error) {
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
@@ -924,7 +996,7 @@ func (s *Store) saveLocked(data fileData) error {
 		return fmt.Errorf("encode store: %w", err)
 	}
 
-	if err := os.WriteFile(s.path, bytes, 0o600); err != nil {
+	if err := writeFileAtomic(s.path, bytes, 0o600); err != nil {
 		return fmt.Errorf("write store: %w", err)
 	}
 
@@ -957,7 +1029,7 @@ func (s *Store) saveWindowStateFileLocked(state model.WindowState) error {
 		return fmt.Errorf("encode window state: %w", err)
 	}
 
-	if err := os.WriteFile(s.windowStateFilePath(), bytes, 0o600); err != nil {
+	if err := writeFileAtomic(s.windowStateFilePath(), bytes, 0o600); err != nil {
 		return fmt.Errorf("write window state: %w", err)
 	}
 
@@ -1137,6 +1209,10 @@ func readTranscriptFileRecords(path string) ([]sessionTranscriptFileChunk, error
 }
 
 func replaceTranscriptFileRecords(path string, records []sessionTranscriptFileChunk) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("create transcript directory: %w", err)
+	}
+
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".transcript-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temporary transcript file: %w", err)
@@ -1161,6 +1237,50 @@ func replaceTranscriptFileRecords(path string, records []sessionTranscriptFileCh
 	if err := os.Rename(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("replace transcript file: %w", err)
+	}
+	return nil
+}
+
+func writeFileAtomic(path string, payload []byte, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create parent directory: %w", err)
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temporary file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmp.Write(payload); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write temporary file: %w", err)
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod temporary file: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync temporary file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temporary file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace file: %w", err)
+	}
+	cleanup = false
+
+	if dir, err := os.Open(filepath.Dir(path)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
 	}
 	return nil
 }
