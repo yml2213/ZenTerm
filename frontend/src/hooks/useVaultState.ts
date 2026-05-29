@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils.js'
+import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils'
 import { VaultSetupForm, ChangeMasterForm } from '../types'
 
 export function useVaultState() {

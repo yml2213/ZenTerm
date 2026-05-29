@@ -2,7 +2,7 @@ import { useHostActionHandlers } from './useHostActionHandlers'
 import { useSessionActionHandlers } from './useSessionActionHandlers'
 import { useVaultActionHandlers } from './useVaultActionHandlers'
 import { main } from '../wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt, VaultSetupForm, ChangeMasterForm } from '../types'
+import { HostFormModel, SessionTab, WorkspaceType, HostKeyPrompt, VaultSetupForm, ChangeMasterForm } from '../types'
 
 interface AppActionHandlersProps {
   vaultState: {

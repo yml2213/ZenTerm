@@ -1,5 +1,3 @@
-import { main } from '../wailsjs/wailsjs/go/models'
-
 export type WorkspaceType = 'vaults' | 'sftp' | 'new-tab' | 'log' | 'ssh'
 
 export interface SessionTab {
@@ -18,7 +16,7 @@ export interface SessionTab {
   localUsername?: string
 }
 
-export interface WorkspaceTab extends SessionTab {}
+export type WorkspaceTab = SessionTab
 
 export interface HostKeyPrompt {
   hostID: string
