@@ -6,8 +6,12 @@
 }
 
 .host-grid-list {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.52rem;
+}
+
+.host-grid.host-grid-list {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .host-grid-empty {
@@ -247,6 +251,7 @@
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .host-inline-state.trusted {
@@ -298,17 +303,28 @@
 }
 
 .host-grid-list .host-card {
-  grid-template-columns: minmax(240px, 1.1fr) minmax(180px, 0.8fr) minmax(140px, 0.6fr) auto;
+  grid-template-columns: minmax(340px, 1.2fr) minmax(260px, 0.9fr) max-content max-content;
   grid-template-rows: auto;
   align-items: center;
-  gap: 1rem;
+  gap: 1.1rem;
   padding: 0.72rem 0.82rem;
   min-height: 84px;
+  width: 100%;
 }
 
 .host-grid-list .host-card-header,
 .host-grid-list .host-card-footer {
   min-width: 0;
+}
+
+.host-grid-list .host-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.host-grid-list .host-card-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .host-grid-list .host-card-badges,
@@ -320,11 +336,18 @@
   align-self: center;
 }
 
+.host-grid-list .host-card-actions {
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
 .host-grid-list .host-card-meta-row {
   justify-content: flex-start;
+  align-self: center;
 }
 
 .host-grid-list .host-tag-row {
+  align-self: center;
   flex-wrap: nowrap;
   justify-content: flex-start;
 }
@@ -333,9 +356,17 @@
   display: none;
 }
 
+.host-grid-list .host-card-footer {
+  align-self: center;
+}
+
 @container (max-width: 1120px) {
   .host-grid {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  }
+
+  .host-grid.host-grid-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .host-card,

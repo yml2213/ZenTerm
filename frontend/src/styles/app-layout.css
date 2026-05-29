@@ -316,7 +316,7 @@
     radial-gradient(circle at top center, var(--panel-grid-glow), transparent 24%),
     linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
-  background-size: auto, 88px 88px, 88px 88px;
+  background-size: auto, 56px 56px, 56px 56px;
   background-position: center top, center center, center center;
 }
 
