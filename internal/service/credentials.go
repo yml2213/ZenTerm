@@ -1,14 +1,17 @@
 package service
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"zenterm/internal/model"
@@ -26,7 +29,7 @@ func (s *Service) GenerateCredential(label, algorithm string, keyBits int, passp
 		algorithm = "ed25519"
 	}
 
-	var privateKey interface{}
+	var privateKey crypto.PrivateKey
 	var err error
 
 	switch algorithm {
@@ -37,8 +40,8 @@ func (s *Service) GenerateCredential(label, algorithm string, keyBits int, passp
 		}
 		privateKey = priv
 	case "rsa":
-		if keyBits < 1024 {
-			keyBits = 1024
+		if keyBits < 2048 {
+			keyBits = 2048
 		}
 		if keyBits > 4096 {
 			keyBits = 4096
@@ -70,15 +73,10 @@ func (s *Service) GenerateCredential(label, algorithm string, keyBits int, passp
 		return "", ErrInvalidAlgorithm
 	}
 
-	privBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	privBlock, err := marshalOpenSSHPrivateKey(privateKey, label, passphrase)
 	if err != nil {
 		return "", fmt.Errorf("marshal private key: %w", err)
 	}
-
-	privPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privBytes,
-	})
 
 	var pubKey ssh.PublicKey
 	var err2 error
@@ -97,16 +95,17 @@ func (s *Service) GenerateCredential(label, algorithm string, keyBits int, passp
 	}
 	pubKeyBytes := ssh.MarshalAuthorizedKey(pubKey)
 
+	now := time.Now().UTC()
 	cred := model.Credential{
-		ID:        time.Now().Format("cred_20060102150405"),
+		ID:        newCredentialID(),
 		Label:     label,
 		Type:      model.CredentialTypeSSHKey,
 		Algorithm: formatAlgorithmName(algorithm, keyBits),
 		PublicKey: string(pubKeyBytes),
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: now,
 	}
 
-	if err := s.store.AddCredential(cred, string(privPEM), passphrase, s.vault); err != nil {
+	if err := s.store.AddCredential(cred, string(privBlock), passphrase, s.vault); err != nil {
 		return "", fmt.Errorf("store credential: %w", err)
 	}
 
@@ -135,53 +134,22 @@ func (s *Service) ImportCredential(label, privateKeyPEM, passphrase string) (str
 		return "", fmt.Errorf("private key is required")
 	}
 
-	block, _ := pem.Decode([]byte(privateKeyPEM))
-	if block == nil {
-		return "", fmt.Errorf("failed to decode PEM block")
+	signer, err := parsePrivateKeySigner(privateKeyPEM, passphrase)
+	if err != nil {
+		return "", fmt.Errorf("parse private key: %w", err)
 	}
-
-	var keyType string
-	switch block.Type {
-	case "PRIVATE KEY", "ENCRYPTED PRIVATE KEY":
-		keyType = "rsa"
-	case "OPENSSH PRIVATE KEY":
-		keyType = "ed25519"
-	default:
-		keyType = "unknown"
-	}
-
-	var pubKey ssh.PublicKey
-
-	if keyType == "ed25519" {
-		key, err := ssh.ParsePrivateKey([]byte(privateKeyPEM))
-		if err != nil {
-			return "", fmt.Errorf("parse private key: %w", err)
-		}
-		pubKey = key.PublicKey()
-	} else {
-		priv, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return "", fmt.Errorf("parse pkcs8 private key: %w", err)
-		}
-		rsaKey, ok := priv.(*rsa.PrivateKey)
-		if !ok {
-			return "", fmt.Errorf("not an rsa private key")
-		}
-		pubKey, err = ssh.NewPublicKey(rsaKey.Public())
-		if err != nil {
-			return "", fmt.Errorf("create ssh public key: %w", err)
-		}
-	}
+	pubKey := signer.PublicKey()
 
 	pubKeyBytes := ssh.MarshalAuthorizedKey(pubKey)
 
+	now := time.Now().UTC()
 	cred := model.Credential{
-		ID:        time.Now().Format("cred_20060102150405"),
+		ID:        newCredentialID(),
 		Label:     label,
 		Type:      model.CredentialTypeSSHKey,
-		Algorithm: keyType,
+		Algorithm: algorithmFromPublicKey(pubKey),
 		PublicKey: string(pubKeyBytes),
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: now,
 	}
 
 	if err := s.store.AddCredential(cred, privateKeyPEM, passphrase, s.vault); err != nil {
@@ -224,6 +192,20 @@ func (s *Service) DeleteCredential(credentialID string) error {
 	return s.store.DeleteCredential(credentialID)
 }
 
+// GetCredentialPublicKey 返回指定凭据的公钥内容 / returns the public key material for a credential.
+func (s *Service) GetCredentialPublicKey(credentialID string) (string, error) {
+	if credentialID == "" {
+		return "", ErrCredentialIDRequired
+	}
+
+	cred, err := s.store.GetCredential(credentialID)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(cred.PublicKey), nil
+}
+
 // UpdateCredentialLastUsed 更新凭据的最后使用时间 / updates the last used timestamp for a credential.
 func (s *Service) UpdateCredentialLastUsed(credentialID string) error {
 	if credentialID == "" {
@@ -237,4 +219,58 @@ func (s *Service) UpdateCredentialLastUsed(credentialID string) error {
 
 	cred.LastUsedAt = time.Now().UTC()
 	return s.store.UpdateCredentialLastUsed(credentialID)
+}
+
+func marshalOpenSSHPrivateKey(privateKey crypto.PrivateKey, comment, passphrase string) ([]byte, error) {
+	var block *pem.Block
+	var err error
+	if passphrase != "" {
+		block, err = ssh.MarshalPrivateKeyWithPassphrase(privateKey, comment, []byte(passphrase))
+	} else {
+		block, err = ssh.MarshalPrivateKey(privateKey, comment)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(block), nil
+}
+
+func parsePrivateKeySigner(privateKey, passphrase string) (ssh.Signer, error) {
+	payload := []byte(privateKey)
+	signer, err := ssh.ParsePrivateKey(payload)
+	if err == nil {
+		return signer, nil
+	}
+
+	var missing *ssh.PassphraseMissingError
+	if errors.As(err, &missing) && passphrase != "" {
+		return ssh.ParsePrivateKeyWithPassphrase(payload, []byte(passphrase))
+	}
+
+	return nil, err
+}
+
+func algorithmFromPublicKey(publicKey ssh.PublicKey) string {
+	switch publicKey.Type() {
+	case ssh.KeyAlgoED25519:
+		return "ed25519"
+	case ssh.KeyAlgoRSA, ssh.KeyAlgoRSASHA256, ssh.KeyAlgoRSASHA512:
+		return "rsa"
+	case ssh.KeyAlgoECDSA256:
+		return "ecdsa-p256"
+	case ssh.KeyAlgoECDSA384:
+		return "ecdsa-p384"
+	case ssh.KeyAlgoECDSA521:
+		return "ecdsa-p521"
+	default:
+		return publicKey.Type()
+	}
+}
+
+func newCredentialID() string {
+	buf := make([]byte, 4)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("cred_%s_%d", time.Now().Format("20060102150405"), time.Now().UnixNano())
+	}
+	return fmt.Sprintf("cred_%s_%s", time.Now().Format("20060102150405"), hex.EncodeToString(buf))
 }

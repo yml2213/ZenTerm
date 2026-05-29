@@ -1,13 +1,21 @@
 package service
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"zenterm/internal/db"
+	"zenterm/internal/model"
 	"zenterm/internal/security"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func setupTestServiceWithT(t testing.TB) (*Service, func()) {
@@ -93,7 +101,7 @@ func TestGenerateRSACredential(t *testing.T) {
 		keyBits  int
 		expected string
 	}{
-		{"RSA-1024", 1024, "rsa-1024"},
+		{"RSA-1024", 1024, "rsa-2048"},
 		{"RSA-2048", 2048, "rsa-2048"},
 		{"RSA-4096", 4096, "rsa-4096"},
 	}
@@ -146,8 +154,8 @@ func TestRSABitLimits(t *testing.T) {
 		expectBits  int
 		expectError bool
 	}{
-		{"小于最小值", 512, 1024, false},
-		{"最小值", 1024, 1024, false},
+		{"小于最小值", 512, 2048, false},
+		{"最小值", 1024, 2048, false},
 		{"中间值", 2048, 2048, false},
 		{"最大值", 4096, 4096, false},
 		{"大于最大值", 8192, 4096, false},
@@ -198,6 +206,123 @@ func TestCredentialWithPassphrase(t *testing.T) {
 
 	if len(creds) != 1 {
 		t.Errorf("期望 1 个凭据，实际 %d 个", len(creds))
+	}
+
+	privateKey, passphrase, err := svc.store.GetCredentialSecret(credentialID, svc.vault)
+	if err != nil {
+		t.Fatalf("读取凭据密文失败：%v", err)
+	}
+	if passphrase != "my-secret-passphrase" {
+		t.Fatalf("密码短语 = %q，期望保存的密码短语", passphrase)
+	}
+	if _, err := ssh.ParsePrivateKey([]byte(privateKey)); err == nil {
+		t.Fatal("未带密码短语解析加密私钥成功，期望失败")
+	}
+	if _, err := parsePrivateKeySigner(privateKey, passphrase); err != nil {
+		t.Fatalf("带密码短语解析加密私钥失败：%v", err)
+	}
+}
+
+func TestUploadCredentialToHostUploadsAndBinds(t *testing.T) {
+	svc, cleanup := setupTestServiceWithT(t)
+	defer cleanup()
+
+	credentialID, err := svc.GenerateCredential("deploy-key", "ed25519", 0, "")
+	if err != nil {
+		t.Fatalf("GenerateCredential() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "deploy-host",
+		Address:  "deploy.example.com",
+		Port:     22,
+		Username: "zen",
+	}
+	if err := svc.store.AddHost(host, model.Identity{Password: "bootstrap-password"}, svc.vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	session := &stubSSHSession{combinedOutput: "changed=1\n"}
+	client := &stubSSHClient{session: session}
+	svc.dialer = &stubDialer{client: client}
+
+	result, err := svc.UploadCredentialToHost(host.ID, credentialID, true)
+	if err != nil {
+		t.Fatalf("UploadCredentialToHost() error = %v", err)
+	}
+	if !result.Uploaded || result.AlreadyThere || !result.Bound {
+		t.Fatalf("UploadCredentialToHost() = %#v, want uploaded and bound", result)
+	}
+	if !strings.Contains(session.combinedCommand, "authorized_keys") {
+		t.Fatalf("combined command = %q, want authorized_keys update", session.combinedCommand)
+	}
+
+	loadedHost, err := svc.store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if loadedHost.CredentialID != credentialID {
+		t.Fatalf("CredentialID = %q, want %q", loadedHost.CredentialID, credentialID)
+	}
+}
+
+func TestListAndImportLocalSSHKeys(t *testing.T) {
+	svc, cleanup := setupTestServiceWithT(t)
+	defer cleanup()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	sshDir := filepath.Join(home, ".ssh")
+	if err := os.Mkdir(sshDir, 0o700); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	privateBlock, err := ssh.MarshalPrivateKey(privateKey, "local-test")
+	if err != nil {
+		t.Fatalf("MarshalPrivateKey() error = %v", err)
+	}
+	privatePath := filepath.Join(sshDir, "id_ed25519_test")
+	if err := os.WriteFile(privatePath, pem.EncodeToMemory(privateBlock), 0o600); err != nil {
+		t.Fatalf("WriteFile(private) error = %v", err)
+	}
+
+	sshPublicKey, err := ssh.NewPublicKey(publicKey)
+	if err != nil {
+		t.Fatalf("NewPublicKey() error = %v", err)
+	}
+	if err := os.WriteFile(privatePath+".pub", ssh.MarshalAuthorizedKey(sshPublicKey), 0o644); err != nil {
+		t.Fatalf("WriteFile(public) error = %v", err)
+	}
+
+	keys, err := svc.ListLocalSSHKeys()
+	if err != nil {
+		t.Fatalf("ListLocalSSHKeys() error = %v", err)
+	}
+	if len(keys) != 1 {
+		t.Fatalf("len(ListLocalSSHKeys()) = %d, want 1", len(keys))
+	}
+	if keys[0].Name != "id_ed25519_test" || !keys[0].HasPrivate || keys[0].PublicKey == "" {
+		t.Fatalf("local key = %#v, want discovered private/public key", keys[0])
+	}
+
+	credentialID, err := svc.ImportLocalSSHKey(privatePath, "本机测试密钥", "")
+	if err != nil {
+		t.Fatalf("ImportLocalSSHKey() error = %v", err)
+	}
+	if credentialID == "" {
+		t.Fatal("ImportLocalSSHKey() returned empty credential id")
+	}
+
+	keys, err = svc.ListLocalSSHKeys()
+	if err != nil {
+		t.Fatalf("ListLocalSSHKeys() after import error = %v", err)
+	}
+	if !keys[0].Imported || keys[0].CredentialID != credentialID {
+		t.Fatalf("local key after import = %#v, want imported credential %q", keys[0], credentialID)
 	}
 }
 

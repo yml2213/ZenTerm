@@ -269,6 +269,53 @@ export async function getCredentialUsage(credentialID: string): Promise<model.Cr
   return callApp('GetCredentialUsage', credentialID)
 }
 
+export async function getCredentialPublicKey(credentialID: string): Promise<string> {
+  return callApp('GetCredentialPublicKey', credentialID)
+}
+
+export interface LocalSSHKey {
+  id: string
+  name: string
+  path: string
+  public_path?: string
+  algorithm?: string
+  public_key?: string
+  fingerprint_sha256?: string
+  has_private: boolean
+  encrypted: boolean
+  imported: boolean
+  credential_id?: string
+}
+
+export async function listLocalSSHKeys(): Promise<LocalSSHKey[]> {
+  return callApp('ListLocalSSHKeys')
+}
+
+export async function importLocalSSHKey(path: string, label: string, passphrase: string): Promise<string> {
+  return callApp('ImportLocalSSHKey', path, label, passphrase)
+}
+
+export interface CredentialUploadResult {
+  host_id: string
+  credential_id: string
+  uploaded: boolean
+  already_there: boolean
+  bound: boolean
+  message?: string
+}
+
+export async function uploadCredentialToHost(hostID: string, credentialID: string, bind: boolean): Promise<CredentialUploadResult> {
+  return callApp('UploadCredentialToHost', hostID, credentialID, bind)
+}
+
+export async function bindCredentialToHost(hostID: string, credentialID: string): Promise<void> {
+  return callApp('BindCredentialToHost', hostID, credentialID)
+}
+
+export async function testCredentialForHost(hostID: string, credentialID: string): Promise<void> {
+  return callApp('TestCredentialForHost', hostID, credentialID)
+}
+
 export async function deleteCredential(credentialID: string): Promise<void> {
   return callApp('DeleteCredential', credentialID)
 }

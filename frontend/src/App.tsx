@@ -111,6 +111,7 @@ export default function App() {
 
   const {
     closeHostDialog,
+    refreshHosts,
     openEditHost,
     handleInitializeVault,
     handleAccessPassword,
@@ -261,6 +262,7 @@ export default function App() {
           onDeleteHost={setters.setDeleteCandidate}
           onCopyHostAddress={handleCopyHostAddress}
           onToggleFavorite={handleToggleFavorite}
+          onRefreshHosts={refreshHosts}
           vaultUnlocked={vaultUnlocked}
           isSettingsPage={isSettingsPage}
           changeMasterForm={changeMasterForm}

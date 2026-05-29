@@ -125,6 +125,9 @@ func (s *Service) Connect(hostID string) (string, error) {
 	go s.forwardOutput(sessionID, logID, stderr)
 	go s.waitForSession(sessionID, managed)
 	_ = s.store.UpdateLastConnectedAt(hostID, managed.ConnectedAt)
+	if host.CredentialID != "" {
+		_ = s.store.UpdateCredentialLastUsed(host.CredentialID)
+	}
 	if host.SystemTypeSource != "manual" {
 		if systemType := detectHostSystemType(client); systemType != "" {
 			_ = s.store.UpdateHostSystemType(hostID, systemType, "auto")
@@ -267,15 +270,15 @@ func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ss
 	}
 
 	authMethods := make([]ssh.AuthMethod, 0, 2)
-	if identity.Password != "" {
-		authMethods = append(authMethods, ssh.Password(identity.Password))
-	}
 	if identity.PrivateKey != "" {
-		signer, err := ssh.ParsePrivateKey([]byte(identity.PrivateKey))
+		signer, err := parsePrivateKeySigner(identity.PrivateKey, identity.Password)
 		if err != nil {
 			return nil, fmt.Errorf("parse private key: %w", err)
 		}
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
+	}
+	if identity.Password != "" && identity.PrivateKey == "" {
+		authMethods = append(authMethods, ssh.Password(identity.Password))
 	}
 	if len(authMethods) == 0 {
 		return nil, ErrNoIdentityAuth

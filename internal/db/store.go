@@ -1360,7 +1360,7 @@ func (s *Store) UpdateCredentialLastUsed(credentialID string) error {
 
 	for i := range data.Credentials {
 		if data.Credentials[i].Credential.ID == credentialID {
-			data.Credentials[i].Credential.LastUsedAt = data.Credentials[i].Credential.UpdatedAt
+			data.Credentials[i].Credential.LastUsedAt = time.Now().UTC()
 			return s.saveLocked(data)
 		}
 	}
