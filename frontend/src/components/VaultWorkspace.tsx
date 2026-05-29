@@ -293,74 +293,76 @@ export default function VaultWorkspace({
         </div>
       </aside>
 
-      <section className="page-shell">
-        <header className="page-toolbar">
-          <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : isKeychainPage ? ' keychain' : isKnownHostsPage ? ' known-hosts' : isLogsPage ? ' logs' : ''}`}>
-            {isHostsPage ? (
-              <div className="page-toolbar-search-slot">
-                <label className="search-bar search-bar-compact">
-                  <Search size={15} />
-                  <input
-                    ref={hostSearchInputRef}
-                    value={searchQuery}
-                    onChange={(event) => onSearchQueryChange(event.target.value)}
-                    placeholder={searchPlaceholder}
-                    aria-label="搜索主机"
-                    aria-keyshortcuts="Control+K Meta+K"
-                  />
-                </label>
-              </div>
-            ) : isKeychainPage ? (
-              <div className="page-toolbar-keychain-slot">{activePageToolbar}</div>
-            ) : isKnownHostsPage ? (
-              <div className="page-toolbar-known-hosts-slot">{activePageToolbar}</div>
-            ) : isLogsPage ? (
-              <div className="page-toolbar-session-log-slot">{activePageToolbar}</div>
-            ) : (
-              <div className="page-toolbar-main">
-                <div className="page-intro-copy page-toolbar-copy">
-                  <span className="panel-kicker">{resolvedPageHeader.kicker}</span>
-                  <h1>{resolvedPageHeader.title}</h1>
-                  {resolvedPageHeader.description ? <p>{resolvedPageHeader.description}</p> : null}
-                </div>
-              </div>
-            )}
-            <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
+      <section className={`page-shell${isSettingsPage ? ' settings-page-shell' : ''}`}>
+        {!isSettingsPage ? (
+          <header className="page-toolbar">
+            <div className={`page-toolbar-actions${isHostsPage ? ' hosts' : isKeychainPage ? ' keychain' : isKnownHostsPage ? ' known-hosts' : isLogsPage ? ' logs' : ''}`}>
               {isHostsPage ? (
-                <>
-                  <div className="view-toggle" aria-label="主机视图切换">
-                    <button
-                      type="button"
-                      className={hostViewMode === 'grid' ? 'active' : ''}
-                      aria-pressed={hostViewMode === 'grid'}
-                      onClick={() => onHostViewModeChange('grid')}
-                    >
-                      <LayoutGrid size={15} />
-                      卡片
-                    </button>
-                    <button
-                      type="button"
-                      className={hostViewMode === 'list' ? 'active' : ''}
-                      aria-pressed={hostViewMode === 'list'}
-                      onClick={() => onHostViewModeChange('list')}
-                    >
-                      <List size={15} />
-                      列表
-                    </button>
+                <div className="page-toolbar-search-slot">
+                  <label className="search-bar search-bar-compact">
+                    <Search size={15} />
+                    <input
+                      ref={hostSearchInputRef}
+                      value={searchQuery}
+                      onChange={(event) => onSearchQueryChange(event.target.value)}
+                      placeholder={searchPlaceholder}
+                      aria-label="搜索主机"
+                      aria-keyshortcuts="Control+K Meta+K"
+                    />
+                  </label>
+                </div>
+              ) : isKeychainPage ? (
+                <div className="page-toolbar-keychain-slot">{activePageToolbar}</div>
+              ) : isKnownHostsPage ? (
+                <div className="page-toolbar-known-hosts-slot">{activePageToolbar}</div>
+              ) : isLogsPage ? (
+                <div className="page-toolbar-session-log-slot">{activePageToolbar}</div>
+              ) : (
+                <div className="page-toolbar-main">
+                  <div className="page-intro-copy page-toolbar-copy">
+                    <span className="panel-kicker">{resolvedPageHeader.kicker}</span>
+                    <h1>{resolvedPageHeader.title}</h1>
+                    {resolvedPageHeader.description ? <p>{resolvedPageHeader.description}</p> : null}
                   </div>
-                  <button
-                    type="button"
-                    className="toolbar-btn primary"
-                    onClick={onCreateHost}
-                  >
-                    <Plus size={16} />
-                    {newHostLabel}
-                  </button>
-                </>
-              ) : null}
+                </div>
+              )}
+              <div className={`page-toolbar-meta${isHostsPage ? ' hosts' : ''}`}>
+                {isHostsPage ? (
+                  <>
+                    <div className="view-toggle" aria-label="主机视图切换">
+                      <button
+                        type="button"
+                        className={hostViewMode === 'grid' ? 'active' : ''}
+                        aria-pressed={hostViewMode === 'grid'}
+                        onClick={() => onHostViewModeChange('grid')}
+                      >
+                        <LayoutGrid size={15} />
+                        卡片
+                      </button>
+                      <button
+                        type="button"
+                        className={hostViewMode === 'list' ? 'active' : ''}
+                        aria-pressed={hostViewMode === 'list'}
+                        onClick={() => onHostViewModeChange('list')}
+                      >
+                        <List size={15} />
+                        列表
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="toolbar-btn primary"
+                      onClick={onCreateHost}
+                    >
+                      <Plus size={16} />
+                      {newHostLabel}
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
+        ) : null}
 
         <main className="content-area">
           {isHostsPage ? (

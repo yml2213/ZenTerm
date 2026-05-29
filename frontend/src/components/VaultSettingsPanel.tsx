@@ -1,6 +1,24 @@
-import { AlertTriangle, Database, KeyRound, RotateCcw, Settings2 } from 'lucide-react'
-import type { FormEvent } from 'react'
+import {
+  AlertTriangle,
+  Cloud,
+  Database,
+  KeyRound,
+  Palette,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+} from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  configureWebDAVSync,
+  getWebDAVSyncStatus,
+  pullWebDAVSync,
+  pushWebDAVSync,
+  type WebDAVSyncStatus,
+} from '../lib/backend'
 import type { ChangeMasterForm } from '../types'
+
+type SettingsSection = 'security' | 'sync' | 'data' | 'appearance' | 'advanced'
 
 interface VaultSettingsPanelProps {
   changeForm: ChangeMasterForm
@@ -13,6 +31,19 @@ interface VaultSettingsPanelProps {
   onResetVault: () => void
 }
 
+const settingsSections: Array<{
+  id: SettingsSection
+  label: string
+  description: string
+  icon: typeof ShieldCheck
+}> = [
+  { id: 'security', label: '安全', description: '主密码与本机钥匙串', icon: ShieldCheck },
+  { id: 'sync', label: '同步', description: 'WebDAV 与坚果云', icon: Cloud },
+  { id: 'data', label: '数据', description: '导入、导出与状态', icon: Database },
+  { id: 'appearance', label: '外观', description: '主题与密度', icon: Palette },
+  { id: 'advanced', label: '高级', description: '启动与调试', icon: Settings2 },
+]
+
 export default function VaultSettingsPanel({
   changeForm,
   changeBusy,
@@ -23,171 +54,399 @@ export default function VaultSettingsPanel({
   onResetConfirmedChange,
   onResetVault,
 }: VaultSettingsPanelProps) {
-  return (
-    <section className="settings-stage">
-      <div className="settings-grid">
-        <section className="settings-card">
-          <div className="settings-card-head">
-            <div className="settings-card-icon success">
-              <KeyRound size={18} />
-            </div>
-            <div>
-              <h2>修改主密码</h2>
-              <p>更新后会重新加密所有已保存凭据，并可同步刷新系统钥匙串中的记忆密码。</p>
-            </div>
-          </div>
+  const [activeSection, setActiveSection] = useState<SettingsSection>('security')
 
-          <form className="settings-form" onSubmit={onChangePassword}>
+  const activeMeta = useMemo(
+    () => settingsSections.find((section) => section.id === activeSection) || settingsSections[0],
+    [activeSection],
+  )
+
+  return (
+    <section className="settings-stage" aria-label="设置">
+      <aside className="settings-nav-panel" aria-label="设置分类">
+        <div className="settings-nav-head">
+          <span className="panel-kicker">Settings</span>
+          <h1>设置</h1>
+        </div>
+
+        <div className="settings-nav-list">
+          {settingsSections.map((section) => {
+            const Icon = section.icon
+            return (
+              <button
+                type="button"
+                key={section.id}
+                className={`settings-nav-item${activeSection === section.id ? ' active' : ''}`}
+                onClick={() => setActiveSection(section.id)}
+              >
+                <Icon size={16} />
+                <span>
+                  <strong>{section.label}</strong>
+                  <small>{section.description}</small>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </aside>
+
+      <main className="settings-detail">
+        <header className="settings-detail-head">
+          <span className="panel-kicker">{activeMeta.description}</span>
+          <h2>{activeMeta.label}</h2>
+        </header>
+
+        {activeSection === 'security' ? (
+          <SecuritySettings
+            changeForm={changeForm}
+            changeBusy={changeBusy}
+            resetConfirmed={resetConfirmed}
+            resetBusy={resetBusy}
+            onChangeField={onChangeField}
+            onChangePassword={onChangePassword}
+            onResetConfirmedChange={onResetConfirmedChange}
+            onResetVault={onResetVault}
+          />
+        ) : activeSection === 'sync' ? (
+          <SyncSettings />
+        ) : (
+          <ReservedSettings section={activeSection} />
+        )}
+      </main>
+    </section>
+  )
+}
+
+function SecuritySettings({
+  changeForm,
+  changeBusy,
+  resetConfirmed,
+  resetBusy,
+  onChangeField,
+  onChangePassword,
+  onResetConfirmedChange,
+  onResetVault,
+}: VaultSettingsPanelProps) {
+  return (
+    <div className="settings-section-stack">
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <KeyRound size={18} />
+          <div>
+            <h3>主密码</h3>
+            <p>更新后会重新加密已保存凭据，并刷新系统钥匙串中的记忆密码。</p>
+          </div>
+        </div>
+
+        <form className="settings-form" onSubmit={onChangePassword}>
+          <label>
+            当前主密码
+            <input
+              type="password"
+              value={changeForm.currentPassword}
+              onChange={(event) => onChangeField('currentPassword', event.target.value)}
+              placeholder="请输入当前主密码"
+              required
+            />
+          </label>
+
+          <div className="settings-form-grid">
             <label>
-              当前主密码
+              新主密码
               <input
                 type="password"
-                value={changeForm.currentPassword}
-                onChange={(event) => onChangeField('currentPassword', event.target.value)}
-                placeholder="请输入当前主密码"
+                value={changeForm.nextPassword}
+                onChange={(event) => onChangeField('nextPassword', event.target.value)}
+                placeholder="请输入新主密码"
                 required
               />
             </label>
 
-            <div className="settings-form-grid">
-              <label>
-                新主密码
-                <input
-                  type="password"
-                  value={changeForm.nextPassword}
-                  onChange={(event) => onChangeField('nextPassword', event.target.value)}
-                  placeholder="请输入新主密码"
-                  required
-                />
-              </label>
-
-              <label>
-                确认新主密码
-                <input
-                  type="password"
-                  value={changeForm.confirmPassword}
-                  onChange={(event) => onChangeField('confirmPassword', event.target.value)}
-                  placeholder="请再次输入新主密码"
-                  required
-                />
-              </label>
-            </div>
-
-            <div className="remember-toggle info-toggle">
-              <span>
-                <strong>系统钥匙串会同步更新</strong>
-                <small>修改主密码后，ZenTerm 会同时刷新系统钥匙串中的保存内容，后续继续自动进入。</small>
-              </span>
-            </div>
-
-            <div className="settings-actions">
-              <button type="submit" className="primary-button" disabled={changeBusy}>
-                {changeBusy ? '更新中...' : '更新主密码'}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section className="settings-card">
-          <div className="settings-card-head">
-            <div className="settings-card-icon info">
-              <Settings2 size={18} />
-            </div>
-            <div>
-              <h2>应用偏好</h2>
-              <p>这里开始承接 ZenTerm 的通用设置，后续可继续补主题、终端、启动行为等偏好项。</p>
-            </div>
+            <label>
+              确认新主密码
+              <input
+                type="password"
+                value={changeForm.confirmPassword}
+                onChange={(event) => onChangeField('confirmPassword', event.target.value)}
+                placeholder="请再次输入新主密码"
+                required
+              />
+            </label>
           </div>
 
-          <div className="settings-list">
-            <div className="settings-list-row">
-              <div>
-                <strong>主题与外观</strong>
-                <p>当前仍在顶部切换，后续会把默认主题、强调色和界面密度收进这里。</p>
-              </div>
-              <span className="pill subtle">占位</span>
-            </div>
-            <div className="settings-list-row">
-              <div>
-                <strong>终端偏好</strong>
-                <p>后续可配置默认字体、光标样式、复制行为和启动 Shell 选项。</p>
-              </div>
-              <span className="pill subtle">占位</span>
-            </div>
-            <div className="settings-list-row">
-              <div>
-                <strong>启动行为</strong>
-                <p>预留启动工作区、恢复标签页与窗口策略等基础行为开关。</p>
-              </div>
-              <span className="pill subtle">占位</span>
-            </div>
+          <div className="settings-note-row">
+            <ShieldCheck size={16} />
+            <span>系统钥匙串会同步更新，后续仍可自动进入。</span>
           </div>
-        </section>
-
-        <section className="settings-card">
-          <div className="settings-card-head">
-            <div className="settings-card-icon info">
-              <Database size={18} />
-            </div>
-            <div>
-              <h2>数据状态</h2>
-              <p>把本地配置、凭据存储与同步状态聚合在这里，方便后面继续补导入导出和诊断工具。</p>
-            </div>
-          </div>
-
-          <div className="settings-list">
-            <div className="settings-list-row">
-              <div>
-                <strong>本地配置</strong>
-                <p>后续会补充数据文件位置、配置导出与备份恢复入口。</p>
-              </div>
-              <span className="pill subtle">计划中</span>
-            </div>
-            <div className="settings-list-row">
-              <div>
-                <strong>系统钥匙串</strong>
-                <p>预留检测当前平台可用性、重新同步与清理凭据缓存的状态面板。</p>
-              </div>
-              <span className="pill subtle">计划中</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="settings-card danger">
-          <div className="settings-card-head">
-            <div className="settings-card-icon danger">
-              <RotateCcw size={18} />
-            </div>
-            <div>
-              <h2>重置 Vault</h2>
-              <p>这会删除所有已保存主机、凭据和信任记录，并清除本机钥匙串中的主密码记录。</p>
-            </div>
-          </div>
-
-          <div className="settings-danger-copy">
-            <AlertTriangle size={16} />
-            <span>执行后无法撤销。只有在确实忘记主密码或要彻底清空本地数据时才建议使用。</span>
-          </div>
-
-          <label className="remember-toggle danger-toggle">
-            <input
-              type="checkbox"
-              checked={resetConfirmed}
-              onChange={(event) => onResetConfirmedChange(event.target.checked)}
-            />
-            <span>
-              <strong>我确认要清空当前 Vault</strong>
-              <small>包括主机列表、加密凭据、已知主机记录，以及系统钥匙串中的保存信息。</small>
-            </span>
-          </label>
 
           <div className="settings-actions">
-            <button type="button" className="primary-button danger" onClick={onResetVault} disabled={resetBusy}>
-              {resetBusy ? '重置中...' : '重置 Vault'}
+            <button type="submit" className="primary-button" disabled={changeBusy}>
+              {changeBusy ? '更新中...' : '更新主密码'}
             </button>
           </div>
-        </section>
+        </form>
+      </section>
+
+      <section className="settings-section-panel danger-zone">
+        <div className="settings-section-title">
+          <RotateCcw size={18} />
+          <div>
+            <h3>危险区域</h3>
+            <p>清空当前 Vault 会删除主机、凭据、信任记录和本机钥匙串中的主密码记录。</p>
+          </div>
+        </div>
+
+        <div className="settings-danger-copy">
+          <AlertTriangle size={16} />
+          <span>执行后无法撤销。只有在确实忘记主密码或要彻底清空本地数据时才建议使用。</span>
+        </div>
+
+        <label className="remember-toggle danger-toggle">
+          <input
+            type="checkbox"
+            checked={resetConfirmed}
+            onChange={(event) => onResetConfirmedChange(event.target.checked)}
+          />
+          <span>
+            <strong>我确认要清空当前 Vault</strong>
+            <small>包括主机列表、加密凭据、已知主机记录，以及系统钥匙串中的保存信息。</small>
+          </span>
+        </label>
+
+        <div className="settings-actions">
+          <button type="button" className="primary-button danger" onClick={onResetVault} disabled={resetBusy}>
+            {resetBusy ? '重置中...' : '重置 Vault'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function SyncSettings() {
+  const [status, setStatus] = useState<WebDAVSyncStatus | null>(null)
+  const [url, setURL] = useState('https://dav.jianguoyun.com/dav/')
+  const [username, setUsername] = useState('')
+  const [remotePath, setRemotePath] = useState('/ZenTerm/zenterm-sync-v1.json')
+  const [password, setPassword] = useState('')
+  const [masterPassword, setMasterPassword] = useState('')
+  const [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  useEffect(() => {
+    let disposed = false
+    getWebDAVSyncStatus()
+      .then((nextStatus) => {
+        if (disposed) {
+          return
+        }
+        setStatus(nextStatus)
+        if (nextStatus.url) {
+          setURL(nextStatus.url)
+        }
+        if (nextStatus.username) {
+          setUsername(nextStatus.username)
+        }
+        if (nextStatus.remote_path) {
+          setRemotePath(nextStatus.remote_path)
+        }
+      })
+      .catch((err) => {
+        if (!disposed) {
+          setError(err.message || String(err))
+        }
+      })
+
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  function handleConfigure(event: FormEvent) {
+    event.preventDefault()
+    setBusy('config')
+    setError(null)
+    setNotice(null)
+
+    configureWebDAVSync({
+      url,
+      username,
+      remote_path: remotePath,
+      password,
+    })
+      .then((nextStatus) => {
+        setStatus(nextStatus)
+        setPassword('')
+        setNotice('WebDAV 同步配置已保存。')
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setBusy(null))
+  }
+
+  function handlePush(overwrite = false) {
+    setBusy(overwrite ? 'push-overwrite' : 'push')
+    setError(null)
+    setNotice(null)
+
+    pushWebDAVSync(overwrite)
+      .then((result) => {
+        setNotice(result.message || '已上传本机快照。')
+        return getWebDAVSyncStatus()
+      })
+      .then(setStatus)
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setBusy(null))
+  }
+
+  function handlePull(overwrite = false) {
+    if (!masterPassword) {
+      setError('请输入主密码后再拉取远端快照。')
+      return
+    }
+
+    setBusy(overwrite ? 'pull-overwrite' : 'pull')
+    setError(null)
+    setNotice(null)
+
+    pullWebDAVSync(masterPassword, overwrite)
+      .then((result) => {
+        setMasterPassword('')
+        setNotice(result.message || '已拉取远端快照。')
+        return getWebDAVSyncStatus()
+      })
+      .then(setStatus)
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setBusy(null))
+  }
+
+  return (
+    <div className="settings-section-stack">
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <Cloud size={18} />
+          <div>
+            <h3>WebDAV</h3>
+            <p>适用于坚果云和兼容 WebDAV 的网盘。同步包会整体加密后再上传。</p>
+          </div>
+        </div>
+
+        <div className="sync-status-strip">
+          <span className={`sync-dot${status?.configured ? ' active' : ''}`} />
+          <strong>{status?.configured ? '已配置' : '未配置'}</strong>
+          <small>{status?.last_sync_at ? `上次同步 ${status.last_sync_at}` : '尚未完成同步'}</small>
+        </div>
+
+        <form className="settings-form" onSubmit={handleConfigure}>
+          <div className="settings-form-grid">
+            <label>
+              WebDAV 地址
+              <input
+                value={url}
+                onChange={(event) => setURL(event.target.value)}
+                placeholder="https://dav.jianguoyun.com/dav/"
+                required
+              />
+            </label>
+            <label>
+              用户名
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="坚果云账号"
+                required
+              />
+            </label>
+          </div>
+
+          <div className="settings-form-grid">
+            <label>
+              应用密码
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={status?.configured ? '留空则继续使用已保存密码' : '请输入第三方应用密码'}
+                required={!status?.configured}
+              />
+            </label>
+            <label>
+              远端路径
+              <input
+                value={remotePath}
+                onChange={(event) => setRemotePath(event.target.value)}
+                placeholder="/ZenTerm/zenterm-sync-v1.json"
+                required
+              />
+            </label>
+          </div>
+
+          <div className="settings-actions">
+            <button type="submit" className="primary-button" disabled={busy === 'config'}>
+              {busy === 'config' ? '保存中...' : '保存配置'}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <Database size={18} />
+          <div>
+            <h3>同步操作</h3>
+            <p>默认同步主机和凭据，不同步完整终端记录。</p>
+          </div>
+        </div>
+
+        <label>
+          拉取时使用的主密码
+          <input
+            type="password"
+            value={masterPassword}
+            onChange={(event) => setMasterPassword(event.target.value)}
+            placeholder="用于解密远端同步包"
+          />
+        </label>
+
+        <div className="settings-action-grid">
+          <button type="button" className="ghost-button" onClick={() => handlePull(false)} disabled={!status?.configured || Boolean(busy)}>
+            {busy === 'pull' ? '拉取中...' : '拉取远端'}
+          </button>
+          <button type="button" className="ghost-button" onClick={() => handlePush(false)} disabled={!status?.configured || Boolean(busy)}>
+            {busy === 'push' ? '上传中...' : '上传本机'}
+          </button>
+          <button type="button" className="ghost-button danger-outline" onClick={() => handlePush(true)} disabled={!status?.configured || Boolean(busy)}>
+            覆盖远端
+          </button>
+          <button type="button" className="ghost-button danger-outline" onClick={() => handlePull(true)} disabled={!status?.configured || Boolean(busy)}>
+            覆盖本机
+          </button>
+        </div>
+
+        {notice ? <div className="settings-inline-message success">{notice}</div> : null}
+        {error ? <div className="settings-inline-message error">{error}</div> : null}
+      </section>
+    </div>
+  )
+}
+
+function ReservedSettings({ section }: { section: SettingsSection }) {
+  const copy = {
+    data: ['数据', '导入、导出、备份恢复和诊断入口会集中在这里。'],
+    appearance: ['外观', '主题、强调色和界面密度会在这里统一管理。'],
+    advanced: ['高级', '启动行为、调试和实验选项会收进这里。'],
+    security: ['', ''],
+    sync: ['', ''],
+  }[section]
+
+  return (
+    <section className="settings-section-panel settings-empty-section">
+      <Settings2 size={18} />
+      <div>
+        <h3>{copy[0]}</h3>
+        <p>{copy[1]}</p>
       </div>
+      <span className="pill subtle">稍后开放</span>
     </section>
   )
 }

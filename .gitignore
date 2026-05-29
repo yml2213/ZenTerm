@@ -1,10 +1,8 @@
 .DS_Store
 .ace-tool/
 frontend/node_modules/
-frontend/dist/*
-!frontend/dist/index.html
+frontend/dist/
 frontend/src/wailsjs/
 frontend/package.json.md5
 build/
 .claude/
-frontend/dist/

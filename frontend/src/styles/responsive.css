@@ -30,6 +30,25 @@
     justify-content: stretch;
   }
 
+  .settings-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-nav-panel {
+    grid-template-rows: auto;
+  }
+
+  .settings-nav-list {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(160px, 1fr);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .settings-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .page-toolbar-meta,
   .page-toolbar-meta.hosts {
     justify-content: flex-start;
@@ -86,6 +105,11 @@
   }
 
   .keychain-algorithm-group {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-form-grid,
+  .settings-action-grid {
     grid-template-columns: 1fr;
   }
 

@@ -7,6 +7,7 @@ import {
   acceptHostKey,
   addHost,
   changeMasterPassword,
+  configureWebDAVSync,
   connect,
   createLocalDirectory,
   createRemoteDirectory,
@@ -21,6 +22,7 @@ import {
   getCredentialUsage,
   getSessionTranscript,
   getKeychainStatus,
+  getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
   initializeVaultWithPreferences,
@@ -31,6 +33,8 @@ import {
   listSessions,
   onRuntimeEvent,
   persistWindowState,
+  pullWebDAVSync,
+  pushWebDAVSync,
   renameLocalEntry,
   renameRemoteEntry,
   resetVault,
@@ -57,6 +61,7 @@ vi.mock('../lib/backend.js', () => ({
   unlockWithPreferences: vi.fn(),
   tryAutoUnlock: vi.fn(),
   changeMasterPassword: vi.fn(),
+  configureWebDAVSync: vi.fn(),
   resetVault: vi.fn(),
   connect: vi.fn(),
   createLocalDirectory: vi.fn(),
@@ -70,6 +75,7 @@ vi.mock('../lib/backend.js', () => ({
   getCredentials: vi.fn(),
   getCredentialUsage: vi.fn(),
   getSessionTranscript: vi.fn(),
+  getWebDAVSyncStatus: vi.fn(),
   deleteCredential: vi.fn(),
   listLocalFiles: vi.fn(),
   listRemoteFiles: vi.fn(),
@@ -84,6 +90,8 @@ vi.mock('../lib/backend.js', () => ({
   resizeTerminal: vi.fn(),
   onRuntimeEvent: vi.fn(),
   persistWindowState: vi.fn(),
+  pullWebDAVSync: vi.fn(),
+  pushWebDAVSync: vi.fn(),
   uploadFile: vi.fn(),
   windowSetBackgroundColour: vi.fn(),
   windowToggleMaximise: vi.fn(),
@@ -220,6 +228,13 @@ export function registerAppHarness() {
     unlockWithPreferences.mockResolvedValue(undefined)
     tryAutoUnlock.mockResolvedValue(false)
     changeMasterPassword.mockResolvedValue(undefined)
+    configureWebDAVSync.mockResolvedValue({
+      configured: true,
+      provider: 'webdav',
+      url: 'https://dav.jianguoyun.com/dav/',
+      username: 'zen@example.com',
+      remote_path: '/ZenTerm/zenterm-sync-v1.json',
+    })
     resetVault.mockResolvedValue(undefined)
     connect.mockResolvedValue('session-1')
     createLocalDirectory.mockResolvedValue(undefined)
@@ -247,8 +262,23 @@ export function registerAppHarness() {
       size_bytes: 38,
       updated_at: '2026-04-14T09:30:00Z',
     })
+    getWebDAVSyncStatus.mockResolvedValue({
+      configured: false,
+      provider: 'webdav',
+      remote_path: '/ZenTerm/zenterm-sync-v1.json',
+    })
     deleteCredential.mockResolvedValue(undefined)
     persistWindowState.mockResolvedValue(undefined)
+    pullWebDAVSync.mockResolvedValue({
+      direction: 'pull',
+      bytes: 128,
+      message: '已拉取远端同步快照。',
+    })
+    pushWebDAVSync.mockResolvedValue({
+      direction: 'push',
+      bytes: 128,
+      message: '本机快照已上传到 WebDAV。',
+    })
     renameLocalEntry.mockResolvedValue(undefined)
     renameRemoteEntry.mockResolvedValue(undefined)
     sendInput.mockResolvedValue(undefined)
@@ -361,6 +391,7 @@ export {
   acceptHostKey,
   addHost,
   changeMasterPassword,
+  configureWebDAVSync,
   connect,
   createLocalDirectory,
   createRemoteDirectory,
@@ -375,6 +406,7 @@ export {
   getCredentialUsage,
   getSessionTranscript,
   getKeychainStatus,
+  getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
   initializeVaultWithPreferences,
@@ -385,6 +417,8 @@ export {
   listSessions,
   onRuntimeEvent,
   persistWindowState,
+  pullWebDAVSync,
+  pushWebDAVSync,
   renameLocalEntry,
   renameRemoteEntry,
   resetVault,
