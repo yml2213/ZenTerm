@@ -326,6 +326,84 @@ func TestListAndImportLocalSSHKeys(t *testing.T) {
 	}
 }
 
+func TestListAndImportLocalSSHConfigHosts(t *testing.T) {
+	svc, cleanup := setupTestServiceWithT(t)
+	defer cleanup()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	sshDir := filepath.Join(home, ".ssh")
+	if err := os.Mkdir(sshDir, 0o700); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	privateBlock, err := ssh.MarshalPrivateKey(privateKey, "config-test")
+	if err != nil {
+		t.Fatalf("MarshalPrivateKey() error = %v", err)
+	}
+	privatePath := filepath.Join(sshDir, "id_config_test")
+	if err := os.WriteFile(privatePath, pem.EncodeToMemory(privateBlock), 0o600); err != nil {
+		t.Fatalf("WriteFile(private) error = %v", err)
+	}
+	sshPublicKey, err := ssh.NewPublicKey(publicKey)
+	if err != nil {
+		t.Fatalf("NewPublicKey() error = %v", err)
+	}
+	if err := os.WriteFile(privatePath+".pub", ssh.MarshalAuthorizedKey(sshPublicKey), 0o644); err != nil {
+		t.Fatalf("WriteFile(public) error = %v", err)
+	}
+
+	credentialID, err := svc.ImportLocalSSHKey(privatePath, "config-key", "")
+	if err != nil {
+		t.Fatalf("ImportLocalSSHKey() error = %v", err)
+	}
+
+	config := `
+Host prod-box
+  HostName 124.223.12.34
+  User root
+  Port 2202
+  IdentityFile ~/.ssh/id_config_test
+
+Host *
+  User ignored
+`
+	if err := os.WriteFile(filepath.Join(sshDir, "config"), []byte(config), 0o600); err != nil {
+		t.Fatalf("WriteFile(config) error = %v", err)
+	}
+
+	configHosts, err := svc.ListLocalSSHConfigHosts()
+	if err != nil {
+		t.Fatalf("ListLocalSSHConfigHosts() error = %v", err)
+	}
+	if len(configHosts) != 1 {
+		t.Fatalf("len(ListLocalSSHConfigHosts()) = %d, want 1", len(configHosts))
+	}
+	if configHosts[0].ID != "prod-box" || configHosts[0].HostName != "124.223.12.34" || configHosts[0].CredentialID != credentialID {
+		t.Fatalf("config host = %#v, want parsed host with credential %q", configHosts[0], credentialID)
+	}
+
+	importedHosts, err := svc.ImportLocalSSHConfigHosts([]string{"prod-box"})
+	if err != nil {
+		t.Fatalf("ImportLocalSSHConfigHosts() error = %v", err)
+	}
+	if len(importedHosts) != 1 {
+		t.Fatalf("len(ImportLocalSSHConfigHosts()) = %d, want 1", len(importedHosts))
+	}
+
+	host, err := svc.store.GetHost("prod-box")
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if host.Address != "124.223.12.34" || host.Username != "root" || host.Port != 2202 || host.CredentialID != credentialID {
+		t.Fatalf("imported host = %#v, want ssh config fields", host)
+	}
+}
+
 func TestGenerateECDSACredential(t *testing.T) {
 	svc, cleanup := setupTestServiceWithT(t)
 	defer cleanup()

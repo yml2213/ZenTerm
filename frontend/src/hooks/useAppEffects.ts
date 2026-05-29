@@ -1,7 +1,9 @@
 import { startTransition, useEffect } from 'react'
 import {
   getVaultStatus,
+  importLocalSSHConfigHosts,
   listHosts,
+  listLocalSSHConfigHosts,
   listSessions,
   onRuntimeEvent,
   persistWindowState,
@@ -109,6 +111,80 @@ export function useAppBootstrap({
     setVaultReady,
     setVaultUnlocked,
   ])
+}
+
+interface SSHConfigImportPromptProps {
+  vaultUnlocked: boolean
+  hosts: main.Host[]
+  setHosts: (hosts: main.Host[]) => void
+  setSelectedHostId: (id: string | null) => void
+  setError: (error: string | null) => void
+}
+
+export function useSSHConfigImportPrompt({
+  vaultUnlocked,
+  hosts,
+  setHosts,
+  setSelectedHostId,
+  setError,
+}: SSHConfigImportPromptProps) {
+  useEffect(() => {
+    if (!vaultUnlocked) {
+      return undefined
+    }
+
+    let disposed = false
+
+    async function discoverAndAsk() {
+      const discoveredHosts = await listLocalSSHConfigHosts()
+      if (disposed) {
+        return
+      }
+
+      const existingIDs = new Set(hosts.map((host) => host.id))
+      const importableHosts = discoveredHosts.filter((host) => !host.imported && !existingIDs.has(host.id))
+      if (importableHosts.length === 0) {
+        return
+      }
+
+      const promptKey = `zenterm:ssh-config-import:${importableHosts.map((host) => host.id).sort().join(',')}`
+      if (window.sessionStorage.getItem(promptKey) === 'dismissed') {
+        return
+      }
+
+      const preview = importableHosts
+        .slice(0, 5)
+        .map((host) => `${host.alias} (${host.user || '当前用户'}@${host.host_name}:${host.port || 22})`)
+        .join('\n')
+      const suffix = importableHosts.length > 5 ? `\n等 ${importableHosts.length} 个配置。` : ''
+      const confirmed = window.confirm(`发现本机 SSH 配置，是否导入到 ZenTerm？\n\n${preview}${suffix}`)
+      if (!confirmed) {
+        window.sessionStorage.setItem(promptKey, 'dismissed')
+        return
+      }
+
+      await importLocalSSHConfigHosts(importableHosts.map((host) => host.id))
+      const nextHosts = await listHosts()
+      if (disposed) {
+        return
+      }
+
+      startTransition(() => {
+        setHosts(nextHosts)
+        setSelectedHostId(nextHosts[0]?.id || null)
+      })
+    }
+
+    discoverAndAsk().catch((err) => {
+      if (!disposed) {
+        setError(err.message || String(err))
+      }
+    })
+
+    return () => {
+      disposed = true
+    }
+  }, [hosts, setError, setHosts, setSelectedHostId, vaultUnlocked])
 }
 
 export function useWindowStatePersistence(setError: (error: string | null) => void) {

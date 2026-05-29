@@ -74,6 +74,24 @@ func (a *App) ImportLocalSSHKey(path, label, passphrase string) (string, error) 
 	return id, nil
 }
 
+// ListLocalSSHConfigHosts 读取本机 SSH config 主机 / reads local SSH config hosts.
+func (a *App) ListLocalSSHConfigHosts() ([]model.LocalSSHConfigHost, error) {
+	hosts, err := a.service.ListLocalSSHConfigHosts()
+	if err != nil {
+		return nil, normalizeFrontendError(err)
+	}
+	return hosts, nil
+}
+
+// ImportLocalSSHConfigHosts 批量导入本机 SSH config 主机 / imports local SSH config hosts.
+func (a *App) ImportLocalSSHConfigHosts(ids []string) ([]Host, error) {
+	hosts, err := a.service.ImportLocalSSHConfigHosts(ids)
+	if err != nil {
+		return nil, normalizeFrontendError(err)
+	}
+	return hostsFromModel(hosts), nil
+}
+
 // UploadCredentialToHost 将凭据公钥上传到主机 / uploads a credential public key to a host.
 func (a *App) UploadCredentialToHost(hostID, credentialID string, bind bool) (model.CredentialUploadResult, error) {
 	result, err := a.service.UploadCredentialToHost(hostID, credentialID, bind)
