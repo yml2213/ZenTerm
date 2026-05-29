@@ -13,6 +13,7 @@ import (
 var (
 	ErrNilDependency               = errors.New("service dependencies cannot be nil")
 	ErrNoIdentityAuth              = errors.New("未配置可用的 SSH 认证方式")
+	ErrHostIDRequired              = errors.New("host id is required")
 	ErrHostAddressRequired         = errors.New("host address is required")
 	ErrHostUsernameRequired        = errors.New("host username is required")
 	ErrInvalidTerminalSize         = errors.New("invalid terminal size")
@@ -107,6 +108,12 @@ type ZenService interface {
 	GetCredentials() ([]model.Credential, error)
 	GetCredential(credentialID string) (model.Credential, error)
 	GetCredentialUsage(credentialID string) (model.CredentialUsage, error)
+	GetCredentialPublicKey(credentialID string) (string, error)
+	ListLocalSSHKeys() ([]model.LocalSSHKey, error)
+	ImportLocalSSHKey(path, label, passphrase string) (string, error)
+	UploadCredentialToHost(hostID, credentialID string, bind bool) (model.CredentialUploadResult, error)
+	BindCredentialToHost(hostID, credentialID string) error
+	TestCredentialForHost(hostID, credentialID string) error
 	DeleteCredential(credentialID string) error
 }
 

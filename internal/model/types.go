@@ -53,6 +53,31 @@ type CredentialUsage struct {
 	ActiveSessions int      `json:"active_sessions"`
 }
 
+// CredentialUploadResult 描述公钥上传到远端主机的结果 / describes the result of deploying a public key to a remote host.
+type CredentialUploadResult struct {
+	HostID       string `json:"host_id"`
+	CredentialID string `json:"credential_id"`
+	Uploaded     bool   `json:"uploaded"`
+	AlreadyThere bool   `json:"already_there"`
+	Bound        bool   `json:"bound"`
+	Message      string `json:"message,omitempty"`
+}
+
+// LocalSSHKey 描述本机 ~/.ssh 中发现的密钥文件 / describes an SSH key discovered in the local ~/.ssh directory.
+type LocalSSHKey struct {
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Path              string `json:"path"`
+	PublicPath        string `json:"public_path,omitempty"`
+	Algorithm         string `json:"algorithm,omitempty"`
+	PublicKey         string `json:"public_key,omitempty"`
+	FingerprintSHA256 string `json:"fingerprint_sha256,omitempty"`
+	HasPrivate        bool   `json:"has_private"`
+	Encrypted         bool   `json:"encrypted"`
+	Imported          bool   `json:"imported"`
+	CredentialID      string `json:"credential_id,omitempty"`
+}
+
 const (
 	SessionLogStatusConnecting = "connecting"
 	SessionLogStatusActive     = "active"

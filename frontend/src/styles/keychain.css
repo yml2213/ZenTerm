@@ -126,6 +126,14 @@
   overflow: auto;
 }
 
+.keychain-section-label {
+  margin-top: 0.35rem;
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .keychain-item {
   display: flex;
   align-items: center;
@@ -164,6 +172,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
   font-size: 0.78rem;
   color: var(--text-tertiary);
 }
@@ -176,6 +185,13 @@
   font-weight: 500;
   text-transform: uppercase;
   font-size: 0.7rem;
+}
+
+.keychain-item-path {
+  max-width: min(44rem, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .keychain-item-actions {
@@ -348,6 +364,16 @@
   border: 1px solid var(--surface-danger-border-strong);
   border-radius: 6px;
   color: var(--accent-danger);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.success-message {
+  padding: 0.75rem 0.85rem;
+  background: color-mix(in srgb, var(--accent-success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-success) 32%, transparent);
+  border-radius: 6px;
+  color: var(--accent-success);
   font-size: 0.82rem;
   line-height: 1.45;
 }

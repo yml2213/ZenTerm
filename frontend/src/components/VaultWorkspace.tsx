@@ -61,6 +61,7 @@ interface VaultWorkspaceProps {
   onDeleteHost: (host: main.Host) => void
   onCopyHostAddress: (host: main.Host) => void
   onToggleFavorite: (host: main.Host) => void
+  onRefreshHosts: () => Promise<void> | void
   vaultUnlocked: boolean
   isSettingsPage: boolean
   changeMasterForm: ChangeMasterForm
@@ -109,6 +110,7 @@ export default function VaultWorkspace({
   onDeleteHost,
   onCopyHostAddress,
   onToggleFavorite,
+  onRefreshHosts,
   vaultUnlocked,
   isSettingsPage,
   changeMasterForm,
@@ -396,7 +398,9 @@ export default function VaultWorkspace({
           ) : isKeychainPage ? (
             <KeychainPanel
               vaultUnlocked={vaultUnlocked}
+              hosts={hosts}
               onToolbarChange={handleKeychainToolbarChange}
+              onHostsChanged={onRefreshHosts}
             />
           ) : isLogsPage ? (
             <SessionLogPanel
