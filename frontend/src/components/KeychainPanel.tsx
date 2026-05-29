@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  FileKey2,
-  KeyRound,
-  Plus,
   RefreshCw,
-  Send,
-  ShieldCheck,
-  ShieldQuestion,
-  Trash2,
-  Copy,
-  Upload,
-  X,
 } from 'lucide-react'
 import {
   generateCredential,
@@ -25,106 +15,31 @@ import {
   deleteCredential,
 } from '../lib/backend'
 import { main, model } from '../wailsjs/wailsjs/go/models'
+import GenerateKeyDrawer from './keychain/GenerateKeyDrawer'
+import ImportKeyDrawer from './keychain/ImportKeyDrawer'
+import ImportLocalKeyDrawer from './keychain/ImportLocalKeyDrawer'
+import KeychainEmptyState from './keychain/KeychainEmptyState'
+import KeychainList from './keychain/KeychainList'
+import UploadKeyDrawer from './keychain/UploadKeyDrawer'
+import {
+  createGenerateKeyForm,
+  createImportKeyForm,
+  credentialTypes,
+  type GenerateKeyForm,
+  type ImportKeyForm,
+  type ImportLocalKeyForm,
+  type UploadKeyForm,
+} from './keychain/keychainConfig'
 
 type Credential = main.Credential
 type CredentialUsage = model.CredentialUsage
 type Host = main.Host
-
-interface CredentialType {
-  id: string
-  label: string
-  icon: typeof KeyRound
-}
-
-interface KeyAlgorithm {
-  id: string
-  label: string
-  bits: number[] | null
-}
-
-interface KeySize {
-  value: number
-  label: string
-}
-
-interface GenerateKeyForm {
-  label: string
-  algorithm: string
-  keyBits: number | null
-  passphrase: string
-}
-
-interface ImportKeyForm {
-  label: string
-  privateKeyPEM: string
-  passphrase: string
-}
-
-interface UploadKeyForm {
-  hostId: string
-  bindAfterUpload: boolean
-}
-
-interface ImportLocalKeyForm {
-  label: string
-  passphrase: string
-}
 
 interface KeychainPanelProps {
   vaultUnlocked: boolean
   hosts: Host[]
   onToolbarChange: (toolbar: ReactNode | null) => void
   onHostsChanged?: () => Promise<void> | void
-}
-
-const credentialTypes: CredentialType[] = [
-  { id: 'ssh_key', label: 'SSH 密钥', icon: KeyRound },
-  { id: 'password', label: '密码', icon: ShieldCheck },
-  { id: 'certificate', label: '证书', icon: ShieldQuestion },
-]
-
-const keyAlgorithms: KeyAlgorithm[] = [
-  { id: 'ed25519', label: 'ED25519', bits: null },
-  { id: 'rsa', label: 'RSA', bits: [2048, 4096] },
-  { id: 'ecdsa', label: 'ECDSA', bits: [256, 384, 521] },
-]
-
-const rsaKeySizes: KeySize[] = [
-  { value: 2048, label: '2048 位 (推荐)' },
-  { value: 4096, label: '4096 位 (高安全)' },
-]
-
-const ecdsaCurves: KeySize[] = [
-  { value: 256, label: 'P-256 (快速)' },
-  { value: 384, label: 'P-384 (推荐)' },
-  { value: 521, label: 'P-521 (高安全)' },
-]
-
-function createGenerateKeyForm(): GenerateKeyForm {
-  return {
-    label: '',
-    algorithm: 'ed25519',
-    keyBits: 2048,
-    passphrase: '',
-  }
-}
-
-function createImportKeyForm(): ImportKeyForm {
-  return {
-    label: '',
-    privateKeyPEM: '',
-    passphrase: '',
-  }
-}
-
-function formatDate(dateString: string | undefined): string {
-  if (!dateString) return '从未使用'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 export default function KeychainPanel({
@@ -402,8 +317,6 @@ export default function KeychainPanel({
     }
   }
 
-  const TypeIcon = activeTypeConfig.icon
-
   const toolbar = useMemo(
     () => (
       <div className="keychain-toolbar">
@@ -455,490 +368,79 @@ export default function KeychainPanel({
       <div className={`keychain-workbench${activeDrawer ? ' drawer-open' : ''}`}>
         <div className="keychain-canvas">
           {notice && <div className="success-message">{notice}</div>}
-          {loading && !hasVisibleKeys ? (
-            <div className="keychain-empty-state">
-              <div className="keychain-empty-icon">
-                <TypeIcon size={28} />
-              </div>
-              <div className="keychain-empty-copy">
-                <strong>正在读取{activeTypeConfig.label}</strong>
-                <p>ZenTerm 正在从保险箱中同步凭据列表。</p>
-              </div>
-            </div>
-          ) : !hasVisibleKeys ? (
-            <div className="keychain-empty-state">
-              <div className="keychain-empty-icon">
-                <TypeIcon size={28} />
-              </div>
-              <div className="keychain-empty-copy">
-                <strong>暂无{activeTypeConfig.label}</strong>
-                <p>
-                  {activeType === 'ssh_key'
-                    ? '导入或生成 SSH 密钥用于安全认证'
-                    : activeType === 'password'
-                    ? '添加密码凭据用于快速登录'
-                    : '管理 SSH 证书和 CA 签发记录'}
-                </p>
-              </div>
-
-              {activeType === 'ssh_key' && vaultUnlocked && (
-                <div className="keychain-empty-actions">
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={() => openDrawer('importKey')}
-                  >
-                    <Upload size={15} />
-                    导入
-                  </button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() => openDrawer('generateKey')}
-                  >
-                    <Plus size={15} />
-                    生成
-                  </button>
-                </div>
-              )}
-
-              {activeType === 'ssh_key' && !vaultUnlocked && (
-                <div className="keychain-empty-actions">
-                  <p style={{ color: 'var(--error-text)', fontSize: '0.9rem' }}>
-                    请先解锁保险箱
-                  </p>
-                </div>
-              )}
-            </div>
+          {!hasVisibleKeys ? (
+            <KeychainEmptyState
+              activeType={activeType}
+              label={activeTypeConfig.label}
+              icon={activeTypeConfig.icon}
+              loading={loading}
+              vaultUnlocked={vaultUnlocked}
+              onGenerate={() => openDrawer('generateKey')}
+              onImport={() => openDrawer('importKey')}
+            />
           ) : (
-            <div className="keychain-list">
-              <div className="keychain-list-header">
-                <h3>{activeTypeConfig.label}列表</h3>
-                {activeType === 'ssh_key' && vaultUnlocked && (
-                  <button
-                    type="button"
-                    className="primary-button compact"
-                    onClick={() => openDrawer('generateKey')}
-                  >
-                    <Plus size={15} />
-                    新建
-                  </button>
-                )}
-              </div>
-
-              <div className="keychain-items">
-                {filteredCredentials.length > 0 && (
-                  <div className="keychain-section-label">保险箱密钥</div>
-                )}
-                {filteredCredentials.map((cred) => (
-                  <div key={cred.id} className="keychain-item">
-                    <div className="keychain-item-info">
-                      <div className="keychain-item-name">
-                        <KeyRound size={16} />
-                        <span>{cred.label}</span>
-                      </div>
-                      <div className="keychain-item-meta">
-                        <span className="keychain-item-algorithm">{cred.algorithm}</span>
-                        <span className="keychain-item-date">创建于：{formatDate(cred.created_at)}</span>
-                        {cred.last_used_at && (
-                          <span className="keychain-item-date">
-                            最后使用：{formatDate(cred.last_used_at)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="keychain-item-actions">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => handleCopyPublicKey(cred.id)}
-                        title="复制公钥"
-                      >
-                        <Copy size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => openUploadDrawer(cred.id)}
-                        title="上传到主机"
-                        disabled={!vaultUnlocked || hosts.length === 0}
-                      >
-                        <Send size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button danger"
-                        onClick={() => handleDeleteCredential(cred.id)}
-                        title="删除"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {visibleLocalKeys.length > 0 && (
-                  <div className="keychain-section-label">本机 ~/.ssh</div>
-                )}
-                {visibleLocalKeys.map((localKey) => (
-                  <div key={localKey.id} className="keychain-item">
-                    <div className="keychain-item-info">
-                      <div className="keychain-item-name">
-                        <FileKey2 size={16} />
-                        <span>{localKey.name}</span>
-                      </div>
-                      <div className="keychain-item-meta">
-                        <span className="keychain-item-algorithm">{localKey.algorithm || 'ssh-key'}</span>
-                        {localKey.encrypted && <span className="keychain-item-date">已加密</span>}
-                        {localKey.imported && <span className="keychain-item-date">已导入保险箱</span>}
-                        {localKey.fingerprint_sha256 && (
-                          <span className="keychain-item-date">{localKey.fingerprint_sha256}</span>
-                        )}
-                        <span className="keychain-item-path">{localKey.path}</span>
-                      </div>
-                    </div>
-                    <div className="keychain-item-actions">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => handleCopyLocalPublicKey(localKey)}
-                        title="复制本机公钥"
-                        disabled={!localKey.public_key}
-                      >
-                        <Copy size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => openImportLocalDrawer(localKey)}
-                        title={localKey.imported ? '已导入' : '导入保险箱'}
-                        disabled={!localKey.has_private || localKey.imported}
-                      >
-                        <Upload size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <KeychainList
+              activeType={activeType}
+              label={activeTypeConfig.label}
+              vaultUnlocked={vaultUnlocked}
+              hostsCount={hosts.length}
+              credentials={filteredCredentials}
+              localKeys={visibleLocalKeys}
+              onGenerate={() => openDrawer('generateKey')}
+              onCopyPublicKey={handleCopyPublicKey}
+              onUploadCredential={openUploadDrawer}
+              onDeleteCredential={handleDeleteCredential}
+              onCopyLocalPublicKey={handleCopyLocalPublicKey}
+              onImportLocalKey={openImportLocalDrawer}
+            />
           )}
         </div>
       </div>
 
       {activeDrawer === 'generateKey' && (
-        <aside className="keychain-drawer" role="dialog" aria-modal="false" aria-labelledby="generate-key-title">
-          <div className="keychain-drawer-head">
-            <div>
-              <h3 id="generate-key-title">生成 SSH 密钥</h3>
-              <p>生成新的 SSH 密钥对并安全存储</p>
-            </div>
-            <button type="button" className="toolbar-icon-btn" aria-label="关闭" onClick={closeDrawer}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="keychain-drawer-body">
-            {error && <div className="error-message">{error}</div>}
-
-            <label>
-              密钥标签
-              <input
-                type="text"
-                value={generateForm.label}
-                onChange={(e) => handleGenerateField('label', e.target.value)}
-                placeholder="例如：GitHub、公司服务器"
-                disabled={operationLoading}
-              />
-            </label>
-
-            <div className="keychain-form-block">
-              <span>密钥算法</span>
-              <div className="keychain-algorithm-group">
-                {keyAlgorithms.map((algo) => (
-                  <button
-                    key={algo.id}
-                    type="button"
-                    className={`keychain-algorithm-chip${generateForm.algorithm === algo.id ? ' active' : ''}`}
-                    onClick={() => {
-                      handleGenerateField('algorithm', algo.id)
-                      if (algo.id === 'rsa' && !generateForm.keyBits) {
-                        handleGenerateField('keyBits', 2048)
-                      } else if (algo.id === 'ecdsa' && !generateForm.keyBits) {
-                        handleGenerateField('keyBits', 384)
-                      } else if (algo.id === 'ed25519') {
-                        handleGenerateField('keyBits', null)
-                      }
-                    }}
-                    disabled={operationLoading}
-                  >
-                    {algo.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {(generateForm.algorithm === 'rsa' || generateForm.algorithm === 'ecdsa') && (
-              <div className="keychain-form-block">
-                <span>密钥长度</span>
-                <div className="keychain-algorithm-group">
-                  {(generateForm.algorithm === 'rsa' ? rsaKeySizes : ecdsaCurves).map((size) => (
-                    <button
-                      key={size.value}
-                      type="button"
-                      className={`keychain-algorithm-chip${generateForm.keyBits === size.value ? ' active' : ''}`}
-                      onClick={() => handleGenerateField('keyBits', size.value)}
-                      disabled={operationLoading}
-                    >
-                      {size.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <label>
-              密码短语（可选，保存于保险箱）
-              <input
-                type="password"
-                value={generateForm.passphrase}
-                onChange={(e) => handleGenerateField('passphrase', e.target.value)}
-                placeholder="用于加密私钥"
-                disabled={operationLoading}
-              />
-            </label>
-          </div>
-
-          <div className="keychain-drawer-actions">
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={closeDrawer}
-              disabled={operationLoading}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleGenerateSubmit}
-              disabled={!generateForm.label.trim() || operationLoading}
-            >
-              {operationLoading ? '生成中...' : '生成并保存'}
-            </button>
-          </div>
-        </aside>
+        <GenerateKeyDrawer
+          form={generateForm}
+          error={error}
+          operationLoading={operationLoading}
+          onClose={closeDrawer}
+          onSubmit={handleGenerateSubmit}
+          onFieldChange={handleGenerateField}
+        />
       )}
 
       {activeDrawer === 'importKey' && (
-        <aside className="keychain-drawer" role="dialog" aria-modal="false" aria-labelledby="import-key-title">
-          <div className="keychain-drawer-head">
-            <div>
-              <h3 id="import-key-title">导入 SSH 密钥</h3>
-              <p>导入现有的 SSH 私钥</p>
-            </div>
-            <button type="button" className="toolbar-icon-btn" aria-label="关闭" onClick={closeDrawer}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="keychain-drawer-body">
-            {error && <div className="error-message">{error}</div>}
-
-            <label>
-              密钥标签
-              <input
-                type="text"
-                value={importForm.label}
-                onChange={(e) => handleImportField('label', e.target.value)}
-                placeholder="例如：GitHub、公司服务器"
-                disabled={operationLoading}
-              />
-            </label>
-
-            <label>
-              私钥内容
-              <textarea
-                value={importForm.privateKeyPEM}
-                onChange={(e) => handleImportField('privateKeyPEM', e.target.value)}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."
-                rows={8}
-                disabled={operationLoading}
-              />
-            </label>
-
-            <label>
-              密码短语（可选）
-              <input
-                type="password"
-                value={importForm.passphrase}
-                onChange={(e) => handleImportField('passphrase', e.target.value)}
-                placeholder="如果私钥有密码保护"
-                disabled={operationLoading}
-              />
-            </label>
-          </div>
-
-          <div className="keychain-drawer-actions">
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={closeDrawer}
-              disabled={operationLoading}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleImportSubmit}
-              disabled={!importForm.label.trim() || !importForm.privateKeyPEM.trim() || operationLoading}
-            >
-              {operationLoading ? '导入中...' : '导入并保存'}
-            </button>
-          </div>
-        </aside>
+        <ImportKeyDrawer
+          form={importForm}
+          error={error}
+          operationLoading={operationLoading}
+          onClose={closeDrawer}
+          onSubmit={handleImportSubmit}
+          onFieldChange={handleImportField}
+        />
       )}
 
       {activeDrawer === 'importLocalKey' && selectedLocalKey && (
-        <aside className="keychain-drawer" role="dialog" aria-modal="false" aria-labelledby="import-local-key-title">
-          <div className="keychain-drawer-head">
-            <div>
-              <h3 id="import-local-key-title">导入本机 SSH 密钥</h3>
-              <p>从 ~/.ssh 读取私钥并加密保存到保险箱</p>
-            </div>
-            <button type="button" className="toolbar-icon-btn" aria-label="关闭" onClick={closeDrawer}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="keychain-drawer-body">
-            {error && <div className="error-message">{error}</div>}
-
-            <label>
-              密钥标签
-              <input
-                type="text"
-                value={importLocalForm.label}
-                onChange={(event) => setImportLocalForm((current) => ({ ...current, label: event.target.value }))}
-                placeholder="例如：MacBook 本机密钥"
-                disabled={operationLoading}
-              />
-            </label>
-
-            <label>
-              本机路径
-              <input
-                type="text"
-                value={selectedLocalKey.path}
-                readOnly
-              />
-            </label>
-
-            <label>
-              密码短语（可选）
-              <input
-                type="password"
-                value={importLocalForm.passphrase}
-                onChange={(event) => setImportLocalForm((current) => ({ ...current, passphrase: event.target.value }))}
-                placeholder={selectedLocalKey.encrypted ? '该私钥已加密，请输入密码短语' : '如果私钥有密码保护'}
-                disabled={operationLoading}
-              />
-            </label>
-
-            <p className="form-hint">
-              导入后会生成一条保险箱凭据；后续上传到服务器、绑定主机和连接都会使用保险箱中的加密副本。
-            </p>
-          </div>
-
-          <div className="keychain-drawer-actions">
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={closeDrawer}
-              disabled={operationLoading}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleImportLocalSubmit}
-              disabled={!importLocalForm.label.trim() || operationLoading}
-            >
-              {operationLoading ? '导入中...' : '导入保险箱'}
-            </button>
-          </div>
-        </aside>
+        <ImportLocalKeyDrawer
+          form={importLocalForm}
+          localKey={selectedLocalKey}
+          error={error}
+          operationLoading={operationLoading}
+          onClose={closeDrawer}
+          onSubmit={handleImportLocalSubmit}
+          onFormChange={setImportLocalForm}
+        />
       )}
 
       {activeDrawer === 'uploadKey' && (
-        <aside className="keychain-drawer" role="dialog" aria-modal="false" aria-labelledby="upload-key-title">
-          <div className="keychain-drawer-head">
-            <div>
-              <h3 id="upload-key-title">上传 SSH 公钥</h3>
-              <p>写入远端 authorized_keys，并可自动切换主机认证方式</p>
-            </div>
-            <button type="button" className="toolbar-icon-btn" aria-label="关闭" onClick={closeDrawer}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="keychain-drawer-body">
-            {error && <div className="error-message">{error}</div>}
-
-            <label>
-              目标主机
-              <select
-                value={uploadForm.hostId}
-                onChange={(event) => setUploadForm((current) => ({ ...current, hostId: event.target.value }))}
-                disabled={operationLoading}
-              >
-                <option value="">选择主机...</option>
-                {hosts.map((host) => (
-                  <option key={host.id} value={host.id}>
-                    {host.name || host.id} ({host.username}@{host.address})
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="remember-toggle">
-              <input
-                type="checkbox"
-                checked={uploadForm.bindAfterUpload}
-                onChange={(event) => setUploadForm((current) => ({ ...current, bindAfterUpload: event.target.checked }))}
-                disabled={operationLoading}
-              />
-              <span>
-                <strong>上传后绑定此凭据</strong>
-                <small>成功后主机将改用该密钥登录</small>
-              </span>
-            </label>
-
-            <p className="form-hint">
-              上传会使用目标主机当前保存的认证方式先登录远端，然后追加公钥；不会上传私钥。
-            </p>
-          </div>
-
-          <div className="keychain-drawer-actions">
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={closeDrawer}
-              disabled={operationLoading}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleUploadSubmit}
-              disabled={!uploadForm.hostId || operationLoading}
-            >
-              {operationLoading ? '上传中...' : '上传公钥'}
-            </button>
-          </div>
-        </aside>
+        <UploadKeyDrawer
+          form={uploadForm}
+          hosts={hosts}
+          error={error}
+          operationLoading={operationLoading}
+          onClose={closeDrawer}
+          onSubmit={handleUploadSubmit}
+          onFormChange={setUploadForm}
+        />
       )}
     </section>
   )

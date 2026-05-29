@@ -7,7 +7,7 @@ import {
   unlockWithPreferences,
 } from '../lib/backend'
 import { main } from '../wailsjs/wailsjs/go/models'
-import { VaultSetupForm, ChangeMasterForm, HostFormModel, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../types'
+import { VaultSetupForm, ChangeMasterForm, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../types'
 
 interface VaultActionHandlersProps {
   state: {
