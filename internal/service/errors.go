@@ -111,6 +111,8 @@ type ZenService interface {
 	GetCredentialPublicKey(credentialID string) (string, error)
 	ListLocalSSHKeys() ([]model.LocalSSHKey, error)
 	ImportLocalSSHKey(path, label, passphrase string) (string, error)
+	ListLocalSSHConfigHosts() ([]model.LocalSSHConfigHost, error)
+	ImportLocalSSHConfigHosts(ids []string) ([]model.Host, error)
 	UploadCredentialToHost(hostID, credentialID string, bind bool) (model.CredentialUploadResult, error)
 	BindCredentialToHost(hostID, credentialID string) error
 	TestCredentialForHost(hostID, credentialID string) error

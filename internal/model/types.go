@@ -78,6 +78,18 @@ type LocalSSHKey struct {
 	CredentialID      string `json:"credential_id,omitempty"`
 }
 
+// LocalSSHConfigHost 描述从本机 ~/.ssh/config 中发现的主机配置 / describes a host discovered from local ~/.ssh/config.
+type LocalSSHConfigHost struct {
+	ID           string `json:"id"`
+	Alias        string `json:"alias"`
+	HostName     string `json:"host_name"`
+	User         string `json:"user,omitempty"`
+	Port         int    `json:"port,omitempty"`
+	IdentityFile string `json:"identity_file,omitempty"`
+	CredentialID string `json:"credential_id,omitempty"`
+	Imported     bool   `json:"imported"`
+}
+
 const (
 	SessionLogStatusConnecting = "connecting"
 	SessionLogStatusActive     = "active"

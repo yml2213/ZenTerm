@@ -295,6 +295,25 @@ export async function importLocalSSHKey(path: string, label: string, passphrase:
   return callApp('ImportLocalSSHKey', path, label, passphrase)
 }
 
+export interface LocalSSHConfigHost {
+  id: string
+  alias: string
+  host_name: string
+  user?: string
+  port?: number
+  identity_file?: string
+  credential_id?: string
+  imported: boolean
+}
+
+export async function listLocalSSHConfigHosts(): Promise<LocalSSHConfigHost[]> {
+  return callApp('ListLocalSSHConfigHosts')
+}
+
+export async function importLocalSSHConfigHosts(ids: string[]): Promise<main.Host[]> {
+  return callApp('ImportLocalSSHConfigHosts', ids)
+}
+
 export interface CredentialUploadResult {
   host_id: string
   credential_id: string

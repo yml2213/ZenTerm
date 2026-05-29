@@ -13,6 +13,7 @@ import { navigationItems } from './lib/appShellConfig'
 import {
   useAppBootstrap,
   useGlobalHostSearchHotkey,
+  useSSHConfigImportPrompt,
   useWindowStatePersistence,
   useWorkspaceAutoFallback,
 } from './hooks/useAppEffects'
@@ -157,6 +158,14 @@ export default function App() {
   })
 
   useWindowStatePersistence(setters.setError)
+
+  useSSHConfigImportPrompt({
+    vaultUnlocked,
+    hosts,
+    setHosts: setters.setHosts,
+    setSelectedHostId: setters.setSelectedHostId,
+    setError: setters.setError,
+  })
 
   useWorkspaceAutoFallback({
     activeWorkspace,
