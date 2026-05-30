@@ -6,3 +6,5 @@ frontend/src/wailsjs/
 frontend/package.json.md5
 build/
 .claude/
+.snow/
+zenterm
