@@ -1,3 +1,4 @@
+import { startTransition } from 'react'
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import HostForm, { createInitialHostForm } from './components/HostForm'
 import AppOverlays from './components/AppOverlays'
@@ -21,6 +22,7 @@ import { useAppActionHandlers } from './hooks/useAppActionHandlers'
 import { useAppState } from './hooks/useAppState'
 import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers'
 import { HostFormModel, WorkspaceTab } from './types'
+import { importLocalSSHConfigHosts, listHosts } from './lib/backend'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -47,6 +49,8 @@ export default function App() {
     hostForm,
     isSavingHost,
     error,
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
     deleteCandidate,
     hostKeyPrompt,
     isAcceptingKey,
@@ -162,9 +166,8 @@ export default function App() {
   useSSHConfigImportPrompt({
     vaultUnlocked,
     hosts,
-    setHosts: setters.setHosts,
-    setSelectedHostId: setters.setSelectedHostId,
     setError: setters.setError,
+    setSSHConfigImportPrompt: setters.setSSHConfigImportPrompt,
   })
 
   useWorkspaceAutoFallback({
@@ -206,6 +209,34 @@ export default function App() {
       setTheme('dark')
     } else {
       setTheme('auto')
+    }
+  }
+
+  function dismissSSHConfigImportPrompt() {
+    if (sshConfigImportPrompt) {
+      window.sessionStorage.setItem(sshConfigImportPrompt.promptKey, 'dismissed')
+    }
+    setters.setSSHConfigImportPrompt(null)
+  }
+
+  async function handleConfirmSSHConfigImport() {
+    if (!sshConfigImportPrompt || sshConfigImportBusy) {
+      return
+    }
+
+    setters.setSSHConfigImportBusy(true)
+    try {
+      await importLocalSSHConfigHosts(sshConfigImportPrompt.hostIds)
+      const nextHosts = await listHosts()
+      startTransition(() => {
+        setters.setHosts(nextHosts)
+        setters.setSelectedHostId(nextHosts[0]?.id || null)
+        setters.setSSHConfigImportPrompt(null)
+      })
+    } catch (err) {
+      setters.setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setters.setSSHConfigImportBusy(false)
     }
   }
 
@@ -364,6 +395,10 @@ export default function App() {
         deleteCandidate={deleteCandidate}
         onCancelDeleteHost={() => setters.setDeleteCandidate(null)}
         onDeleteHost={handleDeleteHost}
+        sshConfigImportPrompt={sshConfigImportPrompt}
+        sshConfigImportBusy={sshConfigImportBusy}
+        onCancelSSHConfigImport={dismissSSHConfigImportPrompt}
+        onConfirmSSHConfigImport={handleConfirmSSHConfigImport}
         errorTitle={t('errorTitle')}
         error={error}
         confirmLabel={t('confirm')}

@@ -12,7 +12,9 @@ import {
   changeMasterPassword,
   getCredentials,
   getVaultStatus,
+  importLocalSSHConfigHosts,
   listHosts,
+  listLocalSSHConfigHosts,
   resetVault,
   tryAutoUnlock,
 } from './lib/backend'
@@ -52,6 +54,32 @@ describe('App vault flows', () => {
 
     expect(screen.queryByLabelText('主密码')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByLabelText('搜索主机')).toBeInTheDocument())
+  })
+
+  it('发现本机 SSH 配置时使用应用弹窗导入', async () => {
+    const user = userEvent.setup()
+    tryAutoUnlock.mockResolvedValue(true)
+    listLocalSSHConfigHosts.mockResolvedValue([
+      {
+        id: 'ssh-config-prod',
+        alias: 'prod',
+        host_name: 'prod.example.com',
+        user: 'deploy',
+        port: 22,
+        imported: false,
+      },
+    ])
+
+    renderApp()
+
+    expect(await screen.findByRole('dialog', { name: '导入 SSH 配置' })).toBeInTheDocument()
+    expect(screen.getByText('prod (deploy@prod.example.com:22)')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '导入配置' }))
+
+    await waitFor(() => {
+      expect(importLocalSSHConfigHosts).toHaveBeenCalledWith(['ssh-config-prod'])
+    })
   })
 
   it('设置页支持修改主密码', async () => {

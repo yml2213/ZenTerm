@@ -1,7 +1,6 @@
 import { startTransition, useEffect } from 'react'
 import {
   getVaultStatus,
-  importLocalSSHConfigHosts,
   listHosts,
   listLocalSSHConfigHosts,
   listSessions,
@@ -11,7 +10,7 @@ import {
 } from '../lib/backend'
 import { buildSessionTabs, normalizeHostKeyPrompt } from '../lib/appSessionUtils'
 import { main } from '../wailsjs/wailsjs/go/models'
-import { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '../types'
+import { HostKeyPrompt, SessionTab, SSHConfigImportPrompt, WorkspaceTab, WorkspaceType } from '../types'
 
 interface AppBootstrapProps {
   setHosts: (hosts: main.Host[]) => void
@@ -116,17 +115,15 @@ export function useAppBootstrap({
 interface SSHConfigImportPromptProps {
   vaultUnlocked: boolean
   hosts: main.Host[]
-  setHosts: (hosts: main.Host[]) => void
-  setSelectedHostId: (id: string | null) => void
   setError: (error: string | null) => void
+  setSSHConfigImportPrompt: (prompt: SSHConfigImportPrompt | null) => void
 }
 
 export function useSSHConfigImportPrompt({
   vaultUnlocked,
   hosts,
-  setHosts,
-  setSelectedHostId,
   setError,
+  setSSHConfigImportPrompt,
 }: SSHConfigImportPromptProps) {
   useEffect(() => {
     if (!vaultUnlocked) {
@@ -152,26 +149,14 @@ export function useSSHConfigImportPrompt({
         return
       }
 
-      const preview = importableHosts
+      const previewLines = importableHosts
         .slice(0, 5)
         .map((host) => `${host.alias} (${host.user || '当前用户'}@${host.host_name}:${host.port || 22})`)
-        .join('\n')
-      const suffix = importableHosts.length > 5 ? `\n等 ${importableHosts.length} 个配置。` : ''
-      const confirmed = window.confirm(`发现本机 SSH 配置，是否导入到 ZenTerm？\n\n${preview}${suffix}`)
-      if (!confirmed) {
-        window.sessionStorage.setItem(promptKey, 'dismissed')
-        return
-      }
-
-      await importLocalSSHConfigHosts(importableHosts.map((host) => host.id))
-      const nextHosts = await listHosts()
-      if (disposed) {
-        return
-      }
-
-      startTransition(() => {
-        setHosts(nextHosts)
-        setSelectedHostId(nextHosts[0]?.id || null)
+      setSSHConfigImportPrompt({
+        promptKey,
+        hostIds: importableHosts.map((host) => host.id),
+        previewLines,
+        total: importableHosts.length,
       })
     }
 
@@ -184,7 +169,7 @@ export function useSSHConfigImportPrompt({
     return () => {
       disposed = true
     }
-  }, [hosts, setError, setHosts, setSelectedHostId, vaultUnlocked])
+  }, [hosts, setError, setSSHConfigImportPrompt, vaultUnlocked])
 }
 
 export function useWindowStatePersistence(setError: (error: string | null) => void) {

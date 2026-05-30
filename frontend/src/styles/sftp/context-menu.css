@@ -1,0 +1,51 @@
+.sftp-context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 156px;
+  padding: 0.35rem;
+  border: 1px solid var(--border-default);
+  border-radius: 13px;
+  background: var(--panel-bg-strong);
+  box-shadow: 0 18px 42px rgba(21, 31, 44, 0.16);
+}
+
+.sftp-context-menu-title {
+  padding: 0.45rem 0.58rem 0.42rem;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sftp-context-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.58rem 0.68rem;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.sftp-context-menu button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--panel-muted);
+}
+
+.sftp-context-menu button.danger {
+  color: var(--accent-danger);
+}
+
+.sftp-context-menu button.danger:hover:not(:disabled) {
+  background: var(--surface-danger-bg);
+}
+
+.sftp-context-menu-separator {
+  height: 1px;
+  margin: 0.3rem 0.18rem;
+  background: var(--border-subtle);
+}

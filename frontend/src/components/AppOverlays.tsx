@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import HostKeyModal from './HostKeyModal'
 import UnlockModal from './UnlockModal'
-import type { VaultSetupForm, HostKeyPrompt } from '../types'
+import type { VaultSetupForm, HostKeyPrompt, SSHConfigImportPrompt } from '../types'
 
 interface Host {
   id: string
@@ -24,6 +24,10 @@ interface AppOverlaysProps {
   deleteCandidate: Host | null
   onCancelDeleteHost: () => void
   onDeleteHost: () => void
+  sshConfigImportPrompt: SSHConfigImportPrompt | null
+  sshConfigImportBusy: boolean
+  onCancelSSHConfigImport: () => void
+  onConfirmSSHConfigImport: () => void
   errorTitle: string
   error: string | null
   confirmLabel: string
@@ -50,6 +54,10 @@ export default function AppOverlays({
   deleteCandidate,
   onCancelDeleteHost,
   onDeleteHost,
+  sshConfigImportPrompt,
+  sshConfigImportBusy,
+  onCancelSSHConfigImport,
+  onConfirmSSHConfigImport,
   errorTitle,
   error,
   confirmLabel,
@@ -94,6 +102,31 @@ export default function AppOverlays({
               </button>
               <button type="button" className="primary-button danger" onClick={onDeleteHost}>
                 删除主机
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {sshConfigImportPrompt ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-content modal-narrow" role="dialog" aria-modal="true" aria-labelledby="ssh-config-import-title">
+            <h2 id="ssh-config-import-title">导入 SSH 配置</h2>
+            <p>发现 {sshConfigImportPrompt.total} 个可导入的本机 SSH 配置。</p>
+            <div className="hostkey-meta">
+              {sshConfigImportPrompt.previewLines.map((line) => (
+                <small key={line}>{line}</small>
+              ))}
+              {sshConfigImportPrompt.total > sshConfigImportPrompt.previewLines.length ? (
+                <small>还有 {sshConfigImportPrompt.total - sshConfigImportPrompt.previewLines.length} 个配置会一起导入。</small>
+              ) : null}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="ghost-button" onClick={onCancelSSHConfigImport} disabled={sshConfigImportBusy}>
+                暂不导入
+              </button>
+              <button type="button" className="primary-button" onClick={onConfirmSSHConfigImport} disabled={sshConfigImportBusy}>
+                {sshConfigImportBusy ? '导入中...' : '导入配置'}
               </button>
             </div>
           </section>
