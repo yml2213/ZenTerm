@@ -1,0 +1,229 @@
+package db
+
+import (
+	"encoding/base64"
+	"fmt"
+	"os"
+
+	"zenterm/internal/model"
+	"zenterm/internal/security"
+)
+
+const vaultCheckToken = "zenterm:vault-check:v1"
+
+type vaultData struct {
+	Salt  string               `json:"salt"`
+	Check *security.Ciphertext `json:"check,omitempty"`
+}
+
+func (s *Store) EnsureSalt() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	if data.Vault.Salt != "" {
+		return decodeSalt(data.Vault.Salt)
+	}
+
+	salt, err := security.NewSalt(s.saltSize)
+	if err != nil {
+		return nil, err
+	}
+
+	data.Vault.Salt = base64.StdEncoding.EncodeToString(salt)
+	if err := s.saveLocked(data); err != nil {
+		return nil, err
+	}
+
+	return salt, nil
+}
+
+// VerifyOrInitVaultCheck 校验当前 Vault 派生出的密钥是否正确；如果还没有校验哨兵则自动补齐 / validates the active vault key and bootstraps a verifier payload when missing.
+func (s *Store) VerifyOrInitVaultCheck(vault *security.Vault) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	if data.Vault.Check != nil {
+		plaintext, err := vault.DecryptString(*data.Vault.Check)
+		if err != nil || plaintext != vaultCheckToken {
+			return security.ErrInvalidMasterPassword
+		}
+		return nil
+	}
+
+	if hasEncryptedSecrets(data.Hosts) {
+		if !canDecryptExistingSecret(data.Hosts, vault) {
+			return security.ErrInvalidMasterPassword
+		}
+	}
+
+	check, err := vault.EncryptString(vaultCheckToken)
+	if err != nil {
+		return fmt.Errorf("encrypt vault check: %w", err)
+	}
+
+	data.Vault.Check = &check
+	return s.saveLocked(data)
+}
+
+// IsVaultInitialized 返回当前存储是否已经完成 Vault 初始化 / reports whether the persisted vault has been initialized.
+func (s *Store) IsVaultInitialized() (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return false, err
+	}
+
+	return data.Vault.Check != nil || hasEncryptedSecrets(data.Hosts), nil
+}
+
+// RekeyVault 使用新的主密码派生密钥重新加密全部敏感数据 / re-encrypts all sensitive data with a freshly derived vault key.
+func (s *Store) RekeyVault(currentVault, nextVault *security.Vault, nextSalt []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	if data.Vault.Check != nil {
+		plaintext, err := currentVault.DecryptString(*data.Vault.Check)
+		if err != nil || plaintext != vaultCheckToken {
+			return security.ErrInvalidMasterPassword
+		}
+	} else if hasEncryptedSecrets(data.Hosts) && !canDecryptExistingSecret(data.Hosts, currentVault) {
+		return security.ErrInvalidMasterPassword
+	}
+
+	for i := range data.Hosts {
+		password, err := decryptOptional(data.Hosts[i].Identity.Password, currentVault)
+		if err != nil {
+			return fmt.Errorf("decrypt password: %w", err)
+		}
+		privateKey, err := decryptOptional(data.Hosts[i].Identity.PrivateKey, currentVault)
+		if err != nil {
+			return fmt.Errorf("decrypt private key: %w", err)
+		}
+
+		encryptedPassword, err := encryptOptional(password, nextVault)
+		if err != nil {
+			return fmt.Errorf("encrypt password: %w", err)
+		}
+		encryptedPrivateKey, err := encryptOptional(privateKey, nextVault)
+		if err != nil {
+			return fmt.Errorf("encrypt private key: %w", err)
+		}
+
+		data.Hosts[i].Identity.Password = encryptedPassword
+		data.Hosts[i].Identity.PrivateKey = encryptedPrivateKey
+	}
+
+	for i := range data.SessionTranscripts {
+		content, err := decryptOptional(data.SessionTranscripts[i].Content, currentVault)
+		if err != nil {
+			return fmt.Errorf("decrypt session transcript: %w", err)
+		}
+		encryptedContent, err := encryptOptional(content, nextVault)
+		if err != nil {
+			return fmt.Errorf("encrypt session transcript: %w", err)
+		}
+		data.SessionTranscripts[i].Content = encryptedContent
+
+		for j := range data.SessionTranscripts[i].Chunks {
+			chunk, err := decryptOptional(data.SessionTranscripts[i].Chunks[j].Content, currentVault)
+			if err != nil {
+				return fmt.Errorf("decrypt session transcript chunk: %w", err)
+			}
+			encryptedChunk, err := encryptOptional(chunk, nextVault)
+			if err != nil {
+				return fmt.Errorf("encrypt session transcript chunk: %w", err)
+			}
+			data.SessionTranscripts[i].Chunks[j].Content = encryptedChunk
+		}
+	}
+	if err := s.rekeyTranscriptFilesLocked(currentVault, nextVault); err != nil {
+		return err
+	}
+
+	check, err := nextVault.EncryptString(vaultCheckToken)
+	if err != nil {
+		return fmt.Errorf("encrypt vault check: %w", err)
+	}
+
+	data.Vault.Salt = base64.StdEncoding.EncodeToString(nextSalt)
+	data.Vault.Check = &check
+	return s.saveLocked(data)
+}
+
+// ResetVault 清空所有主机与凭据，并重置 Vault 初始化状态 / clears all hosts and credentials and resets vault initialization.
+func (s *Store) ResetVault() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	data.Vault = vaultData{}
+	data.Hosts = []hostEntry{}
+	data.Credentials = []credentialEntry{}
+	data.SessionLogs = []model.SessionLog{}
+	data.SessionTranscripts = []sessionTranscriptEntry{}
+	if err := s.saveLocked(data); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(s.transcriptDirPath()); err != nil {
+		return fmt.Errorf("remove session transcript files: %w", err)
+	}
+	return nil
+}
+
+// AddHost 保存主机信息，并在写盘前加密其身份凭据 / stores a host and encrypts the provided identity before writing it to disk.
+func decodeSalt(encoded string) ([]byte, error) {
+	salt, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("decode salt: %w", err)
+	}
+
+	return salt, nil
+}
+func hasEncryptedSecrets(hosts []hostEntry) bool {
+	for _, entry := range hosts {
+		if entry.Identity.Password != nil || entry.Identity.PrivateKey != nil {
+			return true
+		}
+	}
+
+	return false
+}
+func canDecryptExistingSecret(hosts []hostEntry, vault *security.Vault) bool {
+	for _, entry := range hosts {
+		if entry.Identity.Password != nil {
+			if _, err := vault.DecryptString(*entry.Identity.Password); err == nil {
+				return true
+			}
+		}
+		if entry.Identity.PrivateKey != nil {
+			if _, err := vault.DecryptString(*entry.Identity.PrivateKey); err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// AddCredential 保存凭据信息，并加密敏感数据 / stores a credential and encrypts sensitive data.

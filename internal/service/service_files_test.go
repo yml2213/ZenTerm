@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,6 +46,65 @@ func TestListLocalFilesReturnsSortedEntries(t *testing.T) {
 	}
 	if listing.Entries[1].Name != "alpha.txt" || listing.Entries[1].IsDir {
 		t.Fatalf("listing.Entries[1] = %#v, want alpha.txt file second", listing.Entries[1])
+	}
+}
+
+func TestDeleteLocalEntryRefusesProtectedStoreDirectory(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "ZenTerm")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	protectedFile := filepath.Join(dataDir, "config.zen")
+	if err := os.WriteFile(protectedFile, []byte("config"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := db.NewStore(protectedFile)
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if err := svc.DeleteLocalEntry(dataDir); !errors.Is(err, ErrProtectedLocalPath) {
+		t.Fatalf("DeleteLocalEntry(dataDir) error = %v, want %v", err, ErrProtectedLocalPath)
+	}
+	if err := svc.DeleteLocalEntry(protectedFile); !errors.Is(err, ErrProtectedLocalPath) {
+		t.Fatalf("DeleteLocalEntry(config.zen) error = %v, want %v", err, ErrProtectedLocalPath)
+	}
+	if _, err := os.Stat(protectedFile); err != nil {
+		t.Fatalf("protected file was removed: %v", err)
+	}
+}
+
+func TestDeleteLocalEntryAllowsNormalFile(t *testing.T) {
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "ZenTerm")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(dataDir) error = %v", err)
+	}
+	targetPath := filepath.Join(dir, "scratch.txt")
+	if err := os.WriteFile(targetPath, []byte("scratch"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := db.NewStore(filepath.Join(dataDir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if err := svc.DeleteLocalEntry(targetPath); err != nil {
+		t.Fatalf("DeleteLocalEntry() error = %v", err)
+	}
+	if _, err := os.Stat(targetPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("deleted file stat error = %v, want %v", err, os.ErrNotExist)
 	}
 }
 

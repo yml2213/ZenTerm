@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -156,6 +157,10 @@ func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Resu
 		}
 	}
 
+	if _, err := backupStoreBeforeSyncPull(a.store.Path(), time.Now().UTC()); err != nil {
+		return syncer.Result{}, normalizeFrontendError(err)
+	}
+
 	remoteDeviceID, snapshotHash, err := a.service.ApplyEncryptedSyncSnapshot(masterPassword, payload)
 	if err != nil {
 		return syncer.Result{}, normalizeFrontendError(err)
@@ -205,4 +210,30 @@ func loadWebDAVSyncPassword() (string, error) {
 	default:
 		return "", err
 	}
+}
+
+func backupStoreBeforeSyncPull(storePath string, now time.Time) (string, error) {
+	if strings.TrimSpace(storePath) == "" {
+		return "", nil
+	}
+
+	payload, err := os.ReadFile(storePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read store before sync backup: %w", err)
+	}
+
+	backupDir := filepath.Join(filepath.Dir(storePath), "backups")
+	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+		return "", fmt.Errorf("create sync backup directory: %w", err)
+	}
+
+	backupPath := filepath.Join(backupDir, fmt.Sprintf("config-%s.zen", now.UTC().Format("20060102-150405.000000000")))
+	if err := os.WriteFile(backupPath, payload, 0o600); err != nil {
+		return "", fmt.Errorf("write sync backup: %w", err)
+	}
+
+	return backupPath, nil
 }
