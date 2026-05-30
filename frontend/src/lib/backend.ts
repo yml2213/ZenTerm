@@ -75,10 +75,11 @@ export function onRuntimeEvent(eventName: string, handler: (...args: unknown[]) 
   }
 }
 
-export async function unlock(password: string): Promise<model.VaultStatus> {
+export async function unlock(password: string): Promise<void> {
   const binding = getAppBinding()
   if (typeof binding?.UnlockWithPreferences === 'function') {
-    return binding.UnlockWithPreferences(password, false) as model.VaultStatus
+    await binding.UnlockWithPreferences(password, false)
+    return
   }
 
   return callApp('Unlock', password)
@@ -92,14 +93,15 @@ export async function getKeychainStatus(): Promise<model.KeychainStatus> {
   return callApp('GetKeychainStatus')
 }
 
-export async function initializeVaultWithPreferences(password: string, remember: boolean): Promise<model.VaultStatus> {
+export async function initializeVaultWithPreferences(password: string, remember: boolean): Promise<void> {
   return callApp('InitializeVaultWithPreferences', password, remember)
 }
 
-export async function unlockWithPreferences(password: string, remember: boolean): Promise<model.VaultStatus> {
+export async function unlockWithPreferences(password: string, remember: boolean): Promise<void> {
   const binding = getAppBinding()
   if (typeof binding?.UnlockWithPreferences === 'function') {
-    return binding.UnlockWithPreferences(password, remember) as model.VaultStatus
+    await binding.UnlockWithPreferences(password, remember)
+    return
   }
 
   return callApp('Unlock', password)
@@ -114,7 +116,7 @@ export async function tryAutoUnlock(): Promise<boolean> {
   return binding.TryAutoUnlock() as boolean
 }
 
-export async function changeMasterPassword(currentPassword: string, nextPassword: string, remember: boolean): Promise<model.VaultStatus> {
+export async function changeMasterPassword(currentPassword: string, nextPassword: string, remember: boolean): Promise<void> {
   return callApp('ChangeMasterPassword', currentPassword, nextPassword, remember)
 }
 
@@ -305,11 +307,11 @@ export async function pullWebDAVSync(masterPassword: string, overwrite: boolean 
   return callApp('PullWebDAVSync', masterPassword, overwrite)
 }
 
-export async function generateCredential(label: string, algorithm: string, keyBits: number, passphrase: string): Promise<main.Credential> {
+export async function generateCredential(label: string, algorithm: string, keyBits: number, passphrase: string): Promise<string> {
   return callApp('GenerateCredential', label, algorithm, keyBits, passphrase)
 }
 
-export async function importCredential(label: string, privateKeyPEM: string, passphrase: string): Promise<main.Credential> {
+export async function importCredential(label: string, privateKeyPEM: string, passphrase: string): Promise<string> {
   return callApp('ImportCredential', label, privateKeyPEM, passphrase)
 }
 

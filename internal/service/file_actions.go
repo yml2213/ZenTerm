@@ -103,12 +103,77 @@ func (s *Service) DeleteLocalEntry(targetPath string) error {
 	if _, err := os.Stat(resolvedPath); err != nil {
 		return fmt.Errorf("stat local delete target: %w", err)
 	}
+	if err := s.ensureLocalDeleteAllowed(resolvedPath); err != nil {
+		return err
+	}
 
 	if err := os.RemoveAll(resolvedPath); err != nil {
 		return fmt.Errorf("delete local entry: %w", err)
 	}
 
 	return nil
+}
+
+func (s *Service) ensureLocalDeleteAllowed(targetPath string) error {
+	cleanPath := filepath.Clean(targetPath)
+	if isFilesystemRoot(cleanPath) {
+		return ErrProtectedLocalPath
+	}
+
+	protectedExact := protectedLocalDeletePaths()
+	for _, protected := range protectedExact {
+		if sameLocalPath(cleanPath, protected) {
+			return ErrProtectedLocalPath
+		}
+	}
+
+	if s != nil && s.store != nil {
+		dataDir := filepath.Dir(s.store.Path())
+		if sameLocalPath(cleanPath, dataDir) || isPathInside(cleanPath, dataDir) {
+			return ErrProtectedLocalPath
+		}
+	}
+
+	return nil
+}
+
+func protectedLocalDeletePaths() []string {
+	paths := []string{}
+	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+		paths = append(paths, homeDir)
+	}
+	paths = append(paths,
+		"/Applications",
+		"/Library",
+		"/System",
+		"/Users",
+		"/bin",
+		"/etc",
+		"/private",
+		"/sbin",
+		"/usr",
+		"/var",
+	)
+	return paths
+}
+
+func isFilesystemRoot(path string) bool {
+	cleanPath := filepath.Clean(path)
+	volume := filepath.VolumeName(cleanPath)
+	root := filepath.Clean(volume + string(os.PathSeparator))
+	return sameLocalPath(cleanPath, root)
+}
+
+func sameLocalPath(left, right string) bool {
+	return filepath.Clean(left) == filepath.Clean(right)
+}
+
+func isPathInside(path, parent string) bool {
+	rel, err := filepath.Rel(filepath.Clean(parent), filepath.Clean(path))
+	if err != nil {
+		return false
+	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
 
 // CreateRemoteDirectory 在远端目录下创建文件夹 / creates a directory inside a remote parent directory.

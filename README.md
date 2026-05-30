@@ -60,7 +60,7 @@ ZenTerm/
 ### 后端
 
 ```bash
-go test ./...
+make test-go
 wails dev
 wails build
 ```

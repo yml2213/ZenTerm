@@ -38,6 +38,7 @@ var (
 	ErrFileActionPathRequired      = errors.New("file action path is required")
 	ErrFileNameRequired            = errors.New("file name is required")
 	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
+	ErrProtectedLocalPath          = errors.New("refusing to delete protected local path")
 )
 
 const (
