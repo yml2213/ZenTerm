@@ -1,20 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   RefreshCw,
 } from 'lucide-react'
-import {
-  generateCredential,
-  importCredential,
-  getCredentials,
-  getCredentialUsage,
-  getCredentialPublicKey,
-  importLocalSSHKey,
-  listLocalSSHKeys,
-  type LocalSSHKey,
-  uploadCredentialToHost,
-  deleteCredential,
-} from '../lib/backend'
-import { main, model } from '../wailsjs/wailsjs/go/models'
+import { main } from '../wailsjs/wailsjs/go/models'
 import GenerateKeyDrawer from './keychain/GenerateKeyDrawer'
 import ImportKeyDrawer from './keychain/ImportKeyDrawer'
 import ImportLocalKeyDrawer from './keychain/ImportLocalKeyDrawer'
@@ -22,17 +10,12 @@ import KeychainEmptyState from './keychain/KeychainEmptyState'
 import KeychainList from './keychain/KeychainList'
 import UploadKeyDrawer from './keychain/UploadKeyDrawer'
 import {
-  createGenerateKeyForm,
-  createImportKeyForm,
   credentialTypes,
-  type GenerateKeyForm,
-  type ImportKeyForm,
-  type ImportLocalKeyForm,
-  type UploadKeyForm,
 } from './keychain/keychainConfig'
+import { useKeychainActions } from './keychain/useKeychainActions'
+import { useKeychainData } from './keychain/useKeychainData'
+import { useKeychainDrawers } from './keychain/useKeychainDrawers'
 
-type Credential = main.Credential
-type CredentialUsage = model.CredentialUsage
 type Host = main.Host
 
 interface KeychainPanelProps {
@@ -49,19 +32,59 @@ export default function KeychainPanel({
   onHostsChanged,
 }: KeychainPanelProps) {
   const [activeType, setActiveType] = useState('ssh_key')
-  const [activeDrawer, setActiveDrawer] = useState<'generateKey' | 'importKey' | 'uploadKey' | 'importLocalKey' | null>(null)
-  const [credentials, setCredentials] = useState<Credential[]>([])
-  const [localKeys, setLocalKeys] = useState<LocalSSHKey[]>([])
-  const [loading, setLoading] = useState(vaultUnlocked)
-  const [generateForm, setGenerateForm] = useState(createGenerateKeyForm)
-  const [importForm, setImportForm] = useState(createImportKeyForm)
-  const [importLocalForm, setImportLocalForm] = useState<ImportLocalKeyForm>({ label: '', passphrase: '' })
-  const [uploadForm, setUploadForm] = useState<UploadKeyForm>({ hostId: '', bindAfterUpload: true })
-  const [selectedCredentialId, setSelectedCredentialId] = useState('')
-  const [selectedLocalKey, setSelectedLocalKey] = useState<LocalSSHKey | null>(null)
-  const [operationLoading, setOperationLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const {
+    credentials,
+    localKeys,
+    loading,
+    error,
+    notice,
+    setError,
+    setNotice,
+    loadCredentials,
+  } = useKeychainData(vaultUnlocked)
+  const {
+    activeDrawer,
+    generateForm,
+    importForm,
+    importLocalForm,
+    uploadForm,
+    selectedCredentialId,
+    selectedLocalKey,
+    setImportLocalForm,
+    setUploadForm,
+    openDrawer,
+    openUploadDrawer,
+    openImportLocalDrawer,
+    closeDrawer,
+    handleGenerateField,
+    handleImportField,
+  } = useKeychainDrawers({
+    hosts,
+    setError,
+    setNotice,
+  })
+  const {
+    operationLoading,
+    handleGenerateSubmit,
+    handleImportSubmit,
+    handleDeleteCredential,
+    handleCopyPublicKey,
+    handleCopyLocalPublicKey,
+    handleImportLocalSubmit,
+    handleUploadSubmit,
+  } = useKeychainActions({
+    generateForm,
+    importForm,
+    importLocalForm,
+    uploadForm,
+    selectedCredentialId,
+    selectedLocalKey,
+    closeDrawer,
+    loadCredentials,
+    setError,
+    setNotice,
+    onHostsChanged,
+  })
 
   const activeTypeConfig = useMemo(
     () => credentialTypes.find((t) => t.id === activeType) || credentialTypes[0],
@@ -76,246 +99,10 @@ export default function KeychainPanel({
   const visibleLocalKeys = activeType === 'ssh_key' ? localKeys : []
   const hasVisibleKeys = filteredCredentials.length > 0 || visibleLocalKeys.length > 0
 
-  const loadCredentials = useCallback(async () => {
-    if (!vaultUnlocked) {
-      setCredentials([])
-      setLocalKeys([])
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    try {
-      const [creds, discoveredKeys] = await Promise.all([
-        getCredentials(),
-        listLocalSSHKeys(),
-      ])
-      setCredentials(creds || [])
-      setLocalKeys(discoveredKeys || [])
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [vaultUnlocked])
-
-  useEffect(() => {
-    void loadCredentials()
-  }, [loadCredentials])
-
-  function openDrawer(drawer: 'generateKey' | 'importKey') {
-    setActiveDrawer(drawer)
-    setNotice(null)
-    if (drawer === 'generateKey') {
-      setGenerateForm(createGenerateKeyForm())
-    } else if (drawer === 'importKey') {
-      setImportForm(createImportKeyForm())
-    }
-  }
-
-  function openUploadDrawer(credentialId: string) {
-    setSelectedCredentialId(credentialId)
-    setUploadForm({
-      hostId: hosts[0]?.id || '',
-      bindAfterUpload: true,
-    })
-    setActiveDrawer('uploadKey')
-    setError(null)
-    setNotice(null)
-  }
-
-  function openImportLocalDrawer(localKey: LocalSSHKey) {
-    setSelectedLocalKey(localKey)
-    setImportLocalForm({
-      label: localKey.name || '',
-      passphrase: '',
-    })
-    setActiveDrawer('importLocalKey')
-    setError(null)
-    setNotice(null)
-  }
-
-  function closeDrawer() {
-    setActiveDrawer(null)
-    setError(null)
-  }
-
   const handleTypeChange = useCallback((type: string) => {
     setActiveType(type)
-    setActiveDrawer(null)
-  }, [])
-
-  function handleGenerateField<K extends keyof GenerateKeyForm>(field: K, value: GenerateKeyForm[K]) {
-    setGenerateForm((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  function handleImportField<K extends keyof ImportKeyForm>(field: K, value: ImportKeyForm[K]) {
-    setImportForm((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  async function handleGenerateSubmit() {
-    if (!generateForm.label.trim()) {
-      setError('请输入密钥标签')
-      return
-    }
-
-    setOperationLoading(true)
-    setError(null)
-    try {
-      await generateCredential(
-        generateForm.label,
-        generateForm.algorithm,
-        generateForm.keyBits || 0,
-        generateForm.passphrase
-      )
-      closeDrawer()
-      await loadCredentials()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setOperationLoading(false)
-    }
-  }
-
-  async function handleImportSubmit() {
-    if (!importForm.label.trim()) {
-      setError('请输入密钥标签')
-      return
-    }
-    if (!importForm.privateKeyPEM.trim()) {
-      setError('请输入私钥内容')
-      return
-    }
-
-    setOperationLoading(true)
-    setError(null)
-    try {
-      await importCredential(
-        importForm.label,
-        importForm.privateKeyPEM,
-        importForm.passphrase
-      )
-      closeDrawer()
-      await loadCredentials()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setOperationLoading(false)
-    }
-  }
-
-  async function handleDeleteCredential(credentialID: string) {
-    if (!confirm('确定要删除此凭据吗？删除后无法恢复。')) {
-      return
-    }
-
-    try {
-      const usage: CredentialUsage = await getCredentialUsage(credentialID)
-      if (usage.host_ids && usage.host_ids.length > 0) {
-        setError('此凭据正在被以下主机使用，无法删除')
-        return
-      }
-
-      await deleteCredential(credentialID)
-      await loadCredentials()
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
-
-  async function handleCopyPublicKey(credentialID: string) {
-    try {
-      const publicKey = await getCredentialPublicKey(credentialID)
-      await navigator.clipboard.writeText(publicKey)
-      setNotice('公钥已复制到剪贴板')
-      setError(null)
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
-
-  async function handleCopyLocalPublicKey(localKey: LocalSSHKey) {
-    if (!localKey.public_key) {
-      setError('这个本机密钥没有可复制的公钥')
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(localKey.public_key)
-      setNotice('本机公钥已复制到剪贴板')
-      setError(null)
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
-
-  async function handleImportLocalSubmit() {
-    if (!selectedLocalKey) {
-      setError('请选择本机密钥')
-      return
-    }
-    if (!importLocalForm.label.trim()) {
-      setError('请输入密钥标签')
-      return
-    }
-
-    setOperationLoading(true)
-    setError(null)
-    setNotice(null)
-    try {
-      await importLocalSSHKey(
-        selectedLocalKey.path,
-        importLocalForm.label,
-        importLocalForm.passphrase,
-      )
-      setNotice('本机密钥已导入保险箱')
-      closeDrawer()
-      await loadCredentials()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setOperationLoading(false)
-    }
-  }
-
-  async function handleUploadSubmit() {
-    if (!selectedCredentialId) {
-      setError('请选择要上传的密钥')
-      return
-    }
-    if (!uploadForm.hostId) {
-      setError('请选择目标主机')
-      return
-    }
-
-    setOperationLoading(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const result = await uploadCredentialToHost(
-        uploadForm.hostId,
-        selectedCredentialId,
-        uploadForm.bindAfterUpload,
-      )
-      setNotice(result.message || '公钥上传完成')
-      closeDrawer()
-      await loadCredentials()
-      if (result.bound && onHostsChanged) {
-        await onHostsChanged()
-      }
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setOperationLoading(false)
-    }
-  }
+    closeDrawer()
+  }, [closeDrawer])
 
   const toolbar = useMemo(
     () => (

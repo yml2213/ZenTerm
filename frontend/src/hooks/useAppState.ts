@@ -280,3 +280,6 @@ export function useAppState() {
     refs,
   }
 }
+
+export type AppStateSetters = ReturnType<typeof useAppState>['setters']
+export type AppStateRefs = ReturnType<typeof useAppState>['refs']

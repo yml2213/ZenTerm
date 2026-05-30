@@ -39,12 +39,17 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', {
         allowConstantExport: true,
         allowExportNames: fastRefreshSafeExports,
       }],
+    },
+  },
+  {
+    files: ['src/**/*.test.tsx', 'src/test/**/*.ts', 'src/test/**/*.tsx'],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 ]

@@ -8,37 +8,25 @@ import ContextMenu from './sftp/ContextMenu'
 import EntryDialog from './sftp/EntryDialog'
 import FilePane from './sftp/FilePane'
 import PaneEmptyState from './sftp/PaneEmptyState'
+import { useSftpDialogs } from './sftp/useSftpDialogs'
+import { useSftpListing } from './sftp/useSftpListing'
+import { useSftpSelection } from './sftp/useSftpSelection'
+import { useSftpTransfer } from './sftp/useSftpTransfer'
 import {
   createLocalDirectory,
   createRemoteDirectory,
   deleteLocalEntry,
   deleteRemoteEntry,
-  downloadFile,
-  listLocalFiles,
-  listRemoteFiles,
   renameLocalEntry,
   renameRemoteEntry,
-  uploadFile,
 } from '../lib/backend'
 import {
   buildActionSuccessMessage,
-  buildTransferNotice,
-  collapseEntriesForDelete,
-  defaultSort,
-  filterVisibleEntries,
   findSelectedEntries,
-  getBaseName,
-  isTransferConflictError,
-  joinTransferTargetPath,
   pickTransferableEntries,
   splitLocalPath,
   splitRemotePath,
-  uniquePaths,
-  type FileEntry,
-  type FileListing,
-  type SortConfig,
   type ContextMenuState,
-  type DialogState,
 } from '../lib/sftpUtils'
 import { main } from '../wailsjs/wailsjs/go/models'
 
@@ -48,22 +36,6 @@ interface ExtendedContextMenuState extends ContextMenuState {
   transferLabel?: string
   deleteSelectionLabel?: string
   hiddenFilesLabel?: string
-}
-
-interface ExtendedDialogState extends DialogState {
-  value?: string
-  direction?: 'upload' | 'download'
-  sourcePath?: string
-  sourcePaths?: string[]
-  startIndex?: number
-  completedCount?: number
-  targetDirectory?: string
-  targetPath?: string
-}
-
-interface Notice {
-  tone: 'success' | 'error' | 'warning'
-  message: string
 }
 
 interface SftpWorkspaceProps {
@@ -85,199 +57,79 @@ export default function SftpWorkspace({
   onBackToVaults,
   onError,
 }: SftpWorkspaceProps) {
-  const [localListing, setLocalListing] = useState<FileListing | null>(null)
-  const [remoteListing, setRemoteListing] = useState<FileListing | null>(null)
-  const [localLoading, setLocalLoading] = useState(true)
-  const [remoteLoading, setRemoteLoading] = useState(Boolean(selectedHost && vaultUnlocked))
-  const [showHiddenLocalFiles, setShowHiddenLocalFiles] = useState(false)
-  const [showHiddenRemoteFiles, setShowHiddenRemoteFiles] = useState(false)
-  const [selectedLocalPath, setSelectedLocalPath] = useState<string | null>(null)
-  const [selectedRemotePath, setSelectedRemotePath] = useState<string | null>(null)
-  const [selectedLocalPaths, setSelectedLocalPaths] = useState<string[]>([])
-  const [selectedRemotePaths, setSelectedRemotePaths] = useState<string[]>([])
-  const [localSelectionAnchor, setLocalSelectionAnchor] = useState<string | null>(null)
-  const [remoteSelectionAnchor, setRemoteSelectionAnchor] = useState<string | null>(null)
-  const [transferBusy, setTransferBusy] = useState<'upload' | 'download' | null>(null)
-  const [notice, setNotice] = useState<Notice | null>(null)
-  const [localSort, setLocalSort] = useState<SortConfig>(defaultSort)
-  const [remoteSort, setRemoteSort] = useState<SortConfig>(defaultSort)
   const [contextMenu, setContextMenu] = useState<ExtendedContextMenuState | null>(null)
-  const [dialogState, setDialogState] = useState<ExtendedDialogState | null>(null)
-  const [dialogBusy, setDialogBusy] = useState(false)
-
-  function toggleHiddenFiles(scope: 'local' | 'remote') {
-    clearScopeSelection(scope)
-    if (scope === 'remote') {
-      setShowHiddenRemoteFiles((current) => !current)
-      return
-    }
-
-    setShowHiddenLocalFiles((current) => !current)
-  }
-
-  function getShowHiddenState(scope: 'local' | 'remote'): boolean {
-    return scope === 'remote' ? showHiddenRemoteFiles : showHiddenLocalFiles
-  }
-
-  function getVisibleListing(scope: 'local' | 'remote'): FileListing | null {
-    const listing = scope === 'remote' ? remoteListing : localListing
-    return listing
-      ? { ...listing, entries: filterVisibleEntries(listing.entries, getShowHiddenState(scope)) }
-      : listing
-  }
-
-  function clearScopeSelection(scope: 'local' | 'remote') {
-    if (scope === 'remote') {
-      setSelectedRemotePath(null)
-      setSelectedRemotePaths([])
-      setRemoteSelectionAnchor(null)
-      return
-    }
-
-    setSelectedLocalPath(null)
-    setSelectedLocalPaths([])
-    setLocalSelectionAnchor(null)
-  }
-
-  function selectOnlyPath(scope: 'local' | 'remote', path: string | null) {
-    if (scope === 'remote') {
-      setSelectedRemotePath(path || null)
-      setSelectedRemotePaths(path ? [path] : [])
-      setRemoteSelectionAnchor(path || null)
-      return
-    }
-
-    setSelectedLocalPath(path || null)
-    setSelectedLocalPaths(path ? [path] : [])
-    setLocalSelectionAnchor(path || null)
-  }
-
-  function togglePathSelection(scope: 'local' | 'remote', path: string) {
-    const setter = scope === 'remote' ? setSelectedRemotePaths : setSelectedLocalPaths
-    const setPrimary = scope === 'remote' ? setSelectedRemotePath : setSelectedLocalPath
-    const setAnchor = scope === 'remote' ? setRemoteSelectionAnchor : setLocalSelectionAnchor
-
-    setter((current) => {
-      const exists = current.includes(path)
-      const next = exists ? current.filter((item) => item !== path) : [...current, path]
-      setPrimary(exists ? (next.at(-1) || null) : path)
-      setAnchor(path)
-      return next
-    })
-  }
-
-  function selectRange(scope: 'local' | 'remote', path: string, orderedPaths: string[]) {
-    const anchor = scope === 'remote' ? remoteSelectionAnchor : localSelectionAnchor
-    const resolvedAnchor = orderedPaths.includes(anchor || '') ? anchor : path
-    const anchorIndex = orderedPaths.indexOf(resolvedAnchor || '')
-    const currentIndex = orderedPaths.indexOf(path)
-
-    if (anchorIndex === -1 || currentIndex === -1) {
-      selectOnlyPath(scope, path)
-      return
-    }
-
-    const [start, end] = anchorIndex <= currentIndex
-      ? [anchorIndex, currentIndex]
-      : [currentIndex, anchorIndex]
-    const nextPaths = orderedPaths.slice(start, end + 1)
-
-    if (scope === 'remote') {
-      setSelectedRemotePaths(nextPaths)
-      setSelectedRemotePath(path)
-      setRemoteSelectionAnchor(resolvedAnchor)
-      return
-    }
-
-    setSelectedLocalPaths(nextPaths)
-    setSelectedLocalPath(path)
-    setLocalSelectionAnchor(resolvedAnchor)
-  }
-
-  function toggleAllSelection(scope: 'local' | 'remote', listing: FileListing | null) {
-    const allPaths = uniquePaths((listing?.entries || []).map((entry) => entry.path))
-    const currentPaths = scope === 'remote' ? selectedRemotePaths : selectedLocalPaths
-    const allSelected = allPaths.length > 0 && allPaths.every((path) => currentPaths.includes(path))
-
-    if (allSelected || allPaths.length === 0) {
-      clearScopeSelection(scope)
-      return
-    }
-
-    if (scope === 'remote') {
-      setSelectedRemotePaths(allPaths)
-      setSelectedRemotePath(allPaths.at(-1) || null)
-      setRemoteSelectionAnchor(allPaths[0] || null)
-      return
-    }
-
-    setSelectedLocalPaths(allPaths)
-    setSelectedLocalPath(allPaths.at(-1) || null)
-    setLocalSelectionAnchor(allPaths[0] || null)
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    setLocalLoading(true)
-
-    listLocalFiles('')
-      .then((listing) => {
-        if (!cancelled) {
-          setLocalListing(listing)
-          clearScopeSelection('local')
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          onError((error as Error)?.message || String(error))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLocalLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [onError])
-
-  useEffect(() => {
-    let cancelled = false
-
-    if (!selectedHost || !vaultUnlocked) {
-      setRemoteListing(null)
-      setRemoteLoading(false)
-      clearScopeSelection('remote')
-      return () => {
-        cancelled = true
-      }
-    }
-
-    setRemoteLoading(true)
-    listRemoteFiles(selectedHost.id, '')
-      .then((listing) => {
-        if (!cancelled) {
-          setRemoteListing(listing)
-          clearScopeSelection('remote')
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          onError((error as Error)?.message || String(error))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setRemoteLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [onError, selectedHost, vaultUnlocked])
+  const {
+    selectedLocalPath,
+    selectedRemotePath,
+    selectedLocalPaths,
+    selectedRemotePaths,
+    clearScopeSelection,
+    selectOnlyPath,
+    togglePathSelection,
+    selectRange,
+    toggleAllSelection,
+  } = useSftpSelection()
+  const {
+    localListing,
+    remoteListing,
+    localLoading,
+    remoteLoading,
+    showHiddenLocalFiles,
+    showHiddenRemoteFiles,
+    localSort,
+    remoteSort,
+    toggleHiddenFiles,
+    getShowHiddenState,
+    getVisibleListing,
+    updateSort,
+    handleLocalNavigate,
+    handleRemoteNavigate,
+    refreshScope,
+  } = useSftpListing({
+    selectedHost,
+    vaultUnlocked,
+    onError,
+    clearScopeSelection,
+  })
+  const {
+    dialogState,
+    dialogBusy,
+    setDialogBusy,
+    setDialogState,
+    openCreateDirectory,
+    openRenameEntry,
+    openDeleteEntry,
+    openDeleteSelection,
+    openTransferConflictDialog,
+    closeDialog,
+    changeDialogValue,
+  } = useSftpDialogs({
+    localListing,
+    remoteListing,
+    closeContextMenu: () => setContextMenu(null),
+  })
+  const {
+    transferBusy,
+    notice,
+    setNotice,
+    selectedLocalTransferableEntries,
+    selectedRemoteTransferableEntries,
+    executeTransfer,
+    handleUpload,
+    handleDownload,
+  } = useSftpTransfer({
+    selectedHost,
+    localListing,
+    remoteListing,
+    selectedLocalPaths,
+    selectedRemotePaths,
+    handleLocalNavigate,
+    handleRemoteNavigate,
+    clearScopeSelection,
+    openTransferConflictDialog,
+    closeDialog,
+    onError,
+  })
 
   useEffect(() => {
     if (!contextMenu) {
@@ -304,226 +156,6 @@ export default function SftpWorkspace({
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [contextMenu])
-
-  useEffect(() => {
-    if (!notice) {
-      return undefined
-    }
-
-    const timer = window.setTimeout(() => {
-      setNotice(null)
-    }, 3200)
-
-    return () => window.clearTimeout(timer)
-  }, [notice])
-
-  function updateSort(scope: 'local' | 'remote', columnKey: string) {
-    const setter = scope === 'remote' ? setRemoteSort : setLocalSort
-    setter((current) => {
-      const key = columnKey as SortConfig['key']
-      return current.key === key
-        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
-        : { key, direction: key === 'name' ? 'asc' : 'desc' }
-    })
-  }
-
-  async function handleLocalNavigate(path: string) {
-    setLocalLoading(true)
-    try {
-      const listing = await listLocalFiles(path)
-      setLocalListing(listing)
-      clearScopeSelection('local')
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setLocalLoading(false)
-    }
-  }
-
-  async function handleRemoteNavigate(path: string) {
-    if (!selectedHost) {
-      return
-    }
-
-    setRemoteLoading(true)
-    try {
-      const listing = await listRemoteFiles(selectedHost.id, path)
-      setRemoteListing(listing)
-      clearScopeSelection('remote')
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setRemoteLoading(false)
-    }
-  }
-
-  async function refreshScope(scope: 'local' | 'remote') {
-    if (scope === 'remote') {
-      await handleRemoteNavigate(remoteListing?.path || '')
-      return
-    }
-
-    await handleLocalNavigate(localListing?.path || '')
-  }
-
-  function openCreateDirectory(scope: 'local' | 'remote') {
-    setContextMenu(null)
-    setDialogState({
-      type: 'mkdir',
-      scope,
-      parentPath: scope === 'remote' ? remoteListing?.path || '/' : localListing?.path || '',
-      value: '',
-    })
-  }
-
-  function openRenameEntry(scope: 'local' | 'remote', entry: FileEntry) {
-    if (!entry || entry.parent) {
-      return
-    }
-
-    setContextMenu(null)
-    setDialogState({
-      type: 'rename',
-      scope,
-      entry,
-      value: entry.name,
-    })
-  }
-
-  function openDeleteEntry(scope: 'local' | 'remote', entry: FileEntry) {
-    if (!entry || entry.parent) {
-      return
-    }
-
-    setContextMenu(null)
-    setDialogState({
-      type: 'delete',
-      scope,
-      entry,
-      value: '',
-    })
-  }
-
-  function openDeleteSelection(scope: 'local' | 'remote', entries: FileEntry[]) {
-    const actionableEntries = collapseEntriesForDelete((entries || []).filter((entry) => entry && !entry.parent))
-    if (actionableEntries.length === 0) {
-      return
-    }
-
-    if (actionableEntries.length === 1) {
-      openDeleteEntry(scope, actionableEntries[0])
-      return
-    }
-
-    setContextMenu(null)
-    setDialogState({
-      type: 'delete-batch',
-      scope,
-      entries: actionableEntries,
-      value: '',
-    })
-  }
-
-  function openTransferConflictDialog(direction: 'upload' | 'download', state: {
-    sourcePaths: string[]
-    targetDirectory: string
-    startIndex: number
-    completedCount: number
-  }) {
-    const currentSourcePath = state.sourcePaths[state.startIndex]
-    const sourceName = getBaseName(currentSourcePath)
-
-    setDialogState({
-      type: 'overwrite-transfer',
-      direction,
-      scope: direction === 'upload' ? 'local' : 'remote',
-      targetScope: direction === 'upload' ? 'remote' : 'local',
-      sourcePath: currentSourcePath,
-      sourcePaths: state.sourcePaths,
-      startIndex: state.startIndex,
-      completedCount: state.completedCount,
-      targetDirectory: state.targetDirectory,
-      targetPath: joinTransferTargetPath(direction === 'upload' ? 'remote' : 'local', state.targetDirectory, sourceName),
-      sourceName,
-      targetName: sourceName,
-    })
-  }
-
-  async function executeTransfer(direction: 'upload' | 'download', options: {
-    sourcePaths?: string[]
-    targetDirectory?: string
-    startIndex?: number
-    completedCount?: number
-    overwriteCurrent?: boolean
-  } = {}) {
-    const sourcePaths = uniquePaths(
-      options.sourcePaths || (
-        direction === 'upload'
-          ? pickTransferableEntries(localListing, selectedLocalPaths).map((entry) => entry.path)
-          : pickTransferableEntries(remoteListing, selectedRemotePaths).map((entry) => entry.path)
-      ),
-    )
-    const targetDirectory = options.targetDirectory || (direction === 'upload' ? remoteListing?.path : localListing?.path)
-    const startIndex = options.startIndex || 0
-    const completedCount = options.completedCount || 0
-    const overwriteCurrent = Boolean(options.overwriteCurrent)
-
-    if (!selectedHost || !targetDirectory || sourcePaths.length === 0) {
-      return
-    }
-
-    setTransferBusy(direction)
-    if (startIndex === 0 && completedCount === 0) {
-      setNotice(null)
-    }
-
-    try {
-      const results = []
-
-      for (let index = startIndex; index < sourcePaths.length; index += 1) {
-        const sourcePath = sourcePaths[index]
-        const overwrite = overwriteCurrent && index === startIndex
-
-        try {
-          const result = direction === 'upload'
-            ? await uploadFile(selectedHost.id, sourcePath, targetDirectory, overwrite)
-            : await downloadFile(selectedHost.id, sourcePath, targetDirectory, overwrite)
-          results.push(result)
-        } catch (error) {
-          if (!overwrite && isTransferConflictError(error)) {
-            openTransferConflictDialog(direction, {
-              sourcePaths,
-              targetDirectory,
-              startIndex: index,
-              completedCount: completedCount + results.length,
-            })
-            return
-          }
-
-          throw error
-        }
-      }
-
-      if (direction === 'upload') {
-        await handleRemoteNavigate(targetDirectory)
-        clearScopeSelection('local')
-      } else {
-        await handleLocalNavigate(targetDirectory)
-        clearScopeSelection('remote')
-      }
-
-      const totalCount = completedCount + results.length
-      setDialogState(null)
-      setNotice({
-        tone: 'success',
-        message: buildTransferNotice(direction, totalCount, targetDirectory, results.at(-1) || null),
-      })
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setTransferBusy(null)
-    }
-  }
 
   async function handleDialogConfirm() {
     if (!dialogState) {
@@ -703,16 +335,6 @@ export default function SftpWorkspace({
     }
   }
 
-  async function handleUpload() {
-    await executeTransfer('upload')
-  }
-
-  async function handleDownload() {
-    await executeTransfer('download')
-  }
-
-  const selectedLocalTransferableEntries = pickTransferableEntries(getVisibleListing('local'), selectedLocalPaths)
-  const selectedRemoteTransferableEntries = pickTransferableEntries(getVisibleListing('remote'), selectedRemotePaths)
   const remoteHostSwitcher = selectedHost ? (
     <div
       className="sftp-host-switcher-group"
@@ -916,9 +538,9 @@ export default function SftpWorkspace({
       <EntryDialog
         state={dialogState}
         busy={dialogBusy}
-        onClose={() => setDialogState(null)}
+        onClose={closeDialog}
         onConfirm={handleDialogConfirm}
-        onChange={(value) => setDialogState((current) => current ? { ...current, value } : current)}
+        onChange={changeDialogValue}
       />
     </section>
   )

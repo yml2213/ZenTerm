@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -7,7 +8,7 @@ import {
   registerAppHarness,
   renderApp,
   runtimeHandlers,
-} from './test/appTestHarness.jsx'
+} from './test/appTestHarness'
 import {
   acceptHostKey,
   connect,
@@ -18,7 +19,7 @@ import {
   resizeTerminal,
   sendInput,
   windowToggleMaximise,
-} from './lib/backend.js'
+} from './lib/backend'
 
 registerAppHarness()
 

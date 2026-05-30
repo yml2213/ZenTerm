@@ -3,6 +3,7 @@ import { useSessionActionHandlers } from './useSessionActionHandlers'
 import { useVaultActionHandlers } from './useVaultActionHandlers'
 import { main } from '../wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab, WorkspaceType, HostKeyPrompt, VaultSetupForm, ChangeMasterForm } from '../types'
+import type { AppStateRefs, AppStateSetters } from './useAppState'
 
 interface AppActionHandlersProps {
   vaultState: {
@@ -30,8 +31,8 @@ interface AppActionHandlersProps {
     connectingHostIds: string[]
     isAcceptingKey: boolean
   }
-  setters: any // Setters are many, can keep as any or define a large interface
-  refs: any
+  setters: AppStateSetters
+  refs: AppStateRefs
   helpers: {
     removeSessionTab: (sessionID: string) => void
     openCreateHost: () => void

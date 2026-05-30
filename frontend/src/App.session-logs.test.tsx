@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -5,13 +6,13 @@ import {
   continueWithMasterPassword,
   registerAppHarness,
   renderApp,
-} from './test/appTestHarness.jsx'
+} from './test/appTestHarness'
 import {
   connect,
   getSessionTranscript,
   listSessionLogs,
   toggleSessionLogFavorite,
-} from './lib/backend.js'
+} from './lib/backend'
 
 registerAppHarness()
 

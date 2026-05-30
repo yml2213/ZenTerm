@@ -1,8 +1,9 @@
+// @ts-nocheck
 import { beforeEach, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import ThemeProvider from '../contexts/ThemeProvider.jsx'
-import LanguageProvider from '../contexts/LanguageProvider.jsx'
-import App from '../App.jsx'
+import ThemeProvider from '../contexts/ThemeProvider'
+import LanguageProvider from '../contexts/LanguageProvider'
+import App from '../App'
 import {
   acceptHostKey,
   addHost,
@@ -47,9 +48,9 @@ import {
   uploadFile,
   windowSetBackgroundColour,
   windowToggleMaximise,
-} from '../lib/backend.js'
+} from '../lib/backend'
 
-vi.mock('../lib/backend.js', () => ({
+vi.mock('../lib/backend', () => ({
   listHosts: vi.fn(),
   addHost: vi.fn(),
   updateHost: vi.fn(),
@@ -97,7 +98,7 @@ vi.mock('../lib/backend.js', () => ({
   windowToggleMaximise: vi.fn(),
 }))
 
-vi.mock('../components/TerminalPane.jsx', () => ({
+vi.mock('../components/TerminalPane', () => ({
   default: function MockTerminalPane({
     sessions,
     activeSessionId,
@@ -127,7 +128,7 @@ vi.mock('../components/TerminalPane.jsx', () => ({
   },
 }))
 
-vi.mock('../components/LogWorkspace.jsx', () => ({
+vi.mock('../components/LogWorkspace', () => ({
   default: function MockLogWorkspace({
     activeLogTab,
     onCloseLog,
