@@ -91,7 +91,7 @@ export function useAppBootstrap({
       }
     })
 
-    const offHostKey = onRuntimeEvent('ssh:host-key:confirm', (prompt: any) => {
+    const offHostKey = onRuntimeEvent('ssh:host-key:confirm', (prompt: unknown) => {
       setHostKeyPrompt(normalizeHostKeyPrompt(prompt))
     })
 

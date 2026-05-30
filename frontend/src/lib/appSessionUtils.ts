@@ -151,16 +151,18 @@ export function createLogWorkspaceTab(log: LogRecord): LogWorkspaceTab {
   }
 }
 
-export function normalizeHostKeyPrompt(prompt: HostKeyPromptInput | null): HostKeyPrompt | null {
-  if (!prompt) {
+export function normalizeHostKeyPrompt(prompt: unknown): HostKeyPrompt | null {
+  if (!prompt || typeof prompt !== 'object') {
     return null
   }
 
+  const value = prompt as HostKeyPromptInput
+
   return {
-    hostID: String(prompt.hostID || ''),
-    remoteAddr: String(prompt.remoteAddr || ''),
-    key: String(prompt.key || ''),
-    sha256: String(prompt.sha256 || ''),
-    md5: String(prompt.md5 || ''),
+    hostID: String(value.hostID || ''),
+    remoteAddr: String(value.remoteAddr || ''),
+    key: String(value.key || ''),
+    sha256: String(value.sha256 || ''),
+    md5: String(value.md5 || ''),
   }
 }

@@ -1,23 +1,32 @@
 import { main, model } from '../wailsjs/wailsjs/go/models'
 
+type BackendMethod = (...args: unknown[]) => unknown
+type AppBinding = Record<string, BackendMethod | undefined>
+type RuntimeMethod = (...args: unknown[]) => unknown
+
+interface RuntimeBinding {
+  EventsOn?: (eventName: string, handler: (...args: unknown[]) => void) => unknown
+  EventsOff?: (eventName: string) => void
+}
+
 declare global {
   interface Window {
-    go: {
+    go?: {
       main: {
-        App: any
+        App?: AppBinding
       }
     }
-    runtime: any
+    runtime?: RuntimeBinding
   }
 }
 
 const missingBackendMessage = '当前未检测到 Wails 后端，请通过 Wails 运行 ZenTerm。'
 
-function getAppBinding(): any {
+function getAppBinding(): AppBinding | undefined {
   return window.go?.main?.App
 }
 
-function getRuntimeBinding(): any {
+function getRuntimeBinding(): RuntimeBinding | undefined {
   return window.runtime
 }
 
@@ -25,25 +34,25 @@ export function isBackendAvailable(): boolean {
   return Boolean(getAppBinding())
 }
 
-async function callApp(method: string, ...args: any[]): Promise<any> {
+async function callApp<T>(method: string, ...args: unknown[]): Promise<T> {
   const binding = getAppBinding()
   const fn = binding?.[method]
 
   if (typeof fn !== 'function') {
     if (method === 'ListHosts' || method === 'ListSessions' || method === 'ListSessionLogs') {
-      return []
+      return [] as T
     }
     if (method === 'GetSessionTranscript') {
-      return { content: '' }
+      return { content: '' } as T
     }
 
     throw new Error(missingBackendMessage)
   }
 
-  return fn(...args)
+  return fn(...args) as T
 }
 
-export function onRuntimeEvent(eventName: string, handler: (...args: any[]) => void): () => void {
+export function onRuntimeEvent(eventName: string, handler: (...args: unknown[]) => void): () => void {
   const runtime = getRuntimeBinding()
   const on = runtime?.EventsOn
   const off = runtime?.EventsOff
@@ -54,7 +63,9 @@ export function onRuntimeEvent(eventName: string, handler: (...args: any[]) => v
 
   const unsubscribe = on(eventName, handler)
   if (typeof unsubscribe === 'function') {
-    return unsubscribe
+    return () => {
+      unsubscribe()
+    }
   }
 
   return () => {
@@ -67,7 +78,7 @@ export function onRuntimeEvent(eventName: string, handler: (...args: any[]) => v
 export async function unlock(password: string): Promise<model.VaultStatus> {
   const binding = getAppBinding()
   if (typeof binding?.UnlockWithPreferences === 'function') {
-    return binding.UnlockWithPreferences(password, false)
+    return binding.UnlockWithPreferences(password, false) as model.VaultStatus
   }
 
   return callApp('Unlock', password)
@@ -88,7 +99,7 @@ export async function initializeVaultWithPreferences(password: string, remember:
 export async function unlockWithPreferences(password: string, remember: boolean): Promise<model.VaultStatus> {
   const binding = getAppBinding()
   if (typeof binding?.UnlockWithPreferences === 'function') {
-    return binding.UnlockWithPreferences(password, remember)
+    return binding.UnlockWithPreferences(password, remember) as model.VaultStatus
   }
 
   return callApp('Unlock', password)
@@ -100,7 +111,7 @@ export async function tryAutoUnlock(): Promise<boolean> {
     return false
   }
 
-  return binding.TryAutoUnlock()
+  return binding.TryAutoUnlock() as boolean
 }
 
 export async function changeMasterPassword(currentPassword: string, nextPassword: string, remember: boolean): Promise<model.VaultStatus> {
@@ -211,14 +222,14 @@ export async function deleteSessionLog(logID: string): Promise<void> {
   return callApp('DeleteSessionLog', logID)
 }
 
-async function callRuntime(method: string, fallbackValue: any, ...args: any[]): Promise<any> {
+async function callRuntime<T>(method: string, fallbackValue: T, ...args: unknown[]): Promise<T> {
   const runtime = getRuntimeBinding()
-  const fn = runtime?.[method]
+  const fn = runtime ? (runtime as Record<string, RuntimeMethod | undefined>)[method] : undefined
   if (typeof fn !== 'function') {
     return fallbackValue
   }
 
-  return fn(...args)
+  return fn(...args) as T
 }
 
 export async function windowGetSize(): Promise<{ w: number; h: number }> {

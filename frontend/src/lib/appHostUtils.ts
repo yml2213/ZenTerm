@@ -59,8 +59,8 @@ export function hasConfiguredAuth(form: Partial<HostForm>): boolean {
   )
 }
 
-export function toUserMessage(error: any): string {
-  const message = error?.message || String(error || '')
+export function toUserMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error || '')
 
   if (
     message === 'no supported ssh authentication method configured'
