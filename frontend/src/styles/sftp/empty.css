@@ -1,0 +1,129 @@
+.sftp-pane-footer {
+  border-bottom: 0;
+  border-top: 1px solid var(--sftp-pane-toolbar-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  background: var(--sftp-pane-footer-bg);
+}
+
+.sftp-pane-footer-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-empty-state {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, auto);
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  background: var(--sftp-pane-bg);
+  overflow: hidden;
+}
+
+.sftp-empty-state.has-host {
+  gap: 1.1rem;
+}
+
+.sftp-empty-icon {
+  width: 74px;
+  height: 74px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-secondary);
+  background: var(--surface-info-bg);
+}
+
+.sftp-empty-copy {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.sftp-empty-copy strong {
+  font-size: 1.55rem;
+}
+
+.sftp-empty-copy p,
+.sftp-empty-copy small {
+  color: var(--text-secondary);
+}
+
+.sftp-empty-copy small {
+  max-width: 34rem;
+  font-size: 0.86rem;
+}
+
+.sftp-empty-actions,
+.sftp-host-meta,
+.sftp-host-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sftp-host-picker-panel {
+  width: min(100%, 38rem);
+  display: grid;
+  gap: 0.75rem;
+  justify-items: stretch;
+}
+
+.sftp-host-picker-meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.sftp-host-picker-scroll {
+  max-height: min(18rem, 42vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+.sftp-host-picker {
+  max-width: none;
+  align-items: stretch;
+  align-content: flex-start;
+}
+
+.sftp-host-chip {
+  width: min(100%, 18rem);
+  min-width: 180px;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  background: var(--panel-bg-strong);
+  text-align: left;
+}
+
+.sftp-host-chip span {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sftp-host-chip small {
+  color: var(--text-secondary);
+}
+
+.sftp-host-chip:hover {
+  border-color: var(--border-hover);
+  background: var(--panel-muted);
+}
+

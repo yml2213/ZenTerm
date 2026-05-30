@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useHostState } from './useHostState'
 import { useSessionWorkspaceState } from './useSessionWorkspaceState'
 import { useVaultState } from './useVaultState'
+import type { SSHConfigImportPrompt } from '../types'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)
@@ -13,6 +14,8 @@ export function useAppState() {
   const vault = useVaultState()
 
   const [error, setError] = useState<string | null>(null)
+  const [sshConfigImportPrompt, setSSHConfigImportPrompt] = useState<SSHConfigImportPrompt | null>(null)
+  const [sshConfigImportBusy, setSSHConfigImportBusy] = useState(false)
   const {
     activeWorkspace,
     setActiveWorkspace,
@@ -204,6 +207,8 @@ export function useAppState() {
     setConnectingHostIds,
     setIsSavingHost,
     setIsAcceptingKey,
+    setSSHConfigImportPrompt,
+    setSSHConfigImportBusy,
   }
   const refs: {
     newTabCounterRef: React.MutableRefObject<number>
@@ -242,6 +247,8 @@ export function useAppState() {
     hostForm,
     isSavingHost,
     error,
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
     deleteCandidate,
     hostKeyPrompt,
     isAcceptingKey,

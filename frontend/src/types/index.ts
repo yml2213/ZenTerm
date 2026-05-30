@@ -26,6 +26,13 @@ export interface HostKeyPrompt {
   md5: string
 }
 
+export interface SSHConfigImportPrompt {
+  promptKey: string
+  hostIds: string[]
+  previewLines: string[]
+  total: number
+}
+
 export interface VaultSetupForm {
   password: string;
   confirmPassword: string;

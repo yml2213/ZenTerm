@@ -1,0 +1,38 @@
+.sftp-shell {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sftp-shell-bg);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.sftp-transfer-banner {
+  padding: 0.85rem 1rem 0;
+  background: var(--sftp-banner-bg);
+  border-bottom: 1px solid var(--sftp-banner-border);
+}
+
+.sftp-transfer-banner .pill {
+  max-width: min(100%, 42rem);
+  padding: 0.42rem 0.72rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+
+.sftp-transfer-banner .pill.success {
+  border-color: rgba(36, 161, 89, 0.16);
+}
+
+.sftp-browser {
+  grid-row: 2;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+

@@ -26,8 +26,10 @@ import {
   getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
+  importLocalSSHConfigHosts,
   initializeVaultWithPreferences,
   listHosts,
+  listLocalSSHConfigHosts,
   listLocalFiles,
   listRemoteFiles,
   listSessionLogs,
@@ -73,11 +75,13 @@ vi.mock('../lib/backend', () => ({
   deleteRemoteEntry: vi.fn(),
   generateCredential: vi.fn(),
   importCredential: vi.fn(),
+  importLocalSSHConfigHosts: vi.fn(),
   getCredentials: vi.fn(),
   getCredentialUsage: vi.fn(),
   getSessionTranscript: vi.fn(),
   getWebDAVSyncStatus: vi.fn(),
   deleteCredential: vi.fn(),
+  listLocalSSHConfigHosts: vi.fn(),
   listLocalFiles: vi.fn(),
   listRemoteFiles: vi.fn(),
   listSessionLogs: vi.fn(),
@@ -250,6 +254,7 @@ export function registerAppHarness() {
     deleteRemoteEntry.mockResolvedValue(undefined)
     generateCredential.mockResolvedValue('cred-1')
     importCredential.mockResolvedValue('cred-2')
+    importLocalSSHConfigHosts.mockResolvedValue([])
     getCredentials.mockResolvedValue([])
     getCredentialUsage.mockResolvedValue({
       credential_id: 'cred-1',
@@ -291,6 +296,7 @@ export function registerAppHarness() {
     })
     windowSetBackgroundColour.mockResolvedValue(undefined)
     windowToggleMaximise.mockResolvedValue(undefined)
+    listLocalSSHConfigHosts.mockResolvedValue([])
     listLocalFiles.mockResolvedValue({
       path: '/Users/yml',
       parentPath: '/Users',
@@ -410,8 +416,10 @@ export {
   getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
+  importLocalSSHConfigHosts,
   initializeVaultWithPreferences,
   listHosts,
+  listLocalSSHConfigHosts,
   listLocalFiles,
   listRemoteFiles,
   listSessionLogs,

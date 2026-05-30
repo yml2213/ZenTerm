@@ -1,27 +1,18 @@
 import {
   MonitorSmartphone,
   Server,
-  X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import ContextMenu from './sftp/ContextMenu'
-import EntryDialog from './sftp/EntryDialog'
+import { useCallback, useState } from 'react'
 import FilePane from './sftp/FilePane'
 import PaneEmptyState from './sftp/PaneEmptyState'
+import SftpContextMenuController, { type ExtendedContextMenuState } from './sftp/SftpContextMenuController'
+import SftpDialogController from './sftp/SftpDialogController'
+import SftpHostSwitcher from './sftp/SftpHostSwitcher'
 import { useSftpDialogs } from './sftp/useSftpDialogs'
 import { useSftpListing } from './sftp/useSftpListing'
 import { useSftpSelection } from './sftp/useSftpSelection'
 import { useSftpTransfer } from './sftp/useSftpTransfer'
 import {
-  createLocalDirectory,
-  createRemoteDirectory,
-  deleteLocalEntry,
-  deleteRemoteEntry,
-  renameLocalEntry,
-  renameRemoteEntry,
-} from '../lib/backend'
-import {
-  buildActionSuccessMessage,
   findSelectedEntries,
   pickTransferableEntries,
   splitLocalPath,
@@ -31,12 +22,6 @@ import {
 import { main } from '../wailsjs/wailsjs/go/models'
 
 type Host = main.Host
-
-interface ExtendedContextMenuState extends ContextMenuState {
-  transferLabel?: string
-  deleteSelectionLabel?: string
-  hiddenFilesLabel?: string
-}
 
 interface SftpWorkspaceProps {
   hosts: Host[]
@@ -58,6 +43,7 @@ export default function SftpWorkspace({
   onError,
 }: SftpWorkspaceProps) {
   const [contextMenu, setContextMenu] = useState<ExtendedContextMenuState | null>(null)
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
   const {
     selectedLocalPath,
     selectedRemotePath,
@@ -106,7 +92,7 @@ export default function SftpWorkspace({
   } = useSftpDialogs({
     localListing,
     remoteListing,
-    closeContextMenu: () => setContextMenu(null),
+    closeContextMenu,
   })
   const {
     transferBusy,
@@ -130,144 +116,6 @@ export default function SftpWorkspace({
     closeDialog,
     onError,
   })
-
-  useEffect(() => {
-    if (!contextMenu) {
-      return undefined
-    }
-
-    function closeMenu() {
-      setContextMenu(null)
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        closeMenu()
-      }
-    }
-
-    window.addEventListener('click', closeMenu)
-    window.addEventListener('resize', closeMenu)
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('click', closeMenu)
-      window.removeEventListener('resize', closeMenu)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [contextMenu])
-
-  async function handleDialogConfirm() {
-    if (!dialogState) {
-      return
-    }
-
-    const currentDialog = dialogState
-    setDialogBusy(true)
-    try {
-      if (currentDialog.type === 'overwrite-transfer') {
-        await executeTransfer(currentDialog.direction!, {
-          sourcePaths: currentDialog.sourcePaths,
-          targetDirectory: currentDialog.targetDirectory,
-          startIndex: currentDialog.startIndex,
-          completedCount: currentDialog.completedCount,
-          overwriteCurrent: true,
-        })
-        return
-      }
-
-      if (currentDialog.type === 'mkdir') {
-        if (currentDialog.scope === 'remote') {
-          if (!selectedHost) {
-            return
-          }
-          await createRemoteDirectory(selectedHost.id, currentDialog.parentPath!, currentDialog.value!)
-          await handleRemoteNavigate(currentDialog.parentPath!)
-        } else {
-          await createLocalDirectory(currentDialog.parentPath!, currentDialog.value!)
-          await handleLocalNavigate(currentDialog.parentPath!)
-        }
-
-        setNotice({
-          tone: 'success',
-          message: buildActionSuccessMessage('mkdir', currentDialog.scope, { name: currentDialog.value!.trim() }),
-        })
-      }
-
-      if (currentDialog.type === 'rename') {
-        if (currentDialog.scope === 'remote') {
-          if (!selectedHost) {
-            return
-          }
-          await renameRemoteEntry(selectedHost.id, currentDialog.entry!.path, currentDialog.value!)
-          await handleRemoteNavigate(remoteListing?.path || '')
-          clearScopeSelection('remote')
-        } else {
-          await renameLocalEntry(currentDialog.entry!.path, currentDialog.value!)
-          await handleLocalNavigate(localListing?.path || '')
-          clearScopeSelection('local')
-        }
-
-        setNotice({
-          tone: 'success',
-          message: buildActionSuccessMessage('rename', currentDialog.scope, {
-            entry: currentDialog.entry!,
-            name: currentDialog.value!.trim(),
-          }),
-        })
-      }
-
-      if (currentDialog.type === 'delete') {
-        if (currentDialog.scope === 'remote') {
-          if (!selectedHost) {
-            return
-          }
-          await deleteRemoteEntry(selectedHost.id, currentDialog.entry!.path)
-          await handleRemoteNavigate(remoteListing?.path || '')
-          clearScopeSelection('remote')
-        } else {
-          await deleteLocalEntry(currentDialog.entry!.path)
-          await handleLocalNavigate(localListing?.path || '')
-          clearScopeSelection('local')
-        }
-
-        setNotice({
-          tone: 'success',
-          message: buildActionSuccessMessage('delete', currentDialog.scope, { entry: currentDialog.entry! }),
-        })
-      }
-
-      if (currentDialog.type === 'delete-batch') {
-        if (currentDialog.scope === 'remote') {
-          if (!selectedHost) {
-            return
-          }
-          for (const entry of currentDialog.entries!) {
-            await deleteRemoteEntry(selectedHost.id, entry.path)
-          }
-          await handleRemoteNavigate(remoteListing?.path || '')
-          clearScopeSelection('remote')
-        } else {
-          for (const entry of currentDialog.entries!) {
-            await deleteLocalEntry(entry.path)
-          }
-          await handleLocalNavigate(localListing?.path || '')
-          clearScopeSelection('local')
-        }
-
-        setNotice({
-          tone: 'success',
-          message: buildActionSuccessMessage('delete-batch', currentDialog.scope, { count: currentDialog.entries!.length }),
-        })
-      }
-
-      setDialogState(null)
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setDialogBusy(false)
-    }
-  }
 
   function handleContextAction(action: string) {
     if (!contextMenu) {
@@ -334,41 +182,6 @@ export default function SftpWorkspace({
       setContextMenu(null)
     }
   }
-
-  const remoteHostSwitcher = selectedHost ? (
-    <div
-      className="sftp-host-switcher-group"
-      title={`${selectedHost.name || selectedHost.id} · ${selectedHost.username}@${selectedHost.address}:${selectedHost.port || 22}`}
-    >
-      <Server size={14} />
-      {hosts.length > 1 ? (
-        <label className="sftp-host-switcher">
-          <select
-            aria-label="切换 SFTP 主机"
-            value={selectedHost.id}
-            onChange={(event) => onChooseHost(event.target.value)}
-          >
-            {hosts.map((host) => (
-              <option key={host.id} value={host.id}>
-                {host.name || host.id}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : (
-        <span className="sftp-current-host-label">{selectedHost.name || selectedHost.id}</span>
-      )}
-      <button
-        type="button"
-        className="icon-button sftp-tab-close"
-        aria-label="关闭远端"
-        title="关闭远端"
-        onClick={() => onChooseHost(null)}
-      >
-        <X size={14} />
-      </button>
-    </div>
-  ) : null
 
   function openContextMenu(nextState: Omit<ContextMenuState, 'useSelectionActions' | 'selectionCount' | 'transferLabel' | 'canTransferSelection' | 'canClearSelection' | 'canDeleteSelection' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) {
     const scope = nextState.scope
@@ -449,7 +262,13 @@ export default function SftpWorkspace({
               loading={remoteLoading}
               hostLabel={selectedHost.name || selectedHost.id}
               hostMeta={`${selectedHost.username}@${selectedHost.address}:${selectedHost.port || 22}`}
-              headerActions={remoteHostSwitcher}
+              headerActions={(
+                <SftpHostSwitcher
+                  hosts={hosts}
+                  selectedHost={selectedHost}
+                  onChooseHost={onChooseHost}
+                />
+              )}
               showHiddenFiles={showHiddenRemoteFiles}
               sort={remoteSort}
               onSortChange={(key) => updateSort('remote', key)}
@@ -529,18 +348,28 @@ export default function SftpWorkspace({
         )}
       </div>
 
-      <ContextMenu
+      <SftpContextMenuController
         state={contextMenu}
-        onClose={() => setContextMenu(null)}
+        onClose={closeContextMenu}
         onAction={handleContextAction}
       />
 
-      <EntryDialog
+      <SftpDialogController
         state={dialogState}
         busy={dialogBusy}
-        onClose={closeDialog}
-        onConfirm={handleDialogConfirm}
-        onChange={changeDialogValue}
+        selectedHost={selectedHost}
+        localListing={localListing}
+        remoteListing={remoteListing}
+        setBusy={setDialogBusy}
+        setState={setDialogState}
+        closeDialog={closeDialog}
+        changeValue={changeDialogValue}
+        executeTransfer={executeTransfer}
+        handleLocalNavigate={handleLocalNavigate}
+        handleRemoteNavigate={handleRemoteNavigate}
+        clearScopeSelection={clearScopeSelection}
+        setNotice={setNotice}
+        onError={onError}
       />
     </section>
   )
