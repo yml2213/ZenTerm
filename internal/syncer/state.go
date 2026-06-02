@@ -25,10 +25,11 @@ func NewManager(dataDir string) *Manager {
 }
 
 // ConfigureWebDAV 保存 WebDAV 同步配置 / saves WebDAV sync settings.
-func (m *Manager) ConfigureWebDAV(config WebDAVConfig) (Status, error) {
+func (m *Manager) ConfigureWebDAV(config WebDAVConfig, deviceName string) (Status, error) {
 	config.URL = strings.TrimSpace(config.URL)
 	config.Username = strings.TrimSpace(config.Username)
 	config.RemotePath = cleanRemotePath(config.RemotePath)
+	deviceName = cleanDeviceName(deviceName)
 	if config.URL == "" {
 		return Status{}, errors.New("webdav url is required")
 	}
@@ -45,6 +46,7 @@ func (m *Manager) ConfigureWebDAV(config WebDAVConfig) (Status, error) {
 	}
 	state.Version = stateVersion
 	state.Provider = defaultProvider
+	state.DeviceName = deviceName
 	state.WebDAV = config
 	state.UpdatedAt = time.Now().UTC()
 	if err := m.Save(state); err != nil {
@@ -58,7 +60,7 @@ func (m *Manager) Load() (State, error) {
 	bytes, err := os.ReadFile(m.statePath())
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return State{Version: stateVersion, DeviceID: newDeviceID(), Provider: defaultProvider}, nil
+			return State{Version: stateVersion, DeviceID: newDeviceID(), DeviceName: defaultDeviceName(), Provider: defaultProvider}, nil
 		}
 		return State{}, fmt.Errorf("read sync state: %w", err)
 	}
@@ -73,6 +75,7 @@ func (m *Manager) Load() (State, error) {
 	if state.DeviceID == "" {
 		state.DeviceID = newDeviceID()
 	}
+	state.DeviceName = cleanDeviceName(state.DeviceName)
 	if state.Provider == "" {
 		state.Provider = defaultProvider
 	}
@@ -88,6 +91,7 @@ func (m *Manager) Save(state State) error {
 	if state.DeviceID == "" {
 		state.DeviceID = newDeviceID()
 	}
+	state.DeviceName = cleanDeviceName(state.DeviceName)
 	if state.Provider == "" {
 		state.Provider = defaultProvider
 	}
@@ -115,6 +119,7 @@ func (s State) Status() Status {
 		Configured:       strings.TrimSpace(s.WebDAV.URL) != "" && strings.TrimSpace(s.WebDAV.Username) != "",
 		Provider:         s.Provider,
 		DeviceID:         s.DeviceID,
+		DeviceName:       cleanDeviceName(s.DeviceName),
 		URL:              s.WebDAV.URL,
 		Username:         s.WebDAV.Username,
 		RemotePath:       cleanRemotePath(s.WebDAV.RemotePath),
@@ -147,6 +152,22 @@ func newDeviceID() string {
 		return fmt.Sprintf("device-%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(buf)
+}
+
+func cleanDeviceName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return defaultDeviceName()
+	}
+	return name
+}
+
+func defaultDeviceName() string {
+	hostname, err := os.Hostname()
+	if err == nil && strings.TrimSpace(hostname) != "" {
+		return strings.TrimSpace(hostname)
+	}
+	return "未命名设备"
 }
 
 func formatTime(value time.Time) string {

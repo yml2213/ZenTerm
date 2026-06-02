@@ -14,6 +14,7 @@ import {
   getWebDAVSyncStatus,
   pullWebDAVSync,
   pushWebDAVSync,
+  testWebDAVSync,
   type WebDAVSyncStatus,
 } from '../lib/backend'
 import type { ChangeMasterForm } from '../types'
@@ -225,6 +226,7 @@ function SecuritySettings({
 
 function SyncSettings() {
   const [status, setStatus] = useState<WebDAVSyncStatus | null>(null)
+  const [deviceName, setDeviceName] = useState('')
   const [url, setURL] = useState('https://dav.jianguoyun.com/dav/')
   const [username, setUsername] = useState('')
   const [remotePath, setRemotePath] = useState('/ZenTerm/zenterm-sync-v1.json')
@@ -233,6 +235,12 @@ function SyncSettings() {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const syncMetaText = [
+    status?.device_name ? `设备 ${status.device_name}` : '',
+    status?.last_sync_at ? `上次同步 ${status.last_sync_at}` : '尚未完成同步',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   useEffect(() => {
     let disposed = false
@@ -247,6 +255,9 @@ function SyncSettings() {
         }
         if (nextStatus.username) {
           setUsername(nextStatus.username)
+        }
+        if (nextStatus.device_name) {
+          setDeviceName(nextStatus.device_name)
         }
         if (nextStatus.remote_path) {
           setRemotePath(nextStatus.remote_path)
@@ -273,12 +284,32 @@ function SyncSettings() {
       url,
       username,
       remote_path: remotePath,
+      device_name: deviceName,
       password,
     })
       .then((nextStatus) => {
         setStatus(nextStatus)
         setPassword('')
         setNotice('WebDAV 同步配置已保存。')
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setBusy(null))
+  }
+
+  function handleTest() {
+    setBusy('test')
+    setError(null)
+    setNotice(null)
+
+    testWebDAVSync({
+      url,
+      username,
+      remote_path: remotePath,
+      device_name: deviceName,
+      password,
+    })
+      .then((result) => {
+        setNotice(result.message || (result.exists ? 'WebDAV 连接正常，远端同步文件已存在。' : 'WebDAV 连接正常。'))
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setBusy(null))
@@ -334,11 +365,19 @@ function SyncSettings() {
         <div className="sync-status-strip">
           <span className={`sync-dot${status?.configured ? ' active' : ''}`} />
           <strong>{status?.configured ? '已配置' : '未配置'}</strong>
-          <small>{status?.last_sync_at ? `上次同步 ${status.last_sync_at}` : '尚未完成同步'}</small>
+          <small>{syncMetaText}</small>
         </div>
 
         <form className="settings-form" onSubmit={handleConfigure}>
           <div className="settings-form-grid">
+            <label>
+              设备名称
+              <input
+                value={deviceName}
+                onChange={(event) => setDeviceName(event.target.value)}
+                placeholder="例如 MacBook Pro"
+              />
+            </label>
             <label>
               WebDAV 地址
               <input
@@ -348,6 +387,9 @@ function SyncSettings() {
                 required
               />
             </label>
+          </div>
+
+          <div className="settings-form-grid">
             <label>
               用户名
               <input
@@ -357,9 +399,6 @@ function SyncSettings() {
                 required
               />
             </label>
-          </div>
-
-          <div className="settings-form-grid">
             <label>
               应用密码
               <input
@@ -382,7 +421,10 @@ function SyncSettings() {
           </div>
 
           <div className="settings-actions">
-            <button type="submit" className="primary-button" disabled={busy === 'config'}>
+            <button type="button" className="ghost-button" onClick={handleTest} disabled={Boolean(busy)}>
+              {busy === 'test' ? '测试中...' : '测试连接'}
+            </button>
+            <button type="submit" className="primary-button" disabled={Boolean(busy)}>
               {busy === 'config' ? '保存中...' : '保存配置'}
             </button>
           </div>

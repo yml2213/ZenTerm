@@ -427,6 +427,8 @@
 
 .settings-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
   justify-content: flex-end;
 }
 

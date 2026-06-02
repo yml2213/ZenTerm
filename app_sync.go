@@ -23,6 +23,7 @@ type WebDAVSyncConfig struct {
 	URL        string `json:"url"`
 	Username   string `json:"username"`
 	RemotePath string `json:"remote_path,omitempty"`
+	DeviceName string `json:"device_name,omitempty"`
 	Password   string `json:"password,omitempty"`
 }
 
@@ -38,7 +39,7 @@ func (a *App) ConfigureWebDAVSync(config WebDAVSyncConfig) (syncer.Status, error
 		URL:        config.URL,
 		Username:   config.Username,
 		RemotePath: config.RemotePath,
-	})
+	}, config.DeviceName)
 	if err != nil {
 		return syncer.Status{}, normalizeFrontendError(err)
 	}
@@ -52,6 +53,36 @@ func (a *App) GetWebDAVSyncStatus() (syncer.Status, error) {
 		return syncer.Status{}, normalizeFrontendError(err)
 	}
 	return status, nil
+}
+
+// TestWebDAVSync 测试当前 WebDAV 配置与远端路径 / tests current WebDAV settings and remote path.
+func (a *App) TestWebDAVSync(config WebDAVSyncConfig) (syncer.TestResult, error) {
+	password := strings.TrimSpace(config.Password)
+	if password == "" {
+		savedPassword, err := loadWebDAVSyncPassword()
+		if err != nil {
+			return syncer.TestResult{}, normalizeFrontendError(err)
+		}
+		password = savedPassword
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), syncOperationTimeout)
+	defer cancel()
+
+	provider, err := syncer.NewWebDAVProvider(syncer.WebDAVConfig{
+		URL:        config.URL,
+		Username:   config.Username,
+		RemotePath: config.RemotePath,
+	}, password)
+	if err != nil {
+		return syncer.TestResult{}, normalizeFrontendError(err)
+	}
+
+	result, err := provider.Test(ctx, config.RemotePath)
+	if err != nil {
+		return syncer.TestResult{}, normalizeFrontendError(err)
+	}
+	return result, nil
 }
 
 // PushWebDAVSync 将本机同步快照上传到 WebDAV；overwrite 为 false 时会做 ETag 冲突保护。
@@ -89,7 +120,7 @@ func (a *App) PushWebDAVSync(overwrite bool) (syncer.Result, error) {
 		return syncer.Result{Direction: "push", Conflict: true, RemoteETag: remoteMeta.ETag, Message: "远端已存在同步文件，请先拉取或选择覆盖。"}, syncer.ErrSyncConflict
 	}
 
-	payload, snapshotHash, err := a.service.BuildEncryptedSyncSnapshot(state.DeviceID, false)
+	payload, snapshotHash, err := a.service.BuildEncryptedSyncSnapshot(state.DeviceID, state.DeviceName, false)
 	if err != nil {
 		return syncer.Result{}, normalizeFrontendError(err)
 	}
@@ -161,7 +192,7 @@ func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Resu
 		return syncer.Result{}, normalizeFrontendError(err)
 	}
 
-	remoteDeviceID, snapshotHash, err := a.service.ApplyEncryptedSyncSnapshot(masterPassword, payload)
+	remoteDeviceID, remoteDeviceName, snapshotHash, err := a.service.ApplyEncryptedSyncSnapshot(masterPassword, payload)
 	if err != nil {
 		return syncer.Result{}, normalizeFrontendError(err)
 	}
@@ -179,9 +210,17 @@ func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Resu
 		Direction:  "pull",
 		RemoteETag: remoteMeta.ETag,
 		Bytes:      len(payload),
-		Message:    fmt.Sprintf("已拉取来自设备 %s 的同步快照。", remoteDeviceID),
+		Message:    fmt.Sprintf("已拉取来自设备 %s 的同步快照。", syncDeviceLabel(remoteDeviceID, remoteDeviceName)),
 		SyncedAt:   now.Format(time.RFC3339),
 	}, nil
+}
+
+func syncDeviceLabel(deviceID, deviceName string) string {
+	deviceName = strings.TrimSpace(deviceName)
+	if deviceName != "" {
+		return deviceName
+	}
+	return strings.TrimSpace(deviceID)
 }
 
 func (a *App) syncManager() *syncer.Manager {

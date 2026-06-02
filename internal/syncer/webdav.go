@@ -68,6 +68,9 @@ func (p *WebDAVProvider) Stat(ctx context.Context, remotePath string) (RemoteMet
 	if resp.StatusCode == http.StatusNotFound {
 		return RemoteMeta{Exists: false}, nil
 	}
+	if resp.StatusCode == http.StatusConflict {
+		return RemoteMeta{Exists: false}, nil
+	}
 	if resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusNotImplemented {
 		return p.propfind(ctx, remotePath)
 	}
@@ -93,6 +96,9 @@ func (p *WebDAVProvider) Get(ctx context.Context, remotePath string) ([]byte, Re
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, RemoteMeta{Exists: false}, ErrRemoteNotFound
 	}
+	if resp.StatusCode == http.StatusConflict {
+		return nil, RemoteMeta{Exists: false}, ErrRemoteNotFound
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, RemoteMeta{}, statusError("webdav get", resp)
 	}
@@ -102,6 +108,32 @@ func (p *WebDAVProvider) Get(ctx context.Context, remotePath string) ([]byte, Re
 		return nil, RemoteMeta{}, fmt.Errorf("read webdav response: %w", err)
 	}
 	return payload, metaFromHeader(resp.Header, true), nil
+}
+
+// Test 验证远端路径的父目录并返回同步文件状态 / verifies the parent directory and returns remote file status.
+func (p *WebDAVProvider) Test(ctx context.Context, remotePath string) (TestResult, error) {
+	if err := p.ensureParentDirs(ctx, remotePath); err != nil {
+		return TestResult{}, err
+	}
+
+	meta, err := p.Stat(ctx, remotePath)
+	if err != nil {
+		return TestResult{}, err
+	}
+	if meta.Exists {
+		return TestResult{
+			OK:         true,
+			Exists:     true,
+			RemoteETag: meta.ETag,
+			Message:    "WebDAV 连接正常，远端同步文件已存在。",
+		}, nil
+	}
+
+	return TestResult{
+		OK:      true,
+		Exists:  false,
+		Message: "WebDAV 连接正常，远端路径可写，尚未发现同步文件。",
+	}, nil
 }
 
 // Put 上传远端文件，可选 If-Match 防止覆盖新版本 / uploads a remote file with optional If-Match protection.
@@ -152,6 +184,13 @@ func (p *WebDAVProvider) ensureParentDirs(ctx context.Context, remotePath string
 			continue
 		}
 		current += "/" + segment
+		meta, err := p.propfind(ctx, current)
+		if err == nil && meta.Exists {
+			continue
+		}
+		if err != nil {
+			return err
+		}
 		if err := p.mkcol(ctx, current); err != nil {
 			return err
 		}
