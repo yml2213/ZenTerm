@@ -266,6 +266,7 @@ export interface WebDAVSyncConfig {
   url: string
   username: string
   remote_path?: string
+  device_name?: string
   password?: string
 }
 
@@ -273,6 +274,7 @@ export interface WebDAVSyncStatus {
   configured: boolean
   provider?: string
   device_id?: string
+  device_name?: string
   url?: string
   username?: string
   remote_path?: string
@@ -291,12 +293,23 @@ export interface WebDAVSyncResult {
   synced_at?: string
 }
 
+export interface WebDAVSyncTestResult {
+  ok: boolean
+  exists: boolean
+  remote_etag?: string
+  message?: string
+}
+
 export async function configureWebDAVSync(config: WebDAVSyncConfig): Promise<WebDAVSyncStatus> {
   return callApp('ConfigureWebDAVSync', config)
 }
 
 export async function getWebDAVSyncStatus(): Promise<WebDAVSyncStatus> {
   return callApp('GetWebDAVSyncStatus')
+}
+
+export async function testWebDAVSync(config: WebDAVSyncConfig): Promise<WebDAVSyncTestResult> {
+  return callApp('TestWebDAVSync', config)
 }
 
 export async function pushWebDAVSync(overwrite: boolean = false): Promise<WebDAVSyncResult> {

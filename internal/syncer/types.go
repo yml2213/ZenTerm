@@ -31,6 +31,7 @@ type State struct {
 	Version          int          `json:"version"`
 	Provider         string       `json:"provider"`
 	DeviceID         string       `json:"device_id"`
+	DeviceName       string       `json:"device_name,omitempty"`
 	WebDAV           WebDAVConfig `json:"webdav"`
 	LastRemoteETag   string       `json:"last_remote_etag,omitempty"`
 	LastSnapshotHash string       `json:"last_snapshot_hash,omitempty"`
@@ -43,6 +44,7 @@ type Status struct {
 	Configured       bool   `json:"configured"`
 	Provider         string `json:"provider,omitempty"`
 	DeviceID         string `json:"device_id,omitempty"`
+	DeviceName       string `json:"device_name,omitempty"`
 	URL              string `json:"url,omitempty"`
 	Username         string `json:"username,omitempty"`
 	RemotePath       string `json:"remote_path,omitempty"`
@@ -60,6 +62,14 @@ type Result struct {
 	Conflict   bool   `json:"conflict,omitempty"`
 	Message    string `json:"message,omitempty"`
 	SyncedAt   string `json:"synced_at,omitempty"`
+}
+
+// TestResult 描述 WebDAV 连接测试结果 / describes a WebDAV connection test result.
+type TestResult struct {
+	OK         bool   `json:"ok"`
+	Exists     bool   `json:"exists"`
+	RemoteETag string `json:"remote_etag,omitempty"`
+	Message    string `json:"message,omitempty"`
 }
 
 // RemoteMeta 保存远端文件元数据 / stores remote file metadata.

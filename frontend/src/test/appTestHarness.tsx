@@ -43,6 +43,7 @@ import {
   resetVault,
   resizeTerminal,
   sendInput,
+  testWebDAVSync,
   toggleSessionLogFavorite,
   tryAutoUnlock,
   unlockWithPreferences,
@@ -97,6 +98,7 @@ vi.mock('../lib/backend', () => ({
   persistWindowState: vi.fn(),
   pullWebDAVSync: vi.fn(),
   pushWebDAVSync: vi.fn(),
+  testWebDAVSync: vi.fn(),
   uploadFile: vi.fn(),
   windowSetBackgroundColour: vi.fn(),
   windowToggleMaximise: vi.fn(),
@@ -236,6 +238,7 @@ export function registerAppHarness() {
     configureWebDAVSync.mockResolvedValue({
       configured: true,
       provider: 'webdav',
+      device_name: '测试设备',
       url: 'https://dav.jianguoyun.com/dav/',
       username: 'zen@example.com',
       remote_path: '/ZenTerm/zenterm-sync-v1.json',
@@ -271,6 +274,7 @@ export function registerAppHarness() {
     getWebDAVSyncStatus.mockResolvedValue({
       configured: false,
       provider: 'webdav',
+      device_name: '测试设备',
       remote_path: '/ZenTerm/zenterm-sync-v1.json',
     })
     deleteCredential.mockResolvedValue(undefined)
@@ -284,6 +288,11 @@ export function registerAppHarness() {
       direction: 'push',
       bytes: 128,
       message: '本机快照已上传到 WebDAV。',
+    })
+    testWebDAVSync.mockResolvedValue({
+      ok: true,
+      exists: false,
+      message: 'WebDAV 连接正常，远端路径可写，尚未发现同步文件。',
     })
     renameLocalEntry.mockResolvedValue(undefined)
     renameRemoteEntry.mockResolvedValue(undefined)
@@ -433,6 +442,7 @@ export {
   resetVault,
   resizeTerminal,
   sendInput,
+  testWebDAVSync,
   toggleSessionLogFavorite,
   tryAutoUnlock,
   unlockWithPreferences,

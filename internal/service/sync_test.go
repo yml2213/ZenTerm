@@ -27,7 +27,7 @@ func TestEncryptedSyncSnapshotRoundTripAcrossStores(t *testing.T) {
 		t.Fatalf("AddHost(source) error = %v", err)
 	}
 
-	envelope, sourceHash, err := sourceSvc.BuildEncryptedSyncSnapshot("device-a", false)
+	envelope, sourceHash, err := sourceSvc.BuildEncryptedSyncSnapshot("device-a", "办公室 Mac", false)
 	if err != nil {
 		t.Fatalf("BuildEncryptedSyncSnapshot() error = %v", err)
 	}
@@ -55,12 +55,15 @@ func TestEncryptedSyncSnapshotRoundTripAcrossStores(t *testing.T) {
 		t.Fatalf("AddHost(target) error = %v", err)
 	}
 
-	deviceID, targetHash, err := targetSvc.ApplyEncryptedSyncSnapshot("master-password", envelope)
+	deviceID, deviceName, targetHash, err := targetSvc.ApplyEncryptedSyncSnapshot("master-password", envelope)
 	if err != nil {
 		t.Fatalf("ApplyEncryptedSyncSnapshot() error = %v", err)
 	}
 	if deviceID != "device-a" {
 		t.Fatalf("remote device id = %q, want device-a", deviceID)
+	}
+	if deviceName != "办公室 Mac" {
+		t.Fatalf("remote device name = %q, want 办公室 Mac", deviceName)
 	}
 	if targetHash != sourceHash {
 		t.Fatalf("target hash = %q, want %q", targetHash, sourceHash)
