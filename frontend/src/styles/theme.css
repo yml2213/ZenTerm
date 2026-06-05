@@ -35,7 +35,7 @@
   --panel-muted: #e4eaf1;
   --card-bg: #f8fafb;
   --card-hover: #fafcfd;
-  --card-active: #eff6fb;
+  --card-active: #f3f6f9;
   --sidebar-bg: #e3e9f1;
   --toolbar-bg: #e7edf4;
   --content-bg: #edf2f7;
@@ -48,7 +48,7 @@
   --text-inverse: #ffffff;
   --accent-primary: #2ea35a;
   --accent-primary-hover: #24864a;
-  --accent-secondary: #7caeda;
+  --accent-secondary: #8b9bad;
   --accent-danger: #f05d5e;
   --accent-danger-hover: #dc4c4d;
   --accent-success: #24a159;
@@ -57,15 +57,15 @@
   --accent-amber: #dd9222;
   --border-default: rgba(55, 72, 96, 0.14);
   --border-subtle: rgba(55, 72, 96, 0.09);
-  --border-strong: rgba(124, 174, 218, 0.34);
-  --border-hover: rgba(124, 174, 218, 0.26);
+  --border-strong: rgba(55, 72, 96, 0.24);
+  --border-hover: rgba(55, 72, 96, 0.18);
   --shadow-sm: 0 9px 22px rgba(21, 31, 44, 0.075);
   --shadow-lg: 0 34px 80px rgba(0, 0, 0, 0.34);
   --pill-success-bg: #e7f4ea;
   --pill-success-text: #219454;
   --pill-subtle-bg: #eef2f6;
   --pill-subtle-text: #72849a;
-  --focus-ring: 0 0 0 3px rgba(24, 149, 194, 0.12);
+  --focus-ring: 0 0 0 3px rgba(55, 72, 96, 0.1);
   --selection-bg: rgba(124, 174, 218, 0.24);
   --selection-text: var(--text-primary);
   --sidebar-filter-bg: rgba(244, 247, 250, 0.7);
@@ -94,13 +94,13 @@
   --segmented-hover-bg: rgba(248, 250, 252, 0.78);
   --chrome-tab-bg: var(--panel-muted);
   --chrome-tab-hover-bg: var(--panel-bg-strong);
-  --chrome-tab-active-bg: linear-gradient(180deg, #edf6ff 0%, #dfeaf6 100%);
-  --chrome-tab-active-border: rgba(111, 164, 220, 0.38);
-  --chrome-tab-active-text: #20354b;
+  --chrome-tab-active-bg: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+  --chrome-tab-active-border: rgba(55, 72, 96, 0.18);
+  --chrome-tab-active-text: #213247;
   --chrome-tab-active-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    0 12px 24px rgba(124, 174, 218, 0.2),
-    0 0 0 1px rgba(124, 174, 218, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 20px rgba(21, 31, 44, 0.08),
+    0 0 0 1px rgba(55, 72, 96, 0.05);
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.1);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.28);
@@ -186,7 +186,7 @@
   --panel-muted: #29364a;
   --card-bg: #202d3f;
   --card-hover: #2a3a51;
-  --card-active: #30445d;
+  --card-active: #2a3749;
   --sidebar-bg: #1a2535;
   --toolbar-bg: rgba(28, 39, 56, 0.98);
   --content-bg: #121926;
@@ -199,7 +199,7 @@
   --text-inverse: #ffffff;
   --accent-primary: #31bf6c;
   --accent-primary-hover: #24a35a;
-  --accent-secondary: #8eb4de;
+  --accent-secondary: #9aa8bb;
   --accent-danger: #fb7185;
   --accent-danger-hover: #f43f5e;
   --accent-success: #31bf6c;
@@ -208,15 +208,15 @@
   --accent-amber: #f59e0b;
   --border-default: rgba(148, 163, 184, 0.18);
   --border-subtle: rgba(148, 163, 184, 0.07);
-  --border-strong: rgba(142, 180, 222, 0.32);
-  --border-hover: rgba(142, 180, 222, 0.24);
+  --border-strong: rgba(148, 163, 184, 0.28);
+  --border-hover: rgba(148, 163, 184, 0.22);
   --shadow-sm: 0 10px 24px rgba(2, 8, 18, 0.22);
   --shadow-lg: 0 32px 96px rgba(0, 0, 0, 0.42);
   --pill-success-bg: rgba(49, 191, 108, 0.12);
   --pill-success-text: #8aefb5;
   --pill-subtle-bg: rgba(148, 163, 184, 0.12);
   --pill-subtle-text: #c9d6e2;
-  --focus-ring: 0 0 0 3px rgba(142, 180, 222, 0.18);
+  --focus-ring: 0 0 0 3px rgba(148, 163, 184, 0.16);
   --selection-bg: rgba(142, 180, 222, 0.26);
   --selection-text: var(--text-primary);
   --sidebar-filter-bg: rgba(32, 45, 63, 0.92);
@@ -245,13 +245,13 @@
   --segmented-hover-bg: rgba(255, 255, 255, 0.08);
   --chrome-tab-bg: var(--panel-muted);
   --chrome-tab-hover-bg: color-mix(in srgb, var(--panel-muted) 72%, white 28%);
-  --chrome-tab-active-bg: linear-gradient(180deg, rgba(63, 81, 111, 0.98) 0%, rgba(48, 65, 91, 0.98) 100%);
-  --chrome-tab-active-border: rgba(164, 188, 228, 0.26);
+  --chrome-tab-active-bg: linear-gradient(180deg, rgba(48, 59, 76, 0.98) 0%, rgba(38, 48, 64, 0.98) 100%);
+  --chrome-tab-active-border: rgba(148, 163, 184, 0.22);
   --chrome-tab-active-text: #f3f8ff;
   --chrome-tab-active-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 14px 30px rgba(4, 8, 18, 0.32),
-    0 0 0 1px rgba(130, 166, 224, 0.1);
+    0 14px 30px rgba(4, 8, 18, 0.3),
+    0 0 0 1px rgba(148, 163, 184, 0.08);
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.08);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.22);
