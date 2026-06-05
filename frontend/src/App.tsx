@@ -11,6 +11,7 @@ import WorkspaceStrip from './components/WorkspaceStrip'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
 import { navigationItems } from './lib/appShellConfig'
+import { withDemoHosts } from './lib/appHostUtils'
 import {
   useAppBootstrap,
   useGlobalHostSearchHotkey,
@@ -227,7 +228,7 @@ export default function App() {
     setters.setSSHConfigImportBusy(true)
     try {
       await importLocalSSHConfigHosts(sshConfigImportPrompt.hostIds)
-      const nextHosts = await listHosts()
+      const nextHosts = withDemoHosts(await listHosts())
       startTransition(() => {
         setters.setHosts(nextHosts)
         setters.setSelectedHostId(nextHosts[0]?.id || null)

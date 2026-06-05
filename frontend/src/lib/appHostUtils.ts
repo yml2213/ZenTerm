@@ -90,6 +90,81 @@ export function parseHostTags(tags: string | undefined): string[] {
     .filter(Boolean)
 }
 
+let demoHostCache: main.Host[] | null = null
+
+const demoHostNames = [
+  'prod-api-01',
+  'prod-db-02',
+  'edge-gateway',
+  'cache-redis',
+  'worker-gpu',
+  'staging-app',
+  'backup-node',
+  'metrics-box',
+  'ci-runner',
+  'dev-bastion',
+]
+
+const demoHostGroups = ['生产环境', '测试环境', 'SSH Config', '边缘节点']
+const demoHostTags = ['Linux, API', 'DB, Backup', 'Gateway', 'Cache', 'GPU, Worker', 'CI, Build']
+const demoSystemTypes = ['ubuntu', 'debian', 'linux', 'database', 'gateway', 'cache']
+
+function shouldFillDemoHosts(): boolean {
+  return import.meta.env.DEV && import.meta.env.MODE !== 'test'
+}
+
+function createDemoHosts(existingIDs: Set<string>): main.Host[] {
+  const hosts: main.Host[] = []
+  let index = 0
+
+  while (hosts.length < 10 && index < 40) {
+    const number = index + 1
+    const id = `demo-${number.toString().padStart(2, '0')}`
+    index += 1
+    if (existingIDs.has(id)) {
+      continue
+    }
+
+    hosts.push(new main.Host({
+      id,
+      name: demoHostNames[(number - 1) % demoHostNames.length],
+      address: `10.${10 + Math.floor(Math.random() * 30)}.${Math.floor(Math.random() * 240)}.${20 + number}`,
+      port: number % 4 === 0 ? 2222 : 22,
+      username: ['root', 'ubuntu', 'deploy', 'ops'][number % 4],
+      group: demoHostGroups[number % demoHostGroups.length],
+      tags: demoHostTags[number % demoHostTags.length],
+      favorite: number % 3 === 0,
+      system_type: demoSystemTypes[number % demoSystemTypes.length],
+      system_type_source: 'auto',
+      last_connected_at: new Date(Date.now() - number * 36e5).toISOString(),
+      known_hosts: number % 2 === 0 ? 'demo-known-host' : '',
+    }))
+  }
+
+  return hosts
+}
+
+export function withDemoHosts(hosts: main.Host[]): main.Host[] {
+  if (!shouldFillDemoHosts() || hosts.length >= 10) {
+    return hosts
+  }
+
+  const existingIDs = new Set(hosts.map((host) => host.id))
+  if (!demoHostCache || demoHostCache.some((host) => existingIDs.has(host.id))) {
+    demoHostCache = createDemoHosts(existingIDs)
+  }
+
+  const fillerHosts = demoHostCache
+    .filter((host) => !existingIDs.has(host.id))
+    .slice(0, 10 - hosts.length)
+
+  return hosts.concat(fillerHosts)
+}
+
+export function isDemoHost(host?: Pick<main.Host, 'id'> | null): boolean {
+  return Boolean(host?.id?.startsWith('demo-'))
+}
+
 export function getHostFilterLabel(filterKey: string): string {
   if (filterKey === 'favorite') {
     return '收藏主机'

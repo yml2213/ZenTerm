@@ -9,6 +9,7 @@ import {
   tryAutoUnlock,
 } from '../lib/backend'
 import { buildSessionTabs, normalizeHostKeyPrompt } from '../lib/appSessionUtils'
+import { withDemoHosts } from '../lib/appHostUtils'
 import { main } from '../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, SSHConfigImportPrompt, WorkspaceTab, WorkspaceType } from '../types'
 
@@ -41,7 +42,7 @@ export function useAppBootstrap({
     let disposed = false
 
     async function bootstrap() {
-      const loadedHosts = await listHosts()
+      const loadedHosts = withDemoHosts(await listHosts())
       if (disposed) {
         return
       }

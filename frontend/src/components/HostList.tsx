@@ -1,4 +1,4 @@
-import { Clock3, Copy, Database, HardDrive, Monitor, PencilLine, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, TerminalSquare, Trash2 } from 'lucide-react'
+import { Clock3, Copy, Database, FolderOpen, HardDrive, Monitor, PencilLine, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, Tags, TerminalSquare, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ComponentType, type KeyboardEvent, type MouseEvent } from 'react'
 import { main } from '../wailsjs/wailsjs/go/models'
 
@@ -251,15 +251,21 @@ export default function HostList({
               </div>
             </div>
 
-            <div className="host-card-meta-row">
-              <span>
+            <div className="host-card-detail-grid">
+              <span className="host-card-detail-item">
                 <Clock3 size={13} />
-                最近连接：{lastConnected}
+                <span>最近连接</span>
+                <strong>{lastConnected}</strong>
               </span>
-              <span>{host.group || '未分组'}</span>
+              <span className="host-card-detail-item">
+                <FolderOpen size={13} />
+                <span>分组</span>
+                <strong>{host.group || '未分组'}</strong>
+              </span>
             </div>
 
             <div className="host-tag-row" aria-label="主机标签">
+              <Tags size={13} />
               {(tags.length > 0 ? tags : ['未标记']).slice(0, 3).map((tag) => (
                 <span key={tag}>{tag}</span>
               ))}
