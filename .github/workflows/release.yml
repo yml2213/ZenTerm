@@ -92,6 +92,12 @@ jobs:
           }
           NODE
 
+      - name: 准备临时前端资源目录
+        shell: bash
+        run: |
+          mkdir -p frontend/dist
+          printf '<!doctype html><title>ZenTerm</title>' > frontend/dist/index.html
+
       - name: 生成 Wails 绑定
         shell: bash
         run: wails build -s -skipembedcreate -nopackage
@@ -99,6 +105,10 @@ jobs:
       - name: 安装前端依赖
         working-directory: frontend
         run: npm ci
+
+      - name: 前端生产构建
+        working-directory: frontend
+        run: npm run build
 
       - name: 前端类型检查
         working-directory: frontend
@@ -181,6 +191,12 @@ jobs:
       - name: 安装前端依赖
         working-directory: frontend
         run: npm ci
+
+      - name: 准备临时前端资源目录
+        shell: bash
+        run: |
+          mkdir -p frontend/dist
+          printf '<!doctype html><title>ZenTerm</title>' > frontend/dist/index.html
 
       - name: 安装 Wails CLI
         shell: bash
