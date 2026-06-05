@@ -165,6 +165,7 @@ export default function TerminalPane({
       cursorStyle: 'bar',
       fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
       fontSize: 14,
+      scrollback: 10000,
       theme: {
         background: '#141526',
         foreground: '#dfe8f2',
