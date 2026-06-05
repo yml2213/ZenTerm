@@ -2,7 +2,7 @@
   min-height: var(--session-tab-height);
   display: flex;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.5rem;
   overflow: auto hidden;
 }
 
@@ -17,7 +17,7 @@
   border-radius: 11px;
   background: var(--chrome-tab-bg);
   box-shadow: var(--shadow-sm);
-  opacity: 0.78;
+  opacity: 0.7;
   overflow: hidden;
   transition:
     min-width 180ms ease,
@@ -37,7 +37,7 @@
   border-color: var(--chrome-tab-active-border);
   opacity: 1;
   box-shadow: var(--chrome-tab-active-shadow);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 :global(.app-shell-tabbed) .tab {
@@ -45,7 +45,7 @@
   background: var(--terminal-tab-bg);
   color: var(--terminal-control);
   box-shadow: none;
-  opacity: 0.72;
+  opacity: 0.65;
 }
 
 :global(.app-shell-tabbed) .tab.active {
@@ -55,7 +55,7 @@
   background: var(--terminal-tab-active-bg);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(6, 10, 20, 0.22);
+    0 12px 28px rgba(6, 10, 20, 0.28);
   opacity: 1;
 }
 
