@@ -67,6 +67,9 @@ func main() {
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 		},
+		Debug: options.Debug{
+			OpenInspectorOnStartup: false,
+		},
 	})
 	if err != nil {
 		panic(fmt.Errorf("run wails app: %w", err))

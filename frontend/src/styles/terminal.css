@@ -31,7 +31,8 @@
   height: 100%;
 }
 
-.terminal-surface .xterm-screen,
 .terminal-surface .xterm-viewport {
   width: 100% !important;
+  background-color: var(--terminal-bg);
+  overflow-y: auto;
 }
