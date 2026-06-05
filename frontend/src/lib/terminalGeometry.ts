@@ -6,6 +6,50 @@ interface TerminalGeometry {
   rows: number
 }
 
+interface TerminalRenderDimensions {
+  css?: {
+    cell?: {
+      width?: number
+      height?: number
+    }
+  }
+}
+
+interface TerminalWithCore extends Terminal {
+  _core?: {
+    _renderService?: {
+      dimensions?: TerminalRenderDimensions
+    }
+  }
+}
+
+function readPixelVariable(container: HTMLElement, name: string): number {
+  const value = window.getComputedStyle(container).getPropertyValue(name).trim()
+  const pixels = Number.parseFloat(value)
+
+  return Number.isFinite(pixels) && pixels > 0 ? pixels : 0
+}
+
+function applyReservedSpace(terminal: Terminal, container: HTMLElement, geometry: TerminalGeometry): TerminalGeometry {
+  const dimensions = (terminal as TerminalWithCore)._core?._renderService?.dimensions
+  const cellWidth = dimensions?.css?.cell?.width
+  const cellHeight = dimensions?.css?.cell?.height
+
+  if (!cellWidth || !cellHeight) {
+    return geometry
+  }
+
+  const reservedWidth = readPixelVariable(container, '--terminal-scrollbar-safe-width')
+  const reservedHeight = readPixelVariable(container, '--terminal-bottom-safe-height')
+  const reservedCols = Math.ceil(reservedWidth / cellWidth)
+  const reservedRows = Math.ceil(reservedHeight / cellHeight)
+
+  return {
+    cols: Math.max(2, geometry.cols - reservedCols),
+    rows: Math.max(1, geometry.rows - reservedRows),
+  }
+}
+
 export function measureTerminalGeometry(
   terminal: Terminal | null,
   container: HTMLElement,
@@ -24,10 +68,10 @@ export function measureTerminalGeometry(
   try {
     const proposed = fitAddon.proposeDimensions()
     if (proposed?.cols && proposed.cols > 0 && proposed?.rows && proposed.rows > 0) {
-      return {
+      return applyReservedSpace(terminal, container, {
         cols: Math.max(2, proposed.cols),
         rows: Math.max(1, proposed.rows),
-      }
+      })
     }
   } catch (error) {
     // fitAddon 可能还没准备好，回退到终端当前尺寸
