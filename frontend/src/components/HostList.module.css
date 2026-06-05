@@ -1,7 +1,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: 0.72rem;
+  gap: 0.9rem;
   align-items: stretch;
 }
 
@@ -17,21 +17,23 @@
 
 .card {
   border-radius: 16px;
-  padding: 0.88rem;
+  padding: 1.1rem;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
-  gap: 0.7rem;
+  gap: 0.85rem;
   min-width: 0;
   cursor: pointer;
   background: var(--card-bg);
   border: 1px solid var(--border-subtle);
   transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 2px 8px rgba(21, 31, 44, 0.04);
 }
 
 .card:hover {
   background: var(--card-hover);
   border-color: var(--border-default);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(21, 31, 44, 0.08);
 }
 
 .card.active {
@@ -39,7 +41,8 @@
   border-color: var(--border-strong);
   box-shadow:
     inset 0 0 0 1px var(--border-strong),
-    0 10px 26px rgba(79, 116, 160, 0.1);
+    0 12px 32px rgba(79, 116, 160, 0.15);
+  transform: translateY(-1px);
 }
 
 .cardHeader,
@@ -220,21 +223,24 @@
 .inlineState {
   display: inline-flex;
   align-items: center;
-  gap: 0.24rem;
-  padding: 0.26rem 0.5rem;
+  gap: 0.28rem;
+  padding: 0.32rem 0.62rem;
   border-radius: 999px;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .inlineState.trusted {
   background: var(--surface-success-bg);
   color: var(--accent-success);
+  border: 1px solid var(--surface-success-border);
 }
 
 .inlineState.pending {
   background: var(--surface-warning-bg);
   color: var(--accent-amber);
+  border: 1px solid var(--surface-warning-border);
 }
 
 .summary {

@@ -33,9 +33,9 @@
   --panel-bg: #f4f7fa;
   --panel-bg-strong: #f8fafc;
   --panel-muted: #e4eaf1;
-  --card-bg: #f7f9fc;
-  --card-hover: #fbfcfe;
-  --card-active: #e4effa;
+  --card-bg: #f8fafb;
+  --card-hover: #fafcfd;
+  --card-active: #eff6fb;
   --sidebar-bg: #e3e9f1;
   --toolbar-bg: #e7edf4;
   --content-bg: #edf2f7;
@@ -73,13 +73,14 @@
   --favorite-btn-hover-bg: rgba(221, 146, 34, 0.1);
   --favorite-btn-active-bg: rgba(221, 146, 34, 0.14);
   --favorite-btn-active-border: rgba(221, 146, 34, 0.24);
-  --surface-success-bg: rgba(34, 164, 71, 0.12);
+  --surface-success-bg: rgba(34, 164, 71, 0.1);
+  --surface-success-border: rgba(34, 164, 71, 0.2);
   --surface-info-bg: rgba(24, 149, 194, 0.12);
   --surface-info-border: rgba(24, 149, 194, 0.18);
   --surface-info-strong-bg: rgba(24, 149, 194, 0.14);
   --surface-info-strong-border: rgba(24, 149, 194, 0.3);
-  --surface-warning-bg: rgba(221, 146, 34, 0.12);
-  --surface-warning-border: rgba(221, 146, 34, 0.32);
+  --surface-warning-bg: rgba(221, 146, 34, 0.1);
+  --surface-warning-border: rgba(221, 146, 34, 0.24);
   --surface-warning-strong-bg: rgba(221, 146, 34, 0.16);
   --surface-warning-strong-fill: rgba(221, 146, 34, 0.82);
   --surface-danger-bg-soft: rgba(226, 77, 77, 0.05);
@@ -98,8 +99,8 @@
   --chrome-tab-active-text: #20354b;
   --chrome-tab-active-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    0 10px 20px rgba(124, 174, 218, 0.18),
-    0 0 0 1px rgba(124, 174, 218, 0.08);
+    0 12px 24px rgba(124, 174, 218, 0.2),
+    0 0 0 1px rgba(124, 174, 218, 0.1);
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.1);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.28);
@@ -223,13 +224,14 @@
   --favorite-btn-hover-bg: rgba(245, 158, 11, 0.14);
   --favorite-btn-active-bg: rgba(245, 158, 11, 0.18);
   --favorite-btn-active-border: rgba(245, 158, 11, 0.32);
-  --surface-success-bg: rgba(49, 191, 108, 0.14);
+  --surface-success-bg: rgba(49, 191, 108, 0.12);
+  --surface-success-border: rgba(49, 191, 108, 0.22);
   --surface-info-bg: rgba(142, 180, 222, 0.12);
   --surface-info-border: rgba(142, 180, 222, 0.22);
   --surface-info-strong-bg: rgba(142, 180, 222, 0.16);
   --surface-info-strong-border: rgba(142, 180, 222, 0.3);
-  --surface-warning-bg: rgba(245, 158, 11, 0.14);
-  --surface-warning-border: rgba(245, 158, 11, 0.34);
+  --surface-warning-bg: rgba(245, 158, 11, 0.12);
+  --surface-warning-border: rgba(245, 158, 11, 0.26);
   --surface-warning-strong-bg: rgba(245, 158, 11, 0.18);
   --surface-warning-strong-fill: rgba(245, 158, 11, 0.86);
   --surface-danger-bg-soft: rgba(251, 113, 133, 0.08);
@@ -248,8 +250,8 @@
   --chrome-tab-active-text: #f3f8ff;
   --chrome-tab-active-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 12px 24px rgba(4, 8, 18, 0.26),
-    0 0 0 1px rgba(130, 166, 224, 0.08);
+    0 14px 30px rgba(4, 8, 18, 0.32),
+    0 0 0 1px rgba(130, 166, 224, 0.1);
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.08);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.22);
