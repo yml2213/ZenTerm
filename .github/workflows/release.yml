@@ -141,18 +141,6 @@ jobs:
             os: windows-latest
             platform: windows/amd64
             slug: windows-amd64
-          - name: macOS Universal
-            os: macos-latest
-            platform: darwin/universal
-            slug: macos-universal
-          - name: macOS Intel
-            os: macos-13
-            platform: darwin/amd64
-            slug: macos-amd64
-          - name: macOS Apple Silicon
-            os: macos-latest
-            platform: darwin/arm64
-            slug: macos-arm64
 
     steps:
       - name: Checkout
@@ -228,20 +216,6 @@ jobs:
           $hash = Get-FileHash "dist/$asset" -Algorithm SHA256
           "$($hash.Hash.ToLower())  $asset" | Out-File -FilePath "dist/$asset.sha256" -Encoding ascii
 
-      - name: 打包 macOS 产物
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          asset="ZenTerm-${VERSION}-${{ matrix.slug }}.zip"
-          mkdir -p dist
-          if [ -d build/bin/ZenTerm.app ]; then
-            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm.app "dist/$asset"
-          else
-            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm "dist/$asset"
-          fi
-          (cd dist && shasum -a 256 "$asset" > "$asset.sha256")
-
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
@@ -249,9 +223,104 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  build-macos:
+    name: 构建 macOS
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 计算发布版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 准备临时前端资源目录
+        shell: bash
+        run: |
+          mkdir -p frontend/dist
+          printf '<!doctype html><title>ZenTerm</title>' > frontend/dist/index.html
+
+      - name: 安装 Wails CLI
+        shell: bash
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: 创建 macOS 打包脚本
+        shell: bash
+        run: |
+          cat > /tmp/build-macos.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          platform="$1"
+          slug="$2"
+          asset="ZenTerm-${VERSION}-${slug}.zip"
+
+          rm -rf build/bin
+          wails build -clean -platform "$platform"
+
+          mkdir -p dist
+          if [ -d build/bin/ZenTerm.app ]; then
+            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm.app "dist/$asset"
+          else
+            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm "dist/$asset"
+          fi
+          (cd dist && shasum -a 256 "$asset" > "$asset.sha256")
+          BASH
+          chmod +x /tmp/build-macos.sh
+
+      - name: 构建 macOS Universal
+        shell: bash
+        run: /tmp/build-macos.sh darwin/universal macos-universal
+
+      - name: 构建 macOS Intel
+        continue-on-error: true
+        shell: bash
+        run: /tmp/build-macos.sh darwin/amd64 macos-amd64
+
+      - name: 构建 macOS Apple Silicon
+        continue-on-error: true
+        shell: bash
+        run: /tmp/build-macos.sh darwin/arm64 macos-arm64
+
+      - name: 上传 macOS 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenterm-macos
+          path: dist/*
+          if-no-files-found: error
+
   release:
     name: 发布 GitHub Release
-    needs: build
+    needs:
+      - build
+      - build-macos
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -283,16 +352,29 @@ jobs:
           ZenTerm ${VERSION}
 
           云端构建产物：
-          - macOS Universal：ZenTerm-${VERSION}-macos-universal.zip
-          - macOS Intel：ZenTerm-${VERSION}-macos-amd64.zip
-          - macOS Apple Silicon：ZenTerm-${VERSION}-macos-arm64.zip
-          - Windows x64：ZenTerm-${VERSION}-windows-amd64.zip
-          - Linux x64：ZenTerm-${VERSION}-linux-amd64.tar.gz
+          EOF
+
+          add_asset() {
+            local file="$1"
+            local label="$2"
+            if [ -f "release-assets/$file" ]; then
+              echo "- ${label}：${file}" >> release-notes.md
+            fi
+          }
+
+          add_asset "ZenTerm-${VERSION}-macos-universal.zip" "macOS Universal"
+          add_asset "ZenTerm-${VERSION}-macos-amd64.zip" "macOS Intel"
+          add_asset "ZenTerm-${VERSION}-macos-arm64.zip" "macOS Apple Silicon"
+          add_asset "ZenTerm-${VERSION}-windows-amd64.zip" "Windows x64"
+          add_asset "ZenTerm-${VERSION}-linux-amd64.tar.gz" "Linux x64"
+
+          cat >> release-notes.md <<EOF
 
           说明：
           - 当前产物未做代码签名和 notarization，首次运行可能需要在系统安全设置中确认。
+          - macOS Universal 是 macOS 主包；Intel / Apple Silicon 单独包为附加构建。
           - Linux 版本需要系统已安装 GTK3 与 WebKitGTK 运行库。
-          - 每个产物旁边都提供了对应的 SHA-256 校验文件。
+          - 每个包旁边都提供了对应的 SHA-256 校验文件。
           EOF
 
       - name: 创建或更新 Release

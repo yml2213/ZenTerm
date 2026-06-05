@@ -99,7 +99,7 @@ git push origin v0.1.0
 - `ZenTerm-0.1.0-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
 - 每个包旁边都会生成 `.sha256` 校验文件。
 
-当前发布包未做代码签名和 macOS notarization，首次运行时系统可能提示安全确认。后续如果接入 Apple Developer 证书和 Windows 签名证书，可以在 Release workflow 中增加签名步骤。
+macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。当前发布包未做代码签名和 macOS notarization，首次运行时系统可能提示安全确认。后续如果接入 Apple Developer 证书和 Windows 签名证书，可以在 Release workflow 中增加签名步骤。
 
 ## 数据与安全模型
 
