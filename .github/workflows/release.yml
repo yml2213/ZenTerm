@@ -1,0 +1,271 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本，例如 0.1.0'
+        required: true
+        default: '0.1.0'
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: '1.24.x'
+  NODE_VERSION: '22'
+  NODE_OPTIONS: '--max-old-space-size=4096'
+  WAILS_VERSION: 'v2.12.0'
+
+jobs:
+  validate:
+    name: 验证版本与测试
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 计算发布版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "版本号必须使用 x.y.z 格式，当前为: $version" >&2
+            exit 1
+          fi
+
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 校验项目版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs')
+          const version = process.env.VERSION
+          const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'))
+          const frontend = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'))
+
+          const versions = {
+            'wails.json info.productVersion': wails.info?.productVersion,
+            'frontend/package.json version': frontend.version,
+          }
+
+          for (const [name, value] of Object.entries(versions)) {
+            if (value !== version) {
+              console.error(`${name} 是 ${value}，与发布版本 ${version} 不一致`)
+              process.exit(1)
+            }
+          }
+          NODE
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 前端类型检查
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: 前端 lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: 前端测试
+        working-directory: frontend
+        run: npm test
+
+      - name: Go 测试
+        run: go test . ./internal/...
+
+  build:
+    name: 构建 ${{ matrix.name }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-22.04
+            platform: linux/amd64
+            slug: linux-amd64
+          - name: Windows x64
+            os: windows-latest
+            platform: windows/amd64
+            slug: windows-amd64
+          - name: macOS Universal
+            os: macos-latest
+            platform: darwin/universal
+            slug: macos-universal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 计算发布版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装 Linux 构建依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 安装 Wails CLI
+        shell: bash
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: 构建 Wails 应用
+        shell: bash
+        run: wails build -platform ${{ matrix.platform }}
+
+      - name: 打包 Linux 产物
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="ZenTerm-${VERSION}-${{ matrix.slug }}.tar.gz"
+          mkdir -p dist
+          tar -czf "dist/$asset" -C build/bin ZenTerm
+          (cd dist && sha256sum "$asset" > "$asset.sha256")
+
+      - name: 打包 Windows 产物
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $asset = "ZenTerm-$env:VERSION-${{ matrix.slug }}.zip"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "build/bin/ZenTerm.exe" -DestinationPath "dist/$asset" -Force
+          $hash = Get-FileHash "dist/$asset" -Algorithm SHA256
+          "$($hash.Hash.ToLower())  $asset" | Out-File -FilePath "dist/$asset.sha256" -Encoding ascii
+
+      - name: 打包 macOS 产物
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="ZenTerm-${VERSION}-${{ matrix.slug }}.zip"
+          mkdir -p dist
+          if [ -d build/bin/ZenTerm.app ]; then
+            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm.app "dist/$asset"
+          else
+            ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm "dist/$asset"
+          fi
+          (cd dist && shasum -a 256 "$asset" > "$asset.sha256")
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenterm-${{ matrix.slug }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: 发布 GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 计算发布版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: 生成 Release 说明
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<EOF
+          ZenTerm ${VERSION}
+
+          云端构建产物：
+          - macOS Universal：ZenTerm-${VERSION}-macos-universal.zip
+          - Windows x64：ZenTerm-${VERSION}-windows-amd64.zip
+          - Linux x64：ZenTerm-${VERSION}-linux-amd64.tar.gz
+
+          说明：
+          - 当前产物未做代码签名和 notarization，首次运行可能需要在系统安全设置中确认。
+          - Linux 版本需要系统已安装 GTK3 与 WebKitGTK 运行库。
+          - 每个产物旁边都提供了对应的 SHA-256 校验文件。
+          EOF
+
+      - name: 创建或更新 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "ZenTerm $VERSION" --notes-file release-notes.md
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          else
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --target "$GITHUB_SHA" \
+              --title "ZenTerm $VERSION" \
+              --notes-file release-notes.md
+          fi
