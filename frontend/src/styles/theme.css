@@ -104,8 +104,8 @@
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.1);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.28);
-  --panel-grid-line: rgba(61, 85, 114, 0.014);
-  --panel-grid-glow: rgba(124, 174, 218, 0.018);
+  --panel-grid-line: rgba(61, 85, 114, 0.008);
+  --panel-grid-glow: rgba(124, 174, 218, 0.012);
   --terminal-bg: #101927;
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;
@@ -255,8 +255,8 @@
   --terminal-tab-hover-bg: rgba(255, 255, 255, 0.08);
   --terminal-tab-hover-text: #d3dbef;
   --terminal-divider: rgba(148, 163, 184, 0.22);
-  --panel-grid-line: rgba(148, 163, 184, 0.012);
-  --panel-grid-glow: rgba(142, 180, 222, 0.022);
+  --panel-grid-line: rgba(148, 163, 184, 0.008);
+  --panel-grid-glow: rgba(142, 180, 222, 0.014);
   --terminal-bg: #0d1522;
   --terminal-fg: #dfe8f2;
   --terminal-cursor: #6ee7b7;

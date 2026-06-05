@@ -4,7 +4,9 @@ import {
   buildHostPayload,
   buildIdentityPayload,
   hasConfiguredAuth,
+  isDemoHost,
   toUserMessage,
+  withDemoHosts,
 } from '../lib/appHostUtils'
 import { addHost, deleteHost, listHosts, updateHost } from '../lib/backend'
 import { main } from '../wailsjs/wailsjs/go/models'
@@ -72,7 +74,8 @@ export function useHostActionHandlers({
 
   function refreshHosts() {
     return listHosts()
-      .then((nextHosts) => {
+      .then((persistedHosts) => {
+        const nextHosts = withDemoHosts(persistedHosts)
         startTransition(() => {
           setHosts(nextHosts)
           setSelectedHostId((current) => {
@@ -104,6 +107,11 @@ export function useHostActionHandlers({
   }
 
   function openEditHost(host: main.Host) {
+    if (isDemoHost(host)) {
+      setError('演示主机仅用于界面预览，不会写入保险箱。')
+      return
+    }
+
     if (!vaultUnlocked) {
       setError('请输入主密码后继续编辑主机配置。')
       return
@@ -143,6 +151,12 @@ export function useHostActionHandlers({
       return
     }
 
+    if (isDemoHost(deleteCandidate)) {
+      setHosts(hosts.filter((host) => host.id !== deleteCandidate.id))
+      setDeleteCandidate(null)
+      return
+    }
+
     const hasSession = sessionTabs.some((session) => session.hostID === deleteCandidate.id)
     if (hasSession) {
       setError('该主机仍有活跃终端标签，请先关闭对应会话后再删除。')
@@ -172,6 +186,20 @@ export function useHostActionHandlers({
   }
 
   function handleToggleFavorite(host: main.Host) {
+    if (isDemoHost(host)) {
+      setHosts(hosts.map((item) => {
+        if (item.id !== host.id) {
+          return item
+        }
+
+        return new main.Host({
+          ...item,
+          favorite: !item.favorite,
+        })
+      }))
+      return
+    }
+
     const nextHost = new main.Host({
       id: host.id,
       name: host.name,

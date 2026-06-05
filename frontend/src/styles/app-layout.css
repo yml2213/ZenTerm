@@ -97,7 +97,7 @@
 .page-toolbar-meta.hosts .toolbar-btn.primary {
   min-height: 40px;
   padding: 0.62rem 0.84rem;
-  border-radius: 12px;
+  border-radius: 8px;
   gap: 0.36rem;
   font-size: 0.86rem;
   font-weight: 650;
@@ -109,7 +109,7 @@
   gap: 0.22rem;
   padding: 0.22rem;
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--panel-muted);
 }
 
@@ -118,7 +118,7 @@
   align-items: center;
   gap: 0.32rem;
   padding: 0.48rem 0.62rem;
-  border-radius: 9px;
+  border-radius: 6px;
   color: var(--text-secondary);
   font-size: 0.76rem;
   font-weight: 700;
@@ -139,7 +139,7 @@
   align-items: center;
   gap: 0.65rem;
   padding: 0.9rem 1rem;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.09);
   background: var(--input-bg);
   color: var(--text-tertiary);
@@ -189,7 +189,7 @@
   width: 100%;
   gap: 0.5rem;
   padding: 0.7rem 0.82rem;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .search-bar-compact input {
@@ -230,7 +230,7 @@
 .ghost-button,
 .toolbar-icon-btn,
 .icon-button {
-  border-radius: 12px;
+  border-radius: 8px;
   transition: transform 120ms ease, background 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
@@ -313,10 +313,10 @@
   overflow: auto;
   background-color: var(--content-bg);
   background-image:
-    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 24%),
+    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 18%),
     linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
-  background-size: auto, 56px 56px, 56px 56px;
+  background-size: auto, 64px 64px, 64px 64px;
   background-position: center top, center center, center center;
 }
 
@@ -335,7 +335,7 @@
   align-items: center;
   gap: 0.24rem;
   padding: 0.28rem 0.54rem;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: 0.72rem;
   font-weight: 700;
 }

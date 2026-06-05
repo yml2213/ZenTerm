@@ -1,6 +1,6 @@
 .hosts-stage,
 .terminal-panel {
-  border-radius: 18px;
+  border-radius: 8px;
 }
 
 .hosts-stage {
@@ -88,7 +88,7 @@
   margin-top: 0.08rem;
   font-size: 1.42rem;
   line-height: 1.06;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .page-intro-copy p {

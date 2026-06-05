@@ -10,7 +10,7 @@ import {
   resizeTerminal,
   sendInput,
 } from '../lib/backend'
-import { toUserMessage } from '../lib/appHostUtils'
+import { isDemoHost, toUserMessage, withDemoHosts } from '../lib/appHostUtils'
 import { main } from '../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '../types'
 
@@ -87,7 +87,8 @@ export function useSessionActionHandlers({
 
   function refreshHostsAfterConnect() {
     return listHosts()
-      .then((nextHosts) => {
+      .then((persistedHosts) => {
+        const nextHosts = withDemoHosts(persistedHosts)
         startTransition(() => setHosts(nextHosts))
         return syncHostsSessions(nextHosts)
       })
@@ -96,6 +97,11 @@ export function useSessionActionHandlers({
 
   function handleConnect(hostID: string) {
     const host = hosts.find((item) => item.id === hostID) || null
+    if (isDemoHost(host)) {
+      setError('演示主机仅用于界面预览，不会发起真实连接。')
+      return
+    }
+
     const sourceNewTabId = activeWorkspace === 'new-tab' ? activeNewTabId : null
     setConnectingHostIds((current) => current.concat(hostID))
     setError(null)

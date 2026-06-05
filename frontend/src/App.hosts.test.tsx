@@ -4,10 +4,11 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
   continueWithMasterPassword,
+  hosts,
   registerAppHarness,
   renderApp,
 } from './test/appTestHarness'
-import { addHost, updateHost } from './lib/backend'
+import { addHost, listHosts, updateHost } from './lib/backend'
 
 registerAppHarness()
 
@@ -53,6 +54,34 @@ describe('App host management', () => {
     expect(screen.getByRole('button', { name: 'Linux' })).toHaveClass('active')
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
+  })
+
+  it('主机页在多节点场景下使用全宽卡片网格', async () => {
+    const user = userEvent.setup()
+    const manyHosts = Array.from({ length: 12 }, (_, index) => {
+      const base = hosts[index % hosts.length]
+      const number = index + 1
+      return {
+        ...base,
+        id: `host-${number}`,
+        name: `节点 ${String(number).padStart(2, '0')}`,
+        address: `10.0.1.${number}`,
+        port: 22,
+        username: 'root',
+        favorite: index % 3 === 0,
+        group: index % 2 === 0 ? '生产环境' : '测试环境',
+        tags: index % 2 === 0 ? 'Linux, API' : 'GPU, Worker',
+      }
+    })
+    listHosts.mockResolvedValue(manyHosts)
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+
+    expect(document.querySelector('.host-inspector')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.host-card')).toHaveLength(12)
+    expect(screen.getByRole('button', { name: /节点 12.*root@10\.0\.1\.12:22/ })).toBeInTheDocument()
   })
 
   it('已知主机页展示真实可信记录', async () => {
