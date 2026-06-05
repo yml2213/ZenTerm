@@ -18,12 +18,33 @@ import {
   persistWindowState,
   resizeTerminal,
   sendInput,
+  windowSetDarkTheme,
+  windowSetLightTheme,
+  windowSetSystemDefaultTheme,
   windowToggleMaximise,
 } from './lib/backend'
 
 registerAppHarness()
 
 describe('App workspace flows', () => {
+  it('主题按钮会在手动主题和跟随系统之间同步窗口主题', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await waitFor(() => expect(windowSetSystemDefaultTheme).toHaveBeenCalled())
+
+    const themeButton = screen.getByRole('button', { name: '切换主题' })
+    await user.click(themeButton)
+    await waitFor(() => expect(windowSetLightTheme).toHaveBeenCalled())
+
+    await user.click(themeButton)
+    await waitFor(() => expect(windowSetDarkTheme).toHaveBeenCalled())
+
+    await user.click(themeButton)
+    await waitFor(() => expect(windowSetSystemDefaultTheme).toHaveBeenCalledTimes(2))
+  })
+
   it('默认打开 Vaults，并支持切换到 SFTP 工作区', async () => {
     const user = userEvent.setup()
     renderApp()

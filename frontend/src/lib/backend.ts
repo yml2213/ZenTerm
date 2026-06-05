@@ -250,6 +250,18 @@ export async function windowSetBackgroundColour(red: number, green: number, blue
   return callRuntime('WindowSetBackgroundColour', undefined, red, green, blue, alpha)
 }
 
+export async function windowSetSystemDefaultTheme(): Promise<void> {
+  return callRuntime('WindowSetSystemDefaultTheme', undefined)
+}
+
+export async function windowSetLightTheme(): Promise<void> {
+  return callRuntime('WindowSetLightTheme', undefined)
+}
+
+export async function windowSetDarkTheme(): Promise<void> {
+  return callRuntime('WindowSetDarkTheme', undefined)
+}
+
 export async function windowMaximise(): Promise<void> {
   return callRuntime('WindowMaximise', undefined)
 }
