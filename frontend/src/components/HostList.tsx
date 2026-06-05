@@ -281,29 +281,32 @@ export default function HostList({
               >
                 <button
                   type="button"
-                  className="ghost-button compact"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onEdit(host)
-                  }}
-                >
-                  <PencilLine size={14} />
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  className="icon-button compact host-delete-btn"
+                  className="host-card-action-btn host-delete-btn"
                   aria-label={`删除 ${host.name || host.id}`}
+                  title="删除"
                   onClick={(event) => {
                     event.stopPropagation()
                     onDelete(host)
                   }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
                 <button
                   type="button"
-                  className="primary-button compact"
+                  className="host-card-action-btn"
+                  aria-label="编辑"
+                  title="编辑"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEdit(host)
+                  }}
+                >
+                  <PencilLine size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="primary-button compact host-connect-btn"
+                  title={connecting ? '连接中' : '连接'}
                   onClick={(event) => {
                     event.stopPropagation()
                     onConnect(host.id)
