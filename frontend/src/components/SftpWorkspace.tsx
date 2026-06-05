@@ -1,5 +1,8 @@
 import {
+  ArrowLeft,
+  ChevronRight,
   MonitorSmartphone,
+  Plus,
   Server,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
@@ -305,27 +308,31 @@ export default function SftpWorkspace({
             sourceLabel="Remote"
             sourceIcon={Server}
             title="先选择一个主机"
-            description="选择要浏览的远端文件系统后，左右面板就会进入可传输的双栏工作区。"
+            description="从已保存主机建立连接后，右侧会显示远端目录并支持上传下载。"
             actions={(
               <div className="sftp-empty-actions">
                 {hosts.length > 0 ? (
                   <button type="button" className="primary-button" onClick={() => onChooseHost()}>
-                    选择主机
+                    <Server size={15} />
+                    <span>选择主机</span>
                   </button>
                 ) : (
                   <button type="button" className="primary-button" onClick={onCreateHost}>
-                    新建主机
+                    <Plus size={15} />
+                    <span>新建主机</span>
                   </button>
                 )}
                 <button type="button" className="ghost-button" onClick={onBackToVaults}>
-                  返回 Vaults
+                  <ArrowLeft size={15} />
+                  <span>返回 Vaults</span>
                 </button>
               </div>
             )}
             extra={hosts.length > 0 ? (
               <div className="sftp-host-picker-panel">
-                <div className="sftp-host-picker-meta">
-                  已保存 {hosts.length} 台主机，可滚动查看更多。
+                <div className="sftp-host-picker-head">
+                  <span>可用主机</span>
+                  <small>{hosts.length} 台</small>
                 </div>
                 <div className="sftp-host-picker-scroll" aria-label="SFTP 主机列表">
                   <div className="sftp-host-picker">
@@ -336,8 +343,14 @@ export default function SftpWorkspace({
                         className="sftp-host-chip"
                         onClick={() => onChooseHost(host.id)}
                       >
-                        <span>{host.name || host.id}</span>
-                        <small>{host.username}@{host.address}</small>
+                        <span className="sftp-host-chip-main">
+                          <Server size={14} />
+                          <span className="sftp-host-chip-copy">
+                            <strong>{host.name || host.id}</strong>
+                            <small>{host.username}@{host.address}:{host.port || 22}</small>
+                          </span>
+                        </span>
+                        <ChevronRight size={14} className="sftp-host-chip-arrow" />
                       </button>
                     ))}
                   </div>

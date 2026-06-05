@@ -91,8 +91,9 @@ describe('App SFTP flows', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getByRole('button', { name: /SFTP/i }))
 
-    expect(await screen.findByText('已保存 8 台主机，可滚动查看更多。')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Host 8 ops@10.0.1.8' })).toBeInTheDocument()
+    expect(await screen.findByText('可用主机')).toBeInTheDocument()
+    expect(screen.getByText('8 台')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Host 8 ops@10.0.1.8:22' })).toBeInTheDocument()
 
     const hostPickerScroll = view.container.querySelector('.sftp-host-picker-scroll')
     expect(hostPickerScroll).not.toBeNull()
@@ -112,7 +113,7 @@ describe('App SFTP flows', () => {
     expect(await screen.findByText('先选择一个主机')).toBeInTheDocument()
     expect(screen.queryByLabelText('切换 SFTP 主机')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Beta deploy@10.0.0.2' }))
+    await user.click(screen.getByRole('button', { name: 'Beta deploy@10.0.0.2:2222' }))
 
     await waitFor(() => {
       expect(listRemoteFiles).toHaveBeenLastCalledWith('host-2', '')
@@ -122,7 +123,7 @@ describe('App SFTP flows', () => {
     expect(screen.queryByText('deploy@10.0.0.2:2222')).not.toBeInTheDocument()
   })
 
-  it('SFTP 工作区将路径和主操作合并进 72px 顶栏', async () => {
+  it('SFTP 工作区将路径和主操作合并进紧凑顶栏', async () => {
     const user = userEvent.setup()
     const view = renderApp()
 

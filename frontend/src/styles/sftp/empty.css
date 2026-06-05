@@ -20,48 +20,63 @@
 .sftp-empty-state {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, auto);
-  place-content: center;
-  justify-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  text-align: center;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  justify-items: stretch;
+  gap: 0.8rem 0.85rem;
+  padding: 1rem;
+  text-align: left;
   background: var(--sftp-pane-bg);
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .sftp-empty-state.has-host {
-  gap: 1.1rem;
+  gap: 0.8rem 0.85rem;
 }
 
 .sftp-empty-icon {
-  width: 74px;
-  height: 74px;
-  border-radius: 20px;
+  grid-column: 1;
+  grid-row: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-secondary);
-  background: var(--surface-info-bg);
+  color: var(--text-secondary);
+  background: var(--surface-neutral-bg);
+  border: 1px solid var(--border-subtle);
 }
 
 .sftp-empty-copy {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
-  gap: 0.42rem;
+  gap: 0.18rem;
+  min-width: 0;
+  padding-top: 0.02rem;
 }
 
 .sftp-empty-copy strong {
-  font-size: 1.55rem;
+  color: var(--text-primary);
+  font-size: 0.96rem;
+  font-weight: 720;
+  line-height: 1.25;
 }
 
 .sftp-empty-copy p,
 .sftp-empty-copy small {
   color: var(--text-secondary);
+  max-width: 34rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .sftp-empty-copy small {
-  max-width: 34rem;
-  font-size: 0.86rem;
+  font-size: 0.74rem;
 }
 
 .sftp-empty-actions,
@@ -69,61 +84,143 @@
 .sftp-host-picker {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  justify-content: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 
-.sftp-host-picker-panel {
-  width: min(100%, 38rem);
-  display: grid;
-  gap: 0.75rem;
-  justify-items: stretch;
+.sftp-empty-actions {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
-.sftp-host-picker-meta {
-  color: var(--text-secondary);
+.sftp-empty-actions .primary-button,
+.sftp-empty-actions .ghost-button {
+  min-height: 32px;
+  padding: 0.48rem 0.68rem;
+  border-radius: 7px;
   font-size: 0.78rem;
-  line-height: 1.4;
+  line-height: 1;
+}
+
+.sftp-empty-actions .ghost-button {
+  background: transparent;
+}
+
+.sftp-empty-actions .ghost-button:hover:not(:disabled) {
+  background: var(--sftp-control-bg);
+}
+
+.sftp-host-picker-panel {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  justify-items: stretch;
+  padding-top: 0.2rem;
+}
+
+.sftp-host-picker-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.46rem 0.56rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--sftp-control-bg);
+}
+
+.sftp-host-picker-head span {
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 720;
+}
+
+.sftp-host-picker-head small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
 }
 
 .sftp-host-picker-scroll {
-  max-height: min(18rem, 42vh);
+  min-height: 0;
+  max-height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  padding-right: 0.2rem;
+  padding-right: 0.14rem;
   scrollbar-gutter: stable;
 }
 
 .sftp-host-picker {
-  max-width: none;
-  align-items: stretch;
-  align-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.42rem;
 }
 
 .sftp-host-chip {
-  width: min(100%, 18rem);
-  min-width: 180px;
+  min-width: 0;
+  min-height: 44px;
   display: grid;
-  gap: 0.1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.46rem 0.58rem;
+  border-radius: 7px;
   border: 1px solid var(--border-default);
-  background: var(--panel-bg-strong);
+  background: transparent;
   text-align: left;
 }
 
-.sftp-host-chip span {
-  color: var(--text-primary);
-  font-weight: 700;
+.sftp-host-chip-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
 }
 
-.sftp-host-chip small {
+.sftp-host-chip-main > svg {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.sftp-host-chip-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.04rem;
+}
+
+.sftp-host-chip-copy strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 680;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-host-chip-copy small {
   color: var(--text-secondary);
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sftp-host-chip:hover {
   border-color: var(--border-hover);
-  background: var(--panel-muted);
+  background: var(--sftp-control-bg);
 }
 
+.sftp-host-chip-arrow {
+  color: var(--text-tertiary);
+  opacity: 0.78;
+}
+
+.sftp-host-chip:hover .sftp-host-chip-arrow {
+  color: var(--text-primary);
+  opacity: 1;
+}
