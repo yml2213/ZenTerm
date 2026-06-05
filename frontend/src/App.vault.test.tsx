@@ -10,12 +10,16 @@ import {
 } from './test/appTestHarness'
 import {
   changeMasterPassword,
+  checkForUpdates,
+  downloadUpdate,
+  getUpdateConfig,
   getCredentials,
   getVaultStatus,
   importLocalSSHConfigHosts,
   listHosts,
   listLocalSSHConfigHosts,
   resetVault,
+  saveUpdateConfig,
   tryAutoUnlock,
 } from './lib/backend'
 
@@ -110,6 +114,42 @@ describe('App vault flows', () => {
 
     await waitFor(() => expect(resetVault).toHaveBeenCalledTimes(1))
     expect(await screen.findByText('设置主密码以启用本地保险箱')).toBeInTheDocument()
+  })
+
+  it('设置页支持更新设置和手动检查', async () => {
+    const user = userEvent.setup()
+    checkForUpdates.mockResolvedValue({
+      available: true,
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+      releaseNotes: '修复连接稳定性',
+      downloadUrl: 'https://example.com/ZenTerm-0.2.0-macos-universal.zip',
+      downloadSize: 1048576,
+    })
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    await user.click(screen.getByRole('button', { name: /更新.*版本检查与下载/ }))
+
+    await waitFor(() => expect(getUpdateConfig).toHaveBeenCalledTimes(1))
+    await user.click(await screen.findByLabelText(/发现新版本后自动下载/))
+    await user.click(screen.getByRole('button', { name: /保存更新设置/ }))
+
+    await waitFor(() => {
+      expect(saveUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ auto_download: true }))
+    })
+
+    await user.click(screen.getByRole('button', { name: /检查更新/ }))
+
+    expect(await screen.findByText('发现新版本 0.2.0。')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /下载更新/ }))
+
+    await waitFor(() => {
+      expect(downloadUpdate).toHaveBeenCalledWith('https://example.com/ZenTerm-0.2.0-macos-universal.zip')
+    })
   })
 
   it('钥匙串页点击生成后才展示右侧抽屉', async () => {
