@@ -93,6 +93,8 @@ git push origin v0.1.0
 ### 云端构建产物
 
 - `ZenTerm-0.1.0-macos-universal.zip`：macOS Universal，兼容 Intel 与 Apple Silicon。
+- `ZenTerm-0.1.0-macos-amd64.zip`：macOS Intel。
+- `ZenTerm-0.1.0-macos-arm64.zip`：macOS Apple Silicon。
 - `ZenTerm-0.1.0-windows-amd64.zip`：Windows x64。
 - `ZenTerm-0.1.0-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
 - 每个包旁边都会生成 `.sha256` 校验文件。
