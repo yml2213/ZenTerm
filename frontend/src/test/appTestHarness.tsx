@@ -50,6 +50,9 @@ import {
   updateHost,
   uploadFile,
   windowSetBackgroundColour,
+  windowSetDarkTheme,
+  windowSetLightTheme,
+  windowSetSystemDefaultTheme,
   windowToggleMaximise,
 } from '../lib/backend'
 
@@ -101,6 +104,9 @@ vi.mock('../lib/backend', () => ({
   testWebDAVSync: vi.fn(),
   uploadFile: vi.fn(),
   windowSetBackgroundColour: vi.fn(),
+  windowSetDarkTheme: vi.fn(),
+  windowSetLightTheme: vi.fn(),
+  windowSetSystemDefaultTheme: vi.fn(),
   windowToggleMaximise: vi.fn(),
 }))
 
@@ -304,6 +310,9 @@ export function registerAppHarness() {
       bytesCopied: 42,
     })
     windowSetBackgroundColour.mockResolvedValue(undefined)
+    windowSetDarkTheme.mockResolvedValue(undefined)
+    windowSetLightTheme.mockResolvedValue(undefined)
+    windowSetSystemDefaultTheme.mockResolvedValue(undefined)
     windowToggleMaximise.mockResolvedValue(undefined)
     listLocalSSHConfigHosts.mockResolvedValue([])
     listLocalFiles.mockResolvedValue({
@@ -449,5 +458,8 @@ export {
   updateHost,
   uploadFile,
   windowSetBackgroundColour,
+  windowSetDarkTheme,
+  windowSetLightTheme,
+  windowSetSystemDefaultTheme,
   windowToggleMaximise,
 }

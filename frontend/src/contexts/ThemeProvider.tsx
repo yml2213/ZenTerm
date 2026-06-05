@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { windowSetBackgroundColour } from '../lib/backend'
+import { windowSetBackgroundColour, windowSetDarkTheme, windowSetLightTheme, windowSetSystemDefaultTheme } from '../lib/backend'
 
 type ThemeName = 'auto' | 'light' | 'dark'
 type ResolvedThemeName = 'light' | 'dark'
@@ -40,6 +40,14 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
+
+    if (theme === 'auto') {
+      windowSetSystemDefaultTheme().catch(() => {})
+    } else if (theme === 'light') {
+      windowSetLightTheme().catch(() => {})
+    } else {
+      windowSetDarkTheme().catch(() => {})
+    }
 
     function resolveTheme() {
       let resolved: ResolvedThemeName
