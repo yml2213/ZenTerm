@@ -8,6 +8,7 @@ import {
   acceptHostKey,
   addHost,
   changeMasterPassword,
+  checkForUpdates,
   configureWebDAVSync,
   connect,
   createLocalDirectory,
@@ -18,11 +19,14 @@ import {
   deleteRemoteEntry,
   disconnect,
   downloadFile,
+  downloadUpdate,
   generateCredential,
+  getAppVersion,
   getCredentials,
   getCredentialUsage,
   getSessionTranscript,
   getKeychainStatus,
+  getUpdateConfig,
   getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
@@ -35,6 +39,7 @@ import {
   listSessionLogs,
   listSessions,
   onRuntimeEvent,
+  openUpdateFile,
   persistWindowState,
   pullWebDAVSync,
   pushWebDAVSync,
@@ -42,7 +47,9 @@ import {
   renameRemoteEntry,
   resetVault,
   resizeTerminal,
+  saveUpdateConfig,
   sendInput,
+  skipVersion,
   testWebDAVSync,
   toggleSessionLogFavorite,
   tryAutoUnlock,
@@ -68,21 +75,25 @@ vi.mock('../lib/backend', () => ({
   unlockWithPreferences: vi.fn(),
   tryAutoUnlock: vi.fn(),
   changeMasterPassword: vi.fn(),
+  checkForUpdates: vi.fn(),
   configureWebDAVSync: vi.fn(),
   resetVault: vi.fn(),
   connect: vi.fn(),
   createLocalDirectory: vi.fn(),
   createRemoteDirectory: vi.fn(),
   downloadFile: vi.fn(),
+  downloadUpdate: vi.fn(),
   disconnect: vi.fn(),
   deleteLocalEntry: vi.fn(),
   deleteRemoteEntry: vi.fn(),
   generateCredential: vi.fn(),
   importCredential: vi.fn(),
   importLocalSSHConfigHosts: vi.fn(),
+  getAppVersion: vi.fn(),
   getCredentials: vi.fn(),
   getCredentialUsage: vi.fn(),
   getSessionTranscript: vi.fn(),
+  getUpdateConfig: vi.fn(),
   getWebDAVSyncStatus: vi.fn(),
   deleteCredential: vi.fn(),
   listLocalSSHConfigHosts: vi.fn(),
@@ -98,9 +109,12 @@ vi.mock('../lib/backend', () => ({
   toggleSessionLogFavorite: vi.fn(),
   resizeTerminal: vi.fn(),
   onRuntimeEvent: vi.fn(),
+  openUpdateFile: vi.fn(),
   persistWindowState: vi.fn(),
   pullWebDAVSync: vi.fn(),
   pushWebDAVSync: vi.fn(),
+  saveUpdateConfig: vi.fn(),
+  skipVersion: vi.fn(),
   testWebDAVSync: vi.fn(),
   uploadFile: vi.fn(),
   windowSetBackgroundColour: vi.fn(),
@@ -156,6 +170,7 @@ vi.mock('../components/LogWorkspace', () => ({
 }))
 
 export const runtimeHandlers = new Map()
+const runtimeHandlerLists = new Map()
 
 export const hosts = [
   {
@@ -223,6 +238,7 @@ export function registerAppHarness() {
   beforeEach(() => {
     vi.clearAllMocks()
     runtimeHandlers.clear()
+    runtimeHandlerLists.clear()
     localStorage.clear()
 
     listHosts.mockResolvedValue(hosts)
@@ -241,6 +257,10 @@ export function registerAppHarness() {
     unlockWithPreferences.mockResolvedValue(undefined)
     tryAutoUnlock.mockResolvedValue(false)
     changeMasterPassword.mockResolvedValue(undefined)
+    checkForUpdates.mockResolvedValue({
+      available: false,
+      currentVersion: '0.1.0',
+    })
     configureWebDAVSync.mockResolvedValue({
       configured: true,
       provider: 'webdav',
@@ -264,6 +284,7 @@ export function registerAppHarness() {
     generateCredential.mockResolvedValue('cred-1')
     importCredential.mockResolvedValue('cred-2')
     importLocalSSHConfigHosts.mockResolvedValue([])
+    getAppVersion.mockResolvedValue('0.1.0')
     getCredentials.mockResolvedValue([])
     getCredentialUsage.mockResolvedValue({
       credential_id: 'cred-1',
@@ -277,6 +298,14 @@ export function registerAppHarness() {
       size_bytes: 38,
       updated_at: '2026-04-14T09:30:00Z',
     })
+    getUpdateConfig.mockResolvedValue({
+      enabled: true,
+      check_interval: 24,
+      last_check_time: 0,
+      skipped_version: '',
+      auto_download: false,
+      channel: 'stable',
+    })
     getWebDAVSyncStatus.mockResolvedValue({
       configured: false,
       provider: 'webdav',
@@ -284,6 +313,8 @@ export function registerAppHarness() {
       remote_path: '/ZenTerm/zenterm-sync-v1.json',
     })
     deleteCredential.mockResolvedValue(undefined)
+    downloadUpdate.mockResolvedValue(undefined)
+    openUpdateFile.mockResolvedValue(undefined)
     persistWindowState.mockResolvedValue(undefined)
     pullWebDAVSync.mockResolvedValue({
       direction: 'pull',
@@ -304,6 +335,8 @@ export function registerAppHarness() {
     renameRemoteEntry.mockResolvedValue(undefined)
     sendInput.mockResolvedValue(undefined)
     resizeTerminal.mockResolvedValue(undefined)
+    saveUpdateConfig.mockResolvedValue(undefined)
+    skipVersion.mockResolvedValue(undefined)
     uploadFile.mockResolvedValue({
       sourcePath: '/Users/yml/notes.txt',
       targetPath: '/home/root/notes.txt',
@@ -404,9 +437,24 @@ export function registerAppHarness() {
     toggleSessionLogFavorite.mockResolvedValue(undefined)
     acceptHostKey.mockResolvedValue(undefined)
     onRuntimeEvent.mockImplementation((eventName, handler) => {
-      runtimeHandlers.set(eventName, handler)
+      const handlers = runtimeHandlerLists.get(eventName) || new Set()
+      handlers.add(handler)
+      runtimeHandlerLists.set(eventName, handlers)
+      runtimeHandlers.set(eventName, (...args) => {
+        const currentHandlers = runtimeHandlerLists.get(eventName) || new Set()
+        currentHandlers.forEach((currentHandler) => currentHandler(...args))
+      })
       return () => {
-        runtimeHandlers.delete(eventName)
+        handlers.delete(handler)
+        if (handlers.size === 0) {
+          runtimeHandlerLists.delete(eventName)
+          runtimeHandlers.delete(eventName)
+          return
+        }
+        runtimeHandlers.set(eventName, (...args) => {
+          const currentHandlers = runtimeHandlerLists.get(eventName) || new Set()
+          currentHandlers.forEach((currentHandler) => currentHandler(...args))
+        })
       }
     })
   })
@@ -416,6 +464,7 @@ export {
   acceptHostKey,
   addHost,
   changeMasterPassword,
+  checkForUpdates,
   configureWebDAVSync,
   connect,
   createLocalDirectory,
@@ -426,11 +475,14 @@ export {
   deleteRemoteEntry,
   disconnect,
   downloadFile,
+  downloadUpdate,
   generateCredential,
+  getAppVersion,
   getCredentials,
   getCredentialUsage,
   getSessionTranscript,
   getKeychainStatus,
+  getUpdateConfig,
   getWebDAVSyncStatus,
   getVaultStatus,
   importCredential,
@@ -443,6 +495,7 @@ export {
   listSessionLogs,
   listSessions,
   onRuntimeEvent,
+  openUpdateFile,
   persistWindowState,
   pullWebDAVSync,
   pushWebDAVSync,
@@ -450,7 +503,9 @@ export {
   renameRemoteEntry,
   resetVault,
   resizeTerminal,
+  saveUpdateConfig,
   sendInput,
+  skipVersion,
   testWebDAVSync,
   toggleSessionLogFavorite,
   tryAutoUnlock,

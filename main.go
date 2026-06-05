@@ -55,6 +55,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
+		Menu:          buildApplicationMenu(app),
 		OnStartup:     app.startup,
 		OnBeforeClose: app.beforeClose,
 		OnShutdown:    app.shutdown,

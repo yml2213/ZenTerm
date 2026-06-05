@@ -8,6 +8,7 @@ import SftpWorkspacePage from './components/SftpWorkspacePage'
 import SshWorkspace from './components/SshWorkspace'
 import VaultWorkspace from './components/VaultWorkspace'
 import WorkspaceStrip from './components/WorkspaceStrip'
+import { UpdateNotification } from './components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
 import { navigationItems } from './lib/appShellConfig'
@@ -409,6 +410,8 @@ export default function App() {
         onAcceptHostKey={handleAcceptHostKey}
         onRejectHostKey={handleRejectHostKey}
       />
+
+      <UpdateNotification />
     </div>
   )
 }

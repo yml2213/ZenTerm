@@ -11,6 +11,8 @@ import (
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// 启动后检查更新
+	a.startupCheckUpdate(ctx)
 }
 
 func (a *App) beforeClose(context.Context) bool {

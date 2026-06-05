@@ -1,4 +1,5 @@
 import { main, model } from '../wailsjs/wailsjs/go/models'
+import type { UpdateConfig, UpdateInfo } from '../types/update'
 
 type BackendMethod = (...args: unknown[]) => unknown
 type AppBinding = Record<string, BackendMethod | undefined>
@@ -222,6 +223,34 @@ export async function toggleSessionLogFavorite(logID: string, favorite: boolean)
 
 export async function deleteSessionLog(logID: string): Promise<void> {
   return callApp('DeleteSessionLog', logID)
+}
+
+export async function getAppVersion(): Promise<string> {
+  return callApp('GetAppVersion')
+}
+
+export async function checkForUpdates(): Promise<UpdateInfo> {
+  return callApp('CheckForUpdates')
+}
+
+export async function getUpdateConfig(): Promise<UpdateConfig> {
+  return callApp('GetUpdateConfig')
+}
+
+export async function saveUpdateConfig(config: UpdateConfig): Promise<void> {
+  return callApp('SaveUpdateConfig', config)
+}
+
+export async function downloadUpdate(downloadURL: string): Promise<void> {
+  return callApp('DownloadUpdate', downloadURL)
+}
+
+export async function skipVersion(version: string): Promise<void> {
+  return callApp('SkipVersion', version)
+}
+
+export async function openUpdateFile(filePath: string): Promise<void> {
+  return callApp('OpenUpdateFile', filePath)
 }
 
 async function callRuntime<T>(method: string, fallbackValue: T, ...args: unknown[]): Promise<T> {
