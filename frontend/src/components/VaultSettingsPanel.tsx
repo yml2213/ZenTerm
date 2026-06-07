@@ -4,6 +4,7 @@ import {
   Database,
   Download,
   ExternalLink,
+  FolderOpen,
   KeyRound,
   Palette,
   RefreshCw,
@@ -21,6 +22,8 @@ import {
   downloadUpdate,
   getAppVersion,
   getUpdateConfig,
+  onRuntimeEvent,
+  openUpdateFile,
   pullWebDAVSync,
   pushWebDAVSync,
   saveUpdateConfig,
@@ -29,7 +32,7 @@ import {
 } from '../lib/backend'
 import { useTerminalPreferences } from '../contexts/TerminalPreferencesProvider'
 import type { ChangeMasterForm } from '../types'
-import type { UpdateConfig, UpdateInfo } from '../types/update'
+import type { UpdateConfig, UpdateInfo, UpdateProgress } from '../types/update'
 
 type SettingsSection = 'security' | 'sync' | 'updates' | 'terminal' | 'data' | 'appearance' | 'advanced'
 
@@ -149,6 +152,8 @@ function UpdateSettings() {
   const [config, setConfig] = useState<UpdateConfig>(defaultUpdateConfig)
   const [appVersion, setAppVersion] = useState('')
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState<UpdateProgress | null>(null)
+  const [downloadedFile, setDownloadedFile] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -172,6 +177,34 @@ function UpdateSettings() {
 
     return () => {
       disposed = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const disposers = [
+      onRuntimeEvent('update:progress', (payload) => {
+        setBusy('download')
+        setError(null)
+        setNotice(null)
+        setDownloadProgress(payload as UpdateProgress)
+      }),
+      onRuntimeEvent('update:complete', (payload) => {
+        const data = payload as { filePath: string }
+        setBusy(null)
+        setDownloadProgress(null)
+        setDownloadedFile(data.filePath)
+        setNotice(`更新包已下载到 ${getUpdateFileName(data.filePath)}。`)
+      }),
+      onRuntimeEvent('update:error', (payload) => {
+        const data = payload as { message: string }
+        setBusy(null)
+        setDownloadProgress(null)
+        setError(data.message)
+      }),
+    ]
+
+    return () => {
+      disposers.forEach((dispose) => dispose())
     }
   }, [])
 
@@ -219,11 +252,24 @@ function UpdateSettings() {
     setBusy('download')
     setError(null)
     setNotice(null)
+    setDownloadProgress(null)
+    setDownloadedFile(null)
 
     downloadUpdate(updateInfo.downloadUrl)
-      .then(() => setNotice('更新包已开始下载，下载进度会显示在右上角。'))
-      .catch((err) => setError(err.message || String(err)))
-      .finally(() => setBusy(null))
+      .then(() => setNotice('更新包正在下载。'))
+      .catch((err) => {
+        setBusy(null)
+        setError(err.message || String(err))
+      })
+  }
+
+  function handleShowDownloadedFile() {
+    if (!downloadedFile) {
+      return
+    }
+
+    setError(null)
+    openUpdateFile(downloadedFile).catch((err) => setError(err.message || String(err)))
   }
 
   function handleClearSkippedVersion() {
@@ -317,6 +363,30 @@ function UpdateSettings() {
             {busy === 'save' ? '保存中...' : '保存更新设置'}
           </button>
         </div>
+
+        {downloadProgress ? (
+          <div className="settings-note-row">
+            <RefreshCw size={16} className="spin" />
+            <span>
+              正在下载 {downloadProgress.percent.toFixed(1)}%，{downloadProgress.speed}
+            </span>
+          </div>
+        ) : null}
+
+        {downloadedFile ? (
+          <div className="settings-note-row settings-download-result">
+            <Download size={16} />
+            <span>
+              <strong>下载完成</strong>
+              <small>{getUpdateFileName(downloadedFile)}</small>
+              <code>{downloadedFile}</code>
+            </span>
+            <button type="button" className="ghost-button compact" onClick={handleShowDownloadedFile}>
+              <FolderOpen size={14} />
+              显示文件
+            </button>
+          </div>
+        ) : null}
 
         {config.skipped_version ? (
           <div className="settings-note-row">
@@ -782,6 +852,10 @@ function formatUpdateTime(timestamp: number) {
 
 function formatUpdateSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+function getUpdateFileName(filePath: string) {
+  return filePath.split(/[\\/]/).pop() || filePath
 }
 
 function ReservedSettings({ section }: { section: SettingsSection }) {

@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
+	"strings"
 	"time"
 
 	"zenterm/internal/model"
 	"zenterm/internal/updater"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const appVersion = "0.1.0"
+var appVersion = "0.1.2"
 
 // UpdateInfo 前端使用的更新信息
 type UpdateInfo struct {
@@ -141,7 +144,7 @@ func (a *App) DownloadUpdate(downloadURL string) error {
 	// 创建下载器
 	downloader := updater.NewDownloader(downloadDir, func(progress updater.DownloadProgress) {
 		// 向前端发送进度事件
-		runtime.EventsEmit(a.ctx, "update:progress", UpdateProgress{
+		wailsRuntime.EventsEmit(a.ctx, "update:progress", UpdateProgress{
 			Downloaded: progress.Downloaded,
 			Total:      progress.Total,
 			Percent:    progress.Percent,
@@ -153,13 +156,13 @@ func (a *App) DownloadUpdate(downloadURL string) error {
 	go func() {
 		filePath, err := downloader.Download(downloadURL, checksum)
 		if err != nil {
-			runtime.EventsEmit(a.ctx, "update:error", map[string]string{
+			wailsRuntime.EventsEmit(a.ctx, "update:error", map[string]string{
 				"message": fmt.Sprintf("下载失败: %v", err),
 			})
 			return
 		}
 
-		runtime.EventsEmit(a.ctx, "update:complete", map[string]string{
+		wailsRuntime.EventsEmit(a.ctx, "update:complete", map[string]string{
 			"filePath": filePath,
 		})
 	}()
@@ -200,17 +203,64 @@ func (a *App) SkipVersion(version string) error {
 	return nil
 }
 
-// OpenUpdateFile 打开下载的更新文件所在目录
+// OpenUpdateFile 在系统文件管理器中显示下载的更新文件
 func (a *App) OpenUpdateFile(filePath string) error {
-	dir := filepath.Dir(filePath)
+	if strings.TrimSpace(filePath) == "" {
+		return fmt.Errorf("更新文件路径为空")
+	}
 
-	runtime.EventsEmit(a.ctx, "update:opening", map[string]string{
-		"path": dir,
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("解析更新文件路径失败: %w", err)
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return fmt.Errorf("更新文件不存在: %w", err)
+	}
+
+	wailsRuntime.EventsEmit(a.ctx, "update:opening", map[string]string{
+		"path": absPath,
 	})
 
-	// 使用系统命令打开
-	runtime.BrowserOpenURL(a.ctx, "file://"+dir)
+	if info.IsDir() {
+		return openPathInFileManager(absPath)
+	}
 
+	return revealPathInFileManager(absPath)
+}
+
+func revealPathInFileManager(path string) error {
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-R", path)
+	case "windows":
+		cmd = exec.Command("explorer", "/select,"+path)
+	default:
+		cmd = exec.Command("xdg-open", filepath.Dir(path))
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("显示更新文件失败: %w", err)
+	}
+	return nil
+}
+
+func openPathInFileManager(path string) error {
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("打开更新目录失败: %w", err)
+	}
 	return nil
 }
 
@@ -269,7 +319,7 @@ func (a *App) startupCheckUpdate(ctx context.Context) {
 
 		if info.Available {
 			// 通知前端有新版本可用
-			runtime.EventsEmit(ctx, "update:available", info)
+			wailsRuntime.EventsEmit(ctx, "update:available", info)
 			if config.AutoDownload && info.DownloadURL != "" {
 				_ = a.DownloadUpdate(info.DownloadURL)
 			}

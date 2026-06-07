@@ -276,6 +276,34 @@
   flex: 0 0 auto;
 }
 
+.settings-download-result {
+  align-items: flex-start;
+}
+
+.settings-download-result > span {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.settings-download-result strong {
+  color: var(--text-primary);
+}
+
+.settings-download-result small {
+  color: var(--text-secondary);
+}
+
+.settings-download-result code {
+  color: var(--text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-all;
+}
+
 .sync-status-strip {
   justify-content: flex-start;
 }
