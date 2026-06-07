@@ -152,6 +152,23 @@ describe('App vault flows', () => {
     })
   })
 
+  it('设置页支持开启终端快速编辑模式', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '设置' }))
+    await user.click(screen.getByRole('button', { name: /终端.*右键复制与粘贴/ }))
+
+    const quickEditToggle = await screen.findByLabelText(/快速编辑模式/)
+    expect(quickEditToggle).not.toBeChecked()
+
+    await user.click(quickEditToggle)
+
+    expect(quickEditToggle).toBeChecked()
+    expect(window.localStorage.getItem('zenterm-terminal-quick-edit')).toBe('true')
+  })
+
   it('钥匙串页点击生成后才展示右侧抽屉', async () => {
     const user = userEvent.setup()
     renderApp()

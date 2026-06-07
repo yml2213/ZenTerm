@@ -1,8 +1,9 @@
-import { useEffect, useEffectEvent, useRef } from 'react'
+import { useEffect, useEffectEvent, useRef, type MouseEvent } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { onRuntimeEvent } from '../lib/backend'
+import { onRuntimeEvent, readClipboardText, writeClipboardText } from '../lib/backend'
 import { measureTerminalGeometry } from '../lib/terminalGeometry'
+import { useTerminalPreferences } from '../contexts/TerminalPreferencesProvider'
 
 const MAX_SESSION_BUFFER_CHARS = 1_000_000
 const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
@@ -43,6 +44,7 @@ export default function TerminalPane({
   onSessionClosed,
   onError,
 }: TerminalPaneProps) {
+  const { quickEditEnabled } = useTerminalPreferences()
   const terminalContainerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<XTerm | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -50,6 +52,9 @@ export default function TerminalPane({
   const fitFrameRef = useRef<number | null>(null)
   const buffersRef = useRef(new Map<string, string>())
   const unsubscribeMapRef = useRef(new Map<string, () => void>())
+  const quickEditEnabledRef = useRef(quickEditEnabled)
+  const defaultRightClickSelectsWordRef = useRef(false)
+  const hasDefaultRightClickSelectsWordRef = useRef(false)
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
@@ -153,6 +158,58 @@ export default function TerminalPane({
     }
   })
 
+  async function handleQuickEditContextMenu(event: MouseEvent<HTMLDivElement>) {
+    if (!quickEditEnabled) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const terminal = terminalRef.current
+    if (!terminal) {
+      return
+    }
+
+    const selection = terminal.hasSelection() ? terminal.getSelection() : ''
+    if (selection) {
+      try {
+        await writeClipboardText(selection)
+        terminal.clearSelection()
+        terminal.focus()
+      } catch (error) {
+        onError(error)
+      }
+      return
+    }
+
+    if (!activeSessionIdRef.current) {
+      terminal.focus()
+      return
+    }
+
+    try {
+      const clipboardText = await readClipboardText()
+      if (clipboardText) {
+        terminal.paste(clipboardText)
+      }
+      terminal.focus()
+    } catch (error) {
+      onError(error)
+    }
+  }
+
+  useEffect(() => {
+    quickEditEnabledRef.current = quickEditEnabled
+
+    const terminal = terminalRef.current
+    if (!terminal || !hasDefaultRightClickSelectsWordRef.current) {
+      return
+    }
+
+    terminal.options.rightClickSelectsWord = quickEditEnabled ? false : defaultRightClickSelectsWordRef.current
+  }, [quickEditEnabled])
+
   useEffect(() => {
     const terminalContainer = terminalContainerRef.current
     if (!terminalContainer) {
@@ -175,6 +232,11 @@ export default function TerminalPane({
 
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
+    defaultRightClickSelectsWordRef.current = Boolean(terminal.options.rightClickSelectsWord)
+    hasDefaultRightClickSelectsWordRef.current = true
+    terminal.options.rightClickSelectsWord = quickEditEnabledRef.current
+      ? false
+      : defaultRightClickSelectsWordRef.current
 
     terminal.open(terminalContainer)
     terminalRef.current = terminal
@@ -269,7 +331,11 @@ export default function TerminalPane({
 
   return (
     <section className="panel terminal-panel">
-      <div ref={terminalContainerRef} className="terminal-surface" />
+      <div
+        ref={terminalContainerRef}
+        className="terminal-surface"
+        onContextMenu={handleQuickEditContextMenu}
+      />
     </section>
   )
 }
