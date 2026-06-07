@@ -41,12 +41,26 @@ func (s *Service) UpdateHost(host model.Host, identity model.Identity) error {
 	if host.SystemTypeSource == "" {
 		host.SystemTypeSource = existingHost.SystemTypeSource
 	}
+	host.Pinned = existingHost.Pinned
+	if host.SortOrder == 0 {
+		host.SortOrder = existingHost.SortOrder
+	}
 
 	if err := s.store.AddHost(host, identity, s.vault); err != nil {
 		return err
 	}
 
 	return s.closeSFTPConnection(host.ID)
+}
+
+// UpdateHostPinned 更新主机置顶状态 / updates whether the host should stay at the top of the host list.
+func (s *Service) UpdateHostPinned(hostID string, pinned bool) error {
+	return s.store.UpdateHostPinned(hostID, pinned)
+}
+
+// ReorderHosts 保存主机手动排序 / persists the manual host order.
+func (s *Service) ReorderHosts(hostIDs []string) error {
+	return s.store.ReorderHosts(hostIDs)
 }
 
 // DeleteHost 删除主机；如果仍有活跃会话则拒绝删除 / deletes the host unless there are active sessions still attached to it.

@@ -199,6 +199,21 @@ export function matchesHostFilter(host: main.Host, filterKey: string): boolean {
 
 export function sortHosts(hosts: main.Host[]): main.Host[] {
   return hosts.slice().sort((left, right) => {
+    if (Boolean(left.pinned) !== Boolean(right.pinned)) {
+      return left.pinned ? -1 : 1
+    }
+
+    const leftOrder = left.sort_order || 0
+    const rightOrder = right.sort_order || 0
+    if (leftOrder > 0 || rightOrder > 0) {
+      if (leftOrder > 0 && rightOrder > 0 && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder
+      }
+      if (leftOrder > 0 !== rightOrder > 0) {
+        return leftOrder > 0 ? -1 : 1
+      }
+    }
+
     if (Boolean(left.favorite) !== Boolean(right.favorite)) {
       return left.favorite ? -1 : 1
     }

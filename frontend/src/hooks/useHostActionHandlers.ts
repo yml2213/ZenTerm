@@ -5,10 +5,11 @@ import {
   buildIdentityPayload,
   hasConfiguredAuth,
   isDemoHost,
+  sortHosts,
   toUserMessage,
   withDemoHosts,
 } from '../lib/appHostUtils'
-import { addHost, deleteHost, listHosts, updateHost } from '../lib/backend'
+import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '../lib/backend'
 import { main } from '../wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab } from '../types'
 
@@ -224,6 +225,91 @@ export function useHostActionHandlers({
       .catch((err) => setError(toUserMessage(err)))
   }
 
+  function handleTogglePinned(host: main.Host) {
+    const nextPinned = !host.pinned
+    const nextHosts = hosts.map((item) => {
+      if (item.id !== host.id) {
+        return item
+      }
+
+      return new main.Host({
+        ...item,
+        pinned: nextPinned,
+      })
+    })
+
+    setError(null)
+    setHosts(nextHosts)
+
+    if (isDemoHost(host)) {
+      return
+    }
+
+    updateHostPinned(host.id, nextPinned)
+      .then(() => setSelectedHostId(host.id))
+      .catch((err) => {
+        setHosts(hosts)
+        setError(toUserMessage(err))
+      })
+  }
+
+  function handleReorderHosts(orderedVisibleHostIds: string[]) {
+    const hostById = new Map(hosts.map((host) => [host.id, host]))
+    const seenVisibleIds = new Set<string>()
+    const visibleHostIds = orderedVisibleHostIds.filter((hostId) => {
+      if (!hostById.has(hostId) || seenVisibleIds.has(hostId)) {
+        return false
+      }
+
+      seenVisibleIds.add(hostId)
+      return true
+    })
+
+    if (visibleHostIds.length < 2) {
+      return
+    }
+
+    const visibleHostIdSet = new Set(visibleHostIds)
+    let visibleIndex = 0
+    const nextHostIds = sortHosts(hosts).map((host) => {
+      if (!visibleHostIdSet.has(host.id)) {
+        return host.id
+      }
+
+      const nextHostId = visibleHostIds[visibleIndex]
+      visibleIndex += 1
+      return nextHostId || host.id
+    })
+    const nextHosts = nextHostIds
+      .map((hostId, index) => {
+        const host = hostById.get(hostId)
+        if (!host) {
+          return null
+        }
+
+        return new main.Host({
+          ...host,
+          sort_order: index + 1,
+        })
+      })
+      .filter((host): host is main.Host => Boolean(host))
+
+    const persistedHostIds = nextHostIds.filter((hostId) => !isDemoHost(hostById.get(hostId)))
+
+    setError(null)
+    setHosts(nextHosts)
+
+    if (persistedHostIds.length === 0) {
+      return
+    }
+
+    reorderHosts(persistedHostIds)
+      .catch((err) => {
+        setHosts(hosts)
+        setError(toUserMessage(err))
+      })
+  }
+
   function handlePickSftpHost(hostId?: string | null) {
     if (hostId === null) {
       setSelectedSftpHostId(null)
@@ -247,6 +333,8 @@ export function useHostActionHandlers({
     handleDeleteHost,
     handleCopyHostAddress,
     handleToggleFavorite,
+    handleTogglePinned,
+    handleReorderHosts,
     handlePickSftpHost,
   }
 }

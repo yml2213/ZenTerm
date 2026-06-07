@@ -221,6 +221,14 @@ export async function updateHost(host: main.Host, identity: model.Identity): Pro
   return callApp('UpdateHost', host, identity)
 }
 
+export async function updateHostPinned(hostID: string, pinned: boolean): Promise<void> {
+  return callApp('UpdateHostPinned', hostID, pinned)
+}
+
+export async function reorderHosts(hostIDs: string[]): Promise<void> {
+  return callApp('ReorderHosts', hostIDs)
+}
+
 export async function deleteHost(hostID: string): Promise<void> {
   return callApp('DeleteHost', hostID)
 }

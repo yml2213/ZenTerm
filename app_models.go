@@ -16,6 +16,8 @@ type Host struct {
 	Group            string `json:"group,omitempty"`
 	Tags             string `json:"tags,omitempty"`
 	Favorite         bool   `json:"favorite,omitempty"`
+	Pinned           bool   `json:"pinned,omitempty"`
+	SortOrder        int    `json:"sort_order,omitempty"`
 	SystemType       string `json:"system_type,omitempty"`
 	SystemTypeSource string `json:"system_type_source,omitempty"`
 	LastConnectedAt  string `json:"last_connected_at,omitempty"`
@@ -96,6 +98,8 @@ func hostFromModel(host model.Host) Host {
 		Group:            host.Group,
 		Tags:             host.Tags,
 		Favorite:         host.Favorite,
+		Pinned:           host.Pinned,
+		SortOrder:        host.SortOrder,
 		SystemType:       host.SystemType,
 		SystemTypeSource: host.SystemTypeSource,
 		LastConnectedAt:  formatTime(host.LastConnectedAt),
@@ -114,6 +118,8 @@ func (host Host) toModel() model.Host {
 		Group:            host.Group,
 		Tags:             host.Tags,
 		Favorite:         host.Favorite,
+		Pinned:           host.Pinned,
+		SortOrder:        host.SortOrder,
 		SystemType:       host.SystemType,
 		SystemTypeSource: host.SystemTypeSource,
 		LastConnectedAt:  parseTime(host.LastConnectedAt),

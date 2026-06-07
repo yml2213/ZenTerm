@@ -131,6 +131,8 @@ export default function App() {
     handleConnect,
     handleCopyHostAddress,
     handleToggleFavorite,
+    handleTogglePinned,
+    handleReorderHosts,
     handleCloseTab,
     handleSessionClosed,
     handleSendInput,
@@ -335,6 +337,8 @@ export default function App() {
           onDeleteHost={setters.setDeleteCandidate}
           onCopyHostAddress={handleCopyHostAddress}
           onToggleFavorite={handleToggleFavorite}
+          onTogglePinned={handleTogglePinned}
+          onReorderHosts={handleReorderHosts}
           onRefreshHosts={refreshHosts}
           vaultUnlocked={vaultUnlocked}
           isSettingsPage={isSettingsPage}

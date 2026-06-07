@@ -89,6 +89,8 @@ type ZenService interface {
 	DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error)
 	AddHost(host model.Host, identity model.Identity) error
 	UpdateHost(host model.Host, identity model.Identity) error
+	UpdateHostPinned(hostID string, pinned bool) error
+	ReorderHosts(hostIDs []string) error
 	DeleteHost(hostID string) error
 	Connect(hostID string) (string, error)
 	AcceptHostKey(hostID, key string) error

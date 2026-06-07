@@ -548,6 +548,98 @@ func TestStoreUpdateKnownHostsPreservesIdentity(t *testing.T) {
 	}
 }
 
+func TestStoreUpdateHostPinnedPreservesIdentity(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-pin", Name: "Pin", Address: "pin.example.com", Port: 22, Username: "zen"}
+	identity := model.Identity{Password: "secret-password"}
+	if err := store.AddHost(host, identity, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	if err := store.UpdateHostPinned(host.ID, true); err != nil {
+		t.Fatalf("UpdateHostPinned() error = %v", err)
+	}
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if !updatedHost.Pinned {
+		t.Fatal("GetHost().Pinned = false, want true")
+	}
+
+	loadedIdentity, err := store.GetIdentity(host.ID, vault)
+	if err != nil {
+		t.Fatalf("GetIdentity() error = %v", err)
+	}
+	if loadedIdentity != identity {
+		t.Fatalf("GetIdentity() = %#v, want %#v", loadedIdentity, identity)
+	}
+}
+
+func TestStoreReorderHostsAssignsSortOrderAndPreservesUnlistedHosts(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	for _, host := range []model.Host{
+		{ID: "host-a", Name: "A", Address: "a.example.com", Port: 22, Username: "zen"},
+		{ID: "host-b", Name: "B", Address: "b.example.com", Port: 22, Username: "zen"},
+		{ID: "host-c", Name: "C", Address: "c.example.com", Port: 22, Username: "zen"},
+	} {
+		if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+			t.Fatalf("AddHost(%s) error = %v", host.ID, err)
+		}
+	}
+
+	if err := store.ReorderHosts([]string{"host-c", "host-a"}); err != nil {
+		t.Fatalf("ReorderHosts() error = %v", err)
+	}
+
+	hosts, err := store.GetHosts()
+	if err != nil {
+		t.Fatalf("GetHosts() error = %v", err)
+	}
+	if len(hosts) != 3 {
+		t.Fatalf("len(GetHosts()) = %d, want 3", len(hosts))
+	}
+
+	wantIDs := []string{"host-c", "host-a", "host-b"}
+	for i, host := range hosts {
+		if host.ID != wantIDs[i] {
+			t.Fatalf("GetHosts()[%d].ID = %q, want %q", i, host.ID, wantIDs[i])
+		}
+		if host.SortOrder != i+1 {
+			t.Fatalf("GetHosts()[%d].SortOrder = %d, want %d", i, host.SortOrder, i+1)
+		}
+	}
+}
+
 func TestStoreDeleteHostRemovesHostAndIdentity(t *testing.T) {
 	dir := t.TempDir()
 	store, err := NewStore(filepath.Join(dir, "config.zen"))

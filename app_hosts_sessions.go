@@ -22,6 +22,24 @@ func (a *App) UpdateHost(host Host, identity model.Identity) error {
 	return nil
 }
 
+// UpdateHostPinned 更新主机置顶状态 / updates whether a host is pinned in the host list.
+func (a *App) UpdateHostPinned(hostID string, pinned bool) error {
+	if err := a.service.UpdateHostPinned(hostID, pinned); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
+// ReorderHosts 保存主机卡片的手动排序 / persists the manual order of host cards.
+func (a *App) ReorderHosts(hostIDs []string) error {
+	if err := a.service.ReorderHosts(hostIDs); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
 // DeleteHost 删除指定主机 / deletes the requested host.
 func (a *App) DeleteHost(hostID string) error {
 	if err := a.service.DeleteHost(hostID); err != nil {
