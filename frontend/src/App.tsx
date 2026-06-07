@@ -254,6 +254,22 @@ export default function App() {
       onClose={closeHostDialog}
     />
   ) : null
+  const sshSessions = sessionTabs.filter(tab => tab.sessionId).map(tab => ({
+    sessionId: tab.sessionId!,
+    title: tab.title,
+    hostID: tab.hostID,
+    remoteAddr: tab.remoteAddr,
+    connectedAt: tab.connectedAt,
+  }))
+  const activeSshSession = activeSession && activeSession.sessionId ? {
+    sessionId: activeSession.sessionId,
+    title: activeSession.title,
+    hostID: activeSession.hostID,
+    remoteAddr: activeSession.remoteAddr,
+    connectedAt: activeSession.connectedAt,
+  } : null
+  const isSshWorkspaceVisible = activeWorkspace === 'ssh'
+  const shouldMountSshWorkspace = isSshWorkspaceVisible || sshSessions.length > 0
 
   return (
     <div className={shellClassName}>
@@ -271,6 +287,21 @@ export default function App() {
         vaultsLabel={t('vaults')}
         sftpLabel={t('sftp')}
       />
+
+      {shouldMountSshWorkspace ? (
+        <div className="workspace-keepalive" hidden={!isSshWorkspaceVisible}>
+          <SshWorkspace
+            sessionTabs={sshSessions}
+            activeSessionId={activeSessionId}
+            activeSession={activeSshSession}
+            visible={isSshWorkspaceVisible}
+            onSendInput={handleSendInput}
+            onResize={handleResizeTerminal}
+            onSessionClosed={handleSessionClosed}
+            onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
+          />
+        </div>
+      ) : null}
 
       {activeWorkspace === 'vaults' ? (
         <VaultWorkspace
@@ -357,29 +388,7 @@ export default function App() {
           onCloseLog={() => activeLogTabId ? closeLogTab(activeLogTabId) : null}
           onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
         />
-      ) : (
-        <SshWorkspace
-          sessionTabs={sessionTabs.filter(tab => tab.sessionId).map(tab => ({
-            sessionId: tab.sessionId!,
-            title: tab.title,
-            hostID: tab.hostID,
-            remoteAddr: tab.remoteAddr,
-            connectedAt: tab.connectedAt,
-          }))}
-          activeSessionId={activeSessionId}
-          activeSession={activeSession && activeSession.sessionId ? {
-            sessionId: activeSession.sessionId,
-            title: activeSession.title,
-            hostID: activeSession.hostID,
-            remoteAddr: activeSession.remoteAddr,
-            connectedAt: activeSession.connectedAt,
-          } : null}
-          onSendInput={handleSendInput}
-          onResize={handleResizeTerminal}
-          onSessionClosed={handleSessionClosed}
-          onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
-        />
-      )}
+      ) : null}
 
       <AppOverlays
         showSetupModal={showSetupModal}

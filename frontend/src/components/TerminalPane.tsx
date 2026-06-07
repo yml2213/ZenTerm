@@ -3,24 +3,21 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { onRuntimeEvent, readClipboardText, writeClipboardText } from '../lib/backend'
 import { measureTerminalGeometry } from '../lib/terminalGeometry'
-import { useTerminalPreferences } from '../contexts/TerminalPreferencesProvider'
+import { useTerminalPreferences, type TerminalPreferences } from '../contexts/TerminalPreferencesProvider'
+import { builtinTerminalPlugins, type TerminalPluginContext, type TerminalSessionMeta } from '../lib/terminal/plugins/builtin'
+import { createTerminalPluginRuntime, type TerminalPluginRuntime } from '../lib/terminal/pluginRuntime'
 
 const MAX_SESSION_BUFFER_CHARS = 1_000_000
 const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
 
-interface Session {
-  sessionId: string
-  title: string
-  hostID?: string
-  remoteAddr?: string
-  connectedAt?: string
-}
+type Session = TerminalSessionMeta
 
 interface TerminalPaneProps {
   sessions: Session[]
   activeSessionId: string | null
   activeSessionTitle: string
   activeSessionMeta?: Session | null
+  visible: boolean
   onSendInput: (sessionId: string, data: string) => Promise<void>
   onResize: (sessionId: string, cols: number, rows: number) => Promise<void>
   onSessionClosed: (sessionId: string) => void
@@ -39,12 +36,13 @@ export default function TerminalPane({
   sessions,
   activeSessionId,
   activeSessionTitle,
+  visible,
   onSendInput,
   onResize,
   onSessionClosed,
   onError,
 }: TerminalPaneProps) {
-  const { quickEditEnabled } = useTerminalPreferences()
+  const terminalPreferences = useTerminalPreferences()
   const terminalContainerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<XTerm | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -52,9 +50,11 @@ export default function TerminalPane({
   const fitFrameRef = useRef<number | null>(null)
   const buffersRef = useRef(new Map<string, string>())
   const unsubscribeMapRef = useRef(new Map<string, () => void>())
-  const quickEditEnabledRef = useRef(quickEditEnabled)
-  const defaultRightClickSelectsWordRef = useRef(false)
-  const hasDefaultRightClickSelectsWordRef = useRef(false)
+  const sessionsRef = useRef<Session[]>(sessions)
+  const preferencesRef = useRef<TerminalPreferences>({
+    quickEditEnabled: terminalPreferences.quickEditEnabled,
+  })
+  const pluginRuntimeRef = useRef<TerminalPluginRuntime | null>(null)
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
@@ -97,6 +97,26 @@ export default function TerminalPane({
     })
   })
 
+  const reportPluginError = useEffectEvent((error: unknown) => {
+    onError(error)
+  })
+
+  const runPluginInput = useEffectEvent(async (data: string) => {
+    return pluginRuntimeRef.current?.handleInput(data) ?? data
+  })
+
+  const notifyPluginOutput = useEffectEvent((sessionId: string, chunk: string) => {
+    pluginRuntimeRef.current?.handleOutput(sessionId, chunk)
+  })
+
+  const notifyPluginSessionChange = useEffectEvent((sessionId: string | null) => {
+    pluginRuntimeRef.current?.handleSessionChange(sessionId)
+  })
+
+  const notifyPluginPreferencesChange = useEffectEvent((preferences: TerminalPreferences) => {
+    pluginRuntimeRef.current?.handlePreferencesChange(preferences)
+  })
+
   const renderActiveBuffer = useEffectEvent(() => {
     const terminal = terminalRef.current
     if (!terminal) {
@@ -122,6 +142,8 @@ export default function TerminalPane({
 
   const appendChunk = useEffectEvent((sessionId: string, chunk: unknown) => {
     const text = typeof chunk === 'string' ? chunk : String(chunk ?? '')
+    notifyPluginOutput(sessionId, text)
+
     const previous = buffersRef.current.get(sessionId) || ''
     const next = trimSessionBuffer(previous + text)
     buffersRef.current.set(sessionId, next)
@@ -146,69 +168,26 @@ export default function TerminalPane({
   })
 
   const handleInput = useEffectEvent(async (data: string) => {
+    const nextData = await runPluginInput(data)
+    if (nextData === false || nextData === '') {
+      return
+    }
+
     const sessionId = activeSessionIdRef.current
     if (!sessionId) {
       return
     }
 
     try {
-      await onSendInput(sessionId, data)
+      await onSendInput(sessionId, nextData)
     } catch (error) {
       onError(error)
     }
   })
 
-  async function handleQuickEditContextMenu(event: MouseEvent<HTMLDivElement>) {
-    if (!quickEditEnabled) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-
-    const terminal = terminalRef.current
-    if (!terminal) {
-      return
-    }
-
-    const selection = terminal.hasSelection() ? terminal.getSelection() : ''
-    if (selection) {
-      try {
-        await writeClipboardText(selection)
-        terminal.clearSelection()
-        terminal.focus()
-      } catch (error) {
-        onError(error)
-      }
-      return
-    }
-
-    if (!activeSessionIdRef.current) {
-      terminal.focus()
-      return
-    }
-
-    try {
-      const clipboardText = await readClipboardText()
-      if (clipboardText) {
-        terminal.paste(clipboardText)
-      }
-      terminal.focus()
-    } catch (error) {
-      onError(error)
-    }
+  async function handleTerminalContextMenu(event: MouseEvent<HTMLDivElement>) {
+    await pluginRuntimeRef.current?.handleContextMenu(event)
   }
-
-  useEffect(() => {
-    quickEditEnabledRef.current = quickEditEnabled
-
-    const terminal = terminalRef.current
-    if (!terminal || !hasDefaultRightClickSelectsWordRef.current) {
-      return
-    }
-
-    terminal.options.rightClickSelectsWord = quickEditEnabled ? false : defaultRightClickSelectsWordRef.current
-  }, [quickEditEnabled])
 
   useEffect(() => {
     const terminalContainer = terminalContainerRef.current
@@ -232,15 +211,22 @@ export default function TerminalPane({
 
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
-    defaultRightClickSelectsWordRef.current = Boolean(terminal.options.rightClickSelectsWord)
-    hasDefaultRightClickSelectsWordRef.current = true
-    terminal.options.rightClickSelectsWord = quickEditEnabledRef.current
-      ? false
-      : defaultRightClickSelectsWordRef.current
 
     terminal.open(terminalContainer)
     terminalRef.current = terminal
     fitAddonRef.current = fitAddon
+
+    const pluginContext: TerminalPluginContext = {
+      terminal,
+      container: terminalContainer,
+      getActiveSessionId: () => activeSessionIdRef.current,
+      getSessions: () => sessionsRef.current,
+      getPreferences: () => preferencesRef.current,
+      readClipboardText,
+      writeClipboardText,
+      reportError: reportPluginError,
+    }
+    pluginRuntimeRef.current = createTerminalPluginRuntime(builtinTerminalPlugins, pluginContext)
 
     terminal.write('\x1b[1;32mZenTerm\x1b[0m workspace ready.\r\n')
     terminal.write('Select a host card and start a new tab to open your shell.\r\n')
@@ -278,6 +264,8 @@ export default function TerminalPane({
       }
       unsubscribeMap.clear()
       buffers.clear()
+      pluginRuntimeRef.current?.dispose()
+      pluginRuntimeRef.current = null
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
@@ -287,9 +275,28 @@ export default function TerminalPane({
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
     renderActiveBuffer()
+    notifyPluginSessionChange(activeSessionId)
   }, [activeSessionId, activeSessionTitle])
 
   useEffect(() => {
+    if (!visible) {
+      return
+    }
+
+    terminalRef.current?.focus()
+    scheduleSyncSize()
+  }, [visible])
+
+  useEffect(() => {
+    const nextPreferences = {
+      quickEditEnabled: terminalPreferences.quickEditEnabled,
+    }
+    preferencesRef.current = nextPreferences
+    notifyPluginPreferencesChange(nextPreferences)
+  }, [terminalPreferences.quickEditEnabled])
+
+  useEffect(() => {
+    sessionsRef.current = sessions
     const activeIds = new Set(sessions.map((session) => session.sessionId))
 
     for (const session of sessions) {
@@ -334,7 +341,7 @@ export default function TerminalPane({
       <div
         ref={terminalContainerRef}
         className="terminal-surface"
-        onContextMenu={handleQuickEditContextMenu}
+        onContextMenu={handleTerminalContextMenu}
       />
     </section>
   )
