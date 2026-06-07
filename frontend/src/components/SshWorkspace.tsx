@@ -12,6 +12,7 @@ interface SshWorkspaceProps {
   sessionTabs: Session[]
   activeSessionId: string | null
   activeSession: Session | null
+  visible: boolean
   onSendInput: (sessionId: string, data: string) => Promise<void>
   onResize: (sessionId: string, cols: number, rows: number) => Promise<void>
   onSessionClosed: (sessionId: string) => void
@@ -22,6 +23,7 @@ export default function SshWorkspace({
   sessionTabs,
   activeSessionId,
   activeSession,
+  visible,
   onSendInput,
   onResize,
   onSessionClosed,
@@ -36,6 +38,7 @@ export default function SshWorkspace({
             activeSessionId={activeSessionId}
             activeSessionTitle={activeSession?.title || 'Zen Console'}
             activeSessionMeta={activeSession}
+            visible={visible}
             onSendInput={onSendInput}
             onResize={onResize}
             onSessionClosed={onSessionClosed}

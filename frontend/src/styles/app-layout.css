@@ -15,6 +15,20 @@
   flex: 1;
 }
 
+.workspace-keepalive {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.workspace-keepalive[hidden] {
+  display: none;
+}
+
+.workspace-keepalive > .workspace-page {
+  flex: 1;
+}
+
 .page-toolbar {
   box-sizing: border-box;
   height: var(--app-panel-bar-height);

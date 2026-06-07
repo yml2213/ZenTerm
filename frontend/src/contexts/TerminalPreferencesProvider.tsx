@@ -1,7 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
-interface TerminalPreferencesContextValue {
+export interface TerminalPreferences {
   quickEditEnabled: boolean
+}
+
+interface TerminalPreferencesContextValue extends TerminalPreferences {
   setQuickEditEnabled: (enabled: boolean) => void
 }
 

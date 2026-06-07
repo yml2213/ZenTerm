@@ -165,6 +165,35 @@ describe('App workspace flows', () => {
     expect(await screen.findByTestId('terminal-pane')).toBeInTheDocument()
   })
 
+  it('切换到其他工作区时保留 SSH 终端实例', async () => {
+    const user = userEvent.setup()
+    connect.mockResolvedValueOnce('session-1')
+    listSessions
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { ID: 'session-1', HostID: 'host-1', RemoteAddr: '10.0.0.1:22' },
+      ])
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getAllByRole('button', { name: '连接' })[0])
+
+    const terminalPane = await screen.findByTestId('terminal-pane')
+    expect(terminalPane).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+
+    expect(await screen.findByLabelText('搜索主机')).toBeInTheDocument()
+    expect(terminalPane).toBeInTheDocument()
+    expect(terminalPane).not.toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ }))
+
+    expect(screen.getByTestId('terminal-pane')).toBe(terminalPane)
+    expect(terminalPane).toBeVisible()
+  })
+
   it('连接缺少认证方式的主机会显示中文错误', async () => {
     const user = userEvent.setup()
     connect.mockRejectedValueOnce(new Error('no supported ssh authentication method configured'))
