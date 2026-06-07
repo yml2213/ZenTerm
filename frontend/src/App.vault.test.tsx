@@ -162,6 +162,7 @@ describe('App vault flows', () => {
 
     const quickEditToggle = await screen.findByLabelText(/快速编辑模式/)
     expect(quickEditToggle).not.toBeChecked()
+    expect(screen.getByLabelText(/URL 点击打开/)).toBeChecked()
 
     await user.click(quickEditToggle)
 
