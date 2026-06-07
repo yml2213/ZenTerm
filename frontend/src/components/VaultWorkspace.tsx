@@ -61,6 +61,8 @@ interface VaultWorkspaceProps {
   onDeleteHost: (host: main.Host) => void
   onCopyHostAddress: (host: main.Host) => void
   onToggleFavorite: (host: main.Host) => void
+  onTogglePinned: (host: main.Host) => void
+  onReorderHosts: (orderedHostIds: string[]) => void
   onRefreshHosts: () => Promise<void> | void
   vaultUnlocked: boolean
   isSettingsPage: boolean
@@ -110,6 +112,8 @@ export default function VaultWorkspace({
   onDeleteHost,
   onCopyHostAddress,
   onToggleFavorite,
+  onTogglePinned,
+  onReorderHosts,
   onRefreshHosts,
   vaultUnlocked,
   isSettingsPage,
@@ -381,6 +385,8 @@ export default function VaultWorkspace({
                 onDelete={onDeleteHost}
                 onCopyAddress={onCopyHostAddress}
                 onToggleFavorite={onToggleFavorite}
+                onTogglePinned={onTogglePinned}
+                onReorderHosts={onReorderHosts}
                 disabled={!vaultUnlocked}
               />
             </section>

@@ -51,6 +51,12 @@ func (s *Store) AddHost(host model.Host, identity model.Identity, vault *securit
 	replaced := false
 	for i := range data.Hosts {
 		if data.Hosts[i].Host.ID == host.ID {
+			if !entry.Host.Pinned {
+				entry.Host.Pinned = data.Hosts[i].Host.Pinned
+			}
+			if entry.Host.SortOrder == 0 {
+				entry.Host.SortOrder = data.Hosts[i].Host.SortOrder
+			}
 			data.Hosts[i] = entry
 			replaced = true
 			break
@@ -223,6 +229,80 @@ func (s *Store) UpdateHostSystemType(hostID, systemType, source string) error {
 	}
 
 	return ErrHostNotFound
+}
+
+// UpdateHostPinned 更新主机置顶状态 / updates whether the host is pinned in the list.
+func (s *Store) UpdateHostPinned(hostID string, pinned bool) error {
+	if hostID == "" {
+		return ErrHostIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Hosts {
+		if data.Hosts[i].Host.ID != hostID {
+			continue
+		}
+
+		data.Hosts[i].Host.Pinned = pinned
+		return s.saveLocked(data)
+	}
+
+	return ErrHostNotFound
+}
+
+// ReorderHosts 按传入 ID 顺序更新主机排序，未列出的主机保持相对顺序并排在后面。
+// ReorderHosts updates host order using the provided IDs and appends omitted hosts in their existing relative order.
+func (s *Store) ReorderHosts(hostIDs []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	entriesByID := make(map[string]hostEntry, len(data.Hosts))
+	for _, entry := range data.Hosts {
+		entriesByID[entry.Host.ID] = entry
+	}
+
+	nextHosts := make([]hostEntry, 0, len(data.Hosts))
+	seen := make(map[string]bool, len(data.Hosts))
+	for _, hostID := range hostIDs {
+		if hostID == "" || seen[hostID] {
+			continue
+		}
+
+		entry, ok := entriesByID[hostID]
+		if !ok {
+			return ErrHostNotFound
+		}
+
+		seen[hostID] = true
+		nextHosts = append(nextHosts, entry)
+	}
+
+	for _, entry := range data.Hosts {
+		if seen[entry.Host.ID] {
+			continue
+		}
+
+		nextHosts = append(nextHosts, entry)
+	}
+
+	for i := range nextHosts {
+		nextHosts[i].Host.SortOrder = i + 1
+	}
+
+	data.Hosts = nextHosts
+	return s.saveLocked(data)
 }
 
 // DeleteHost 删除指定主机及其加密身份信息 / removes the host and its encrypted identity material.

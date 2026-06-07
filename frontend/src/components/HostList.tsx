@@ -1,5 +1,5 @@
-import { Clock3, Copy, Database, FolderOpen, HardDrive, Monitor, PencilLine, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, Tags, TerminalSquare, Trash2 } from 'lucide-react'
-import { useEffect, useState, type ComponentType, type KeyboardEvent, type MouseEvent } from 'react'
+import { Clock3, Copy, Database, FolderOpen, GripVertical, HardDrive, Monitor, PencilLine, Pin, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, Tags, TerminalSquare, Trash2 } from 'lucide-react'
+import { useEffect, useState, type ComponentType, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { main } from '../wailsjs/wailsjs/go/models'
 
 function parseTags(tags?: string) {
@@ -109,6 +109,8 @@ interface HostListProps {
   onDelete: (host: main.Host) => void
   onCopyAddress?: (host: main.Host) => void
   onToggleFavorite?: (host: main.Host) => void
+  onTogglePinned?: (host: main.Host) => void
+  onReorderHosts?: (orderedHostIds: string[]) => void
   disabled: boolean
 }
 
@@ -126,9 +128,73 @@ export default function HostList({
   onDelete,
   onCopyAddress,
   onToggleFavorite,
+  onTogglePinned,
+  onReorderHosts,
   disabled,
 }: HostListProps) {
   const [contextMenu, setContextMenu] = useState<HostContextMenu | null>(null)
+  const [draggingHostId, setDraggingHostId] = useState<string | null>(null)
+  const [dragOverHostId, setDragOverHostId] = useState<string | null>(null)
+  const canReorder = Boolean(onReorderHosts) && !disabled
+
+  function clearDragState() {
+    setDraggingHostId(null)
+    setDragOverHostId(null)
+  }
+
+  function handleDragStart(event: DragEvent<HTMLElement>, host: main.Host) {
+    if (!canReorder) {
+      event.preventDefault()
+      return
+    }
+
+    setContextMenu(null)
+    setDraggingHostId(host.id)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', host.id)
+  }
+
+  function handleDragOver(event: DragEvent<HTMLElement>, host: main.Host) {
+    if (!canReorder || draggingHostId === host.id) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (draggingHostId) {
+      setDragOverHostId(host.id)
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>, targetHost: main.Host) {
+    if (!canReorder) {
+      return
+    }
+
+    event.preventDefault()
+    const sourceHostId = event.dataTransfer.getData('text/plain') || draggingHostId
+    clearDragState()
+    if (!sourceHostId || sourceHostId === targetHost.id) {
+      return
+    }
+
+    const sourceIndex = hosts.findIndex((host) => host.id === sourceHostId)
+    if (sourceIndex < 0) {
+      return
+    }
+
+    const nextHosts = hosts.slice()
+    const [movedHost] = nextHosts.splice(sourceIndex, 1)
+    const targetIndex = nextHosts.findIndex((host) => host.id === targetHost.id)
+    if (!movedHost || targetIndex < 0) {
+      return
+    }
+
+    const targetRect = event.currentTarget.getBoundingClientRect()
+    const shouldInsertAfter = event.clientY > targetRect.top + targetRect.height / 2
+    nextHosts.splice(targetIndex + (shouldInsertAfter ? 1 : 0), 0, movedHost)
+    onReorderHosts?.(nextHosts.map((host) => host.id))
+  }
 
   useEffect(() => {
     if (!contextMenu) {
@@ -193,7 +259,13 @@ export default function HostList({
         return (
           <article
             key={host.id}
-            className={`host-card${active ? ' active' : ''}`}
+            className={[
+              'host-card',
+              active ? 'active' : '',
+              host.pinned ? 'pinned' : '',
+              draggingHostId === host.id ? 'dragging' : '',
+              dragOverHostId === host.id && draggingHostId !== host.id ? 'drag-over' : '',
+            ].filter(Boolean).join(' ')}
             onClick={() => onSelect(host.id)}
             onContextMenu={(event: MouseEvent<HTMLElement>) => {
               event.preventDefault()
@@ -205,6 +277,10 @@ export default function HostList({
                 onConnect(host.id)
               }
             }}
+            onDragOver={(event) => handleDragOver(event, host)}
+            onDragEnter={(event) => handleDragOver(event, host)}
+            onDrop={(event) => handleDrop(event, host)}
+            onDragEnd={clearDragState}
             role="button"
             tabIndex={0}
             aria-label={`${host.name || host.id}，${host.username}@${host.address}:${host.port || 22}`}
@@ -223,6 +299,20 @@ export default function HostList({
           >
             <div className="host-card-header">
               <div className="host-card-identity">
+                <button
+                  type="button"
+                  className="host-drag-handle"
+                  aria-label={`拖拽排序 ${host.name || host.id}`}
+                  title="拖拽排序"
+                  draggable={canReorder}
+                  disabled={!canReorder}
+                  onClick={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onDragStart={(event) => handleDragStart(event, host)}
+                  onDragEnd={clearDragState}
+                >
+                  <GripVertical size={15} />
+                </button>
                 <div className={`host-card-avatar system-${systemProfile.id}`} title={systemProfile.label} aria-label={systemProfile.label}>
                   <SystemIcon size={18} />
                 </div>
@@ -232,6 +322,19 @@ export default function HostList({
                 </div>
               </div>
               <div className="host-card-badges">
+                <button
+                  type="button"
+                  className={`host-pin-btn${host.pinned ? ' active' : ''}`}
+                  aria-label={`${host.pinned ? '取消置顶' : '置顶'} ${host.name || host.id}`}
+                  title={host.pinned ? '取消置顶' : '置顶'}
+                  disabled={!onTogglePinned}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onTogglePinned?.(host)
+                  }}
+                >
+                  <Pin size={14} />
+                </button>
                 <button
                   type="button"
                   className={`host-favorite-btn${host.favorite ? ' active' : ''}`}
@@ -362,6 +465,18 @@ export default function HostList({
           >
             <Copy size={14} />
             复制地址
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!onTogglePinned}
+            onClick={() => {
+              onTogglePinned?.(contextMenu.host)
+              setContextMenu(null)
+            }}
+          >
+            <Pin size={14} />
+            {contextMenu.host.pinned ? '取消置顶' : '置顶'}
           </button>
           <button
             type="button"

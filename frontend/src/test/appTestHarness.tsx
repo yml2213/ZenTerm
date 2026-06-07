@@ -47,6 +47,7 @@ import {
   pushWebDAVSync,
   renameLocalEntry,
   renameRemoteEntry,
+  reorderHosts,
   resetVault,
   resizeTerminal,
   saveUpdateConfig,
@@ -57,6 +58,7 @@ import {
   tryAutoUnlock,
   unlockWithPreferences,
   updateHost,
+  updateHostPinned,
   uploadFile,
   windowSetBackgroundColour,
   windowSetDarkTheme,
@@ -108,6 +110,7 @@ vi.mock('../lib/backend', () => ({
   rejectHostKey: vi.fn(),
   renameLocalEntry: vi.fn(),
   renameRemoteEntry: vi.fn(),
+  reorderHosts: vi.fn(),
   sendInput: vi.fn(),
   toggleSessionLogFavorite: vi.fn(),
   resizeTerminal: vi.fn(),
@@ -120,6 +123,7 @@ vi.mock('../lib/backend', () => ({
   skipVersion: vi.fn(),
   testWebDAVSync: vi.fn(),
   uploadFile: vi.fn(),
+  updateHostPinned: vi.fn(),
   windowSetBackgroundColour: vi.fn(),
   windowSetDarkTheme: vi.fn(),
   windowSetLightTheme: vi.fn(),
@@ -338,6 +342,7 @@ export function registerAppHarness() {
     })
     renameLocalEntry.mockResolvedValue(undefined)
     renameRemoteEntry.mockResolvedValue(undefined)
+    reorderHosts.mockResolvedValue(undefined)
     sendInput.mockResolvedValue(undefined)
     resizeTerminal.mockResolvedValue(undefined)
     saveUpdateConfig.mockResolvedValue(undefined)
@@ -347,6 +352,7 @@ export function registerAppHarness() {
       targetPath: '/home/root/notes.txt',
       bytesCopied: 42,
     })
+    updateHostPinned.mockResolvedValue(undefined)
     windowSetBackgroundColour.mockResolvedValue(undefined)
     windowSetDarkTheme.mockResolvedValue(undefined)
     windowSetLightTheme.mockResolvedValue(undefined)
@@ -508,6 +514,7 @@ export {
   pushWebDAVSync,
   renameLocalEntry,
   renameRemoteEntry,
+  reorderHosts,
   resetVault,
   resizeTerminal,
   saveUpdateConfig,
@@ -518,6 +525,7 @@ export {
   tryAutoUnlock,
   unlockWithPreferences,
   updateHost,
+  updateHostPinned,
   uploadFile,
   windowSetBackgroundColour,
   windowSetDarkTheme,

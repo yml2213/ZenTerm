@@ -12,6 +12,8 @@ type Host struct {
 	Group            string    `json:"group,omitempty"`
 	Tags             string    `json:"tags,omitempty"` // 逗号分隔标签 / comma-separated labels.
 	Favorite         bool      `json:"favorite,omitempty"`
+	Pinned           bool      `json:"pinned,omitempty"`
+	SortOrder        int       `json:"sort_order,omitempty"`
 	SystemType       string    `json:"system_type,omitempty"`
 	SystemTypeSource string    `json:"system_type_source,omitempty"`
 	LastConnectedAt  time.Time `json:"last_connected_at,omitempty"`
@@ -177,10 +179,10 @@ type FileTransferResult struct {
 
 // UpdateConfig 更新配置 / update configuration.
 type UpdateConfig struct {
-	Enabled        bool   `json:"enabled"`          // 是否启用自动检查
-	CheckInterval  int    `json:"check_interval"`   // 检查间隔（小时），0 表示每次启动检查
-	LastCheckTime  int64  `json:"last_check_time"`  // 上次检查时间戳
-	SkippedVersion string `json:"skipped_version"`  // 用户跳过的版本
-	AutoDownload   bool   `json:"auto_download"`    // 是否自动下载更新
-	Channel        string `json:"channel"`          // 更新渠道 (stable/beta)
+	Enabled        bool   `json:"enabled"`         // 是否启用自动检查
+	CheckInterval  int    `json:"check_interval"`  // 检查间隔（小时），0 表示每次启动检查
+	LastCheckTime  int64  `json:"last_check_time"` // 上次检查时间戳
+	SkippedVersion string `json:"skipped_version"` // 用户跳过的版本
+	AutoDownload   bool   `json:"auto_download"`   // 是否自动下载更新
+	Channel        string `json:"channel"`         // 更新渠道 (stable/beta)
 }

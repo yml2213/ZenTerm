@@ -8,7 +8,7 @@ import {
   registerAppHarness,
   renderApp,
 } from './test/appTestHarness'
-import { addHost, listHosts, updateHost } from './lib/backend'
+import { addHost, listHosts, reorderHosts, updateHost, updateHostPinned } from './lib/backend'
 
 registerAppHarness()
 
@@ -54,6 +54,43 @@ describe('App host management', () => {
     expect(screen.getByRole('button', { name: 'Linux' })).toHaveClass('active')
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
+  })
+
+  it('主机页支持置顶主机并优先展示', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '置顶 Beta' }))
+
+    await waitFor(() => expect(updateHostPinned).toHaveBeenCalledWith('host-2', true))
+    const titles = Array.from(document.querySelectorAll('.host-card-title strong')).map((node) => node.textContent)
+    expect(titles.slice(0, 2)).toEqual(['Beta', 'Alpha'])
+  })
+
+  it('主机页支持拖拽排序并保存手动顺序', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+
+    const data = new Map()
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn((type, value) => data.set(type, value)),
+      getData: vi.fn((type) => data.get(type) || ''),
+    }
+    const betaHandle = screen.getByRole('button', { name: '拖拽排序 Beta' })
+    const alphaCard = screen.getByRole('button', { name: /Alpha.*root@10\.0\.0\.1:22/ })
+
+    fireEvent.dragStart(betaHandle, { dataTransfer })
+    fireEvent.dragOver(alphaCard, { dataTransfer })
+    fireEvent.drop(alphaCard, { dataTransfer, clientY: 0 })
+
+    await waitFor(() => expect(reorderHosts).toHaveBeenCalledWith(['host-2', 'host-1']))
+    const titles = Array.from(document.querySelectorAll('.host-card-title strong')).map((node) => node.textContent)
+    expect(titles.slice(0, 2)).toEqual(['Beta', 'Alpha'])
   })
 
   it('主机页在多节点场景下使用全宽卡片网格', async () => {
