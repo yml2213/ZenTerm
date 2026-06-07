@@ -231,7 +231,8 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
         {downloadedFile ? (
           <div className="download-complete">
             <p>下载完成</p>
-            <p className="install-hint">打开安装包后按系统提示完成安装。</p>
+            <p className="install-hint">下载位置</p>
+            <p className="download-path">{downloadedFile}</p>
           </div>
         ) : null}
       </div>
@@ -245,7 +246,7 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
           <>
             <button type="button" onClick={handleOpenFile} className="btn-primary">
               <ExternalLink size={16} />
-              打开文件
+              显示文件
             </button>
             <button type="button" onClick={close} className="btn-secondary">
               稍后

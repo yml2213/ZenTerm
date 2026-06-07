@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '发布版本，例如 0.1.1'
+        description: '发布版本，例如 0.1.2'
         required: true
-        default: '0.1.1'
+        default: '0.1.2'
 
 permissions:
   contents: write
@@ -78,10 +78,13 @@ jobs:
           const version = process.env.VERSION
           const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'))
           const frontend = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'))
+          const appUpdate = fs.readFileSync('app_update.go', 'utf8')
+          const appVersion = appUpdate.match(/var\s+appVersion\s*=\s*"([^"]+)"/)?.[1]
 
           const versions = {
             'wails.json info.productVersion': wails.info?.productVersion,
             'frontend/package.json version': frontend.version,
+            'app_update.go appVersion': appVersion,
           }
 
           for (const [name, value] of Object.entries(versions)) {
@@ -100,7 +103,7 @@ jobs:
 
       - name: 生成 Wails 绑定
         shell: bash
-        run: wails build -s -skipembedcreate -nopackage
+        run: wails build -s -skipembedcreate -nopackage -ldflags "-X main.appVersion=${VERSION}"
 
       - name: 安装前端依赖
         working-directory: frontend
@@ -194,7 +197,7 @@ jobs:
 
       - name: 构建 Wails 应用
         shell: bash
-        run: wails build -platform ${{ matrix.platform }}
+        run: wails build -platform ${{ matrix.platform }} -ldflags "-X main.appVersion=${VERSION}"
 
       - name: 打包 Linux 产物
         if: runner.os == 'Linux'
@@ -283,7 +286,7 @@ jobs:
           asset="ZenTerm-${VERSION}-${slug}.zip"
 
           rm -rf build/bin
-          wails build -clean -platform "$platform"
+          wails build -clean -platform "$platform" -ldflags "-X main.appVersion=${VERSION}"
 
           mkdir -p dist
           if [ -d build/bin/ZenTerm.app ]; then
