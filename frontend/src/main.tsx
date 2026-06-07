@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import ThemeProvider from './contexts/ThemeProvider'
 import LanguageProvider from './contexts/LanguageProvider'
+import TerminalPreferencesProvider from './contexts/TerminalPreferencesProvider'
 import App from './App'
 import './styles.css'
 
@@ -14,7 +15,9 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ThemeProvider>
       <LanguageProvider>
-        <App />
+        <TerminalPreferencesProvider>
+          <App />
+        </TerminalPreferencesProvider>
       </LanguageProvider>
     </ThemeProvider>
   </React.StrictMode>,

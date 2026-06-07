@@ -11,6 +11,7 @@ import {
   Save,
   Settings2,
   ShieldCheck,
+  TerminalSquare,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
@@ -26,10 +27,11 @@ import {
   testWebDAVSync,
   type WebDAVSyncStatus,
 } from '../lib/backend'
+import { useTerminalPreferences } from '../contexts/TerminalPreferencesProvider'
 import type { ChangeMasterForm } from '../types'
 import type { UpdateConfig, UpdateInfo } from '../types/update'
 
-type SettingsSection = 'security' | 'sync' | 'updates' | 'data' | 'appearance' | 'advanced'
+type SettingsSection = 'security' | 'sync' | 'updates' | 'terminal' | 'data' | 'appearance' | 'advanced'
 
 interface VaultSettingsPanelProps {
   changeForm: ChangeMasterForm
@@ -51,6 +53,7 @@ const settingsSections: Array<{
   { id: 'security', label: '安全', description: '主密码与本机钥匙串', icon: ShieldCheck },
   { id: 'sync', label: '同步', description: 'WebDAV 与坚果云', icon: Cloud },
   { id: 'updates', label: '更新', description: '版本检查与下载', icon: Download },
+  { id: 'terminal', label: '终端', description: '右键复制与粘贴', icon: TerminalSquare },
   { id: 'data', label: '数据', description: '导入、导出与状态', icon: Database },
   { id: 'appearance', label: '外观', description: '主题与密度', icon: Palette },
   { id: 'advanced', label: '高级', description: '启动与调试', icon: Settings2 },
@@ -123,6 +126,8 @@ export default function VaultSettingsPanel({
           <SyncSettings />
         ) : activeSection === 'updates' ? (
           <UpdateSettings />
+        ) : activeSection === 'terminal' ? (
+          <TerminalSettings />
         ) : (
           <ReservedSettings section={activeSection} />
         )}
@@ -468,6 +473,38 @@ function SecuritySettings({
   )
 }
 
+function TerminalSettings() {
+  const { quickEditEnabled, setQuickEditEnabled } = useTerminalPreferences()
+
+  return (
+    <div className="settings-section-stack">
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <TerminalSquare size={18} />
+          <div>
+            <h3>终端交互</h3>
+            <p>调整 SSH 终端里的鼠标与剪贴板行为。</p>
+          </div>
+        </div>
+
+        <div className="settings-toggle-list">
+          <label className="settings-toggle-row">
+            <input
+              type="checkbox"
+              checked={quickEditEnabled}
+              onChange={(event) => setQuickEditEnabled(event.target.checked)}
+            />
+            <span>
+              <strong>快速编辑模式</strong>
+              <small>选中文本时右键复制，没有选区时右键粘贴。</small>
+            </span>
+          </label>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function SyncSettings() {
   const [status, setStatus] = useState<WebDAVSyncStatus | null>(null)
   const [deviceName, setDeviceName] = useState('')
@@ -738,6 +775,7 @@ function ReservedSettings({ section }: { section: SettingsSection }) {
     security: ['', ''],
     sync: ['', ''],
     updates: ['', ''],
+    terminal: ['', ''],
   }[section]
 
   return (

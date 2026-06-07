@@ -8,6 +8,8 @@ type RuntimeMethod = (...args: unknown[]) => unknown
 interface RuntimeBinding {
   EventsOn?: (eventName: string, handler: (...args: unknown[]) => void) => unknown
   EventsOff?: (eventName: string) => void
+  ClipboardGetText?: () => Promise<string> | string
+  ClipboardSetText?: (text: string) => Promise<boolean> | boolean
 }
 
 declare global {
@@ -74,6 +76,47 @@ export function onRuntimeEvent(eventName: string, handler: (...args: unknown[]) 
       off(eventName)
     }
   }
+}
+
+export async function readClipboardText(): Promise<string> {
+  const runtime = getRuntimeBinding()
+  const runtimeRead = runtime?.ClipboardGetText
+
+  if (typeof runtimeRead === 'function') {
+    try {
+      return String(await runtimeRead())
+    } catch {
+      // Wails 不可用时回退到 Web Clipboard API。
+    }
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+    return navigator.clipboard.readText()
+  }
+
+  return ''
+}
+
+export async function writeClipboardText(text: string): Promise<boolean> {
+  const runtime = getRuntimeBinding()
+  const runtimeWrite = runtime?.ClipboardSetText
+
+  if (typeof runtimeWrite === 'function') {
+    try {
+      if (await runtimeWrite(text)) {
+        return true
+      }
+    } catch {
+      // Wails 不可用时回退到 Web Clipboard API。
+    }
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return true
+  }
+
+  return false
 }
 
 export async function unlock(password: string): Promise<void> {
