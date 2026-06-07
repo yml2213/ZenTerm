@@ -8,6 +8,7 @@ import App from '../App'
 import {
   acceptHostKey,
   addHost,
+  browserOpenURL,
   changeMasterPassword,
   checkForUpdates,
   configureWebDAVSync,
@@ -103,6 +104,7 @@ vi.mock('../lib/backend', () => ({
   listSessionLogs: vi.fn(),
   listSessions: vi.fn(),
   acceptHostKey: vi.fn(),
+  browserOpenURL: vi.fn(),
   rejectHostKey: vi.fn(),
   renameLocalEntry: vi.fn(),
   renameRemoteEntry: vi.fn(),
@@ -439,6 +441,7 @@ export function registerAppHarness() {
     ])
     toggleSessionLogFavorite.mockResolvedValue(undefined)
     acceptHostKey.mockResolvedValue(undefined)
+    browserOpenURL.mockResolvedValue(undefined)
     onRuntimeEvent.mockImplementation((eventName, handler) => {
       const handlers = runtimeHandlerLists.get(eventName) || new Set()
       handlers.add(handler)
@@ -466,6 +469,7 @@ export function registerAppHarness() {
 export {
   acceptHostKey,
   addHost,
+  browserOpenURL,
   changeMasterPassword,
   checkForUpdates,
   configureWebDAVSync,

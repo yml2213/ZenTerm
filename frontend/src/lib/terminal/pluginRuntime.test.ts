@@ -9,9 +9,10 @@ function createContext(): TerminalPluginContext {
     container: document.createElement('div'),
     getActiveSessionId: () => 'session-1',
     getSessions: () => [],
-    getPreferences: () => ({ quickEditEnabled: false }),
+    getPreferences: () => ({ quickEditEnabled: false, webLinksEnabled: true }),
     readClipboardText: vi.fn(async () => ''),
     writeClipboardText: vi.fn(async () => true),
+    openExternalURL: vi.fn(async () => {}),
     reportError: vi.fn(),
   }
 }

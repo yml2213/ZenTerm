@@ -8,6 +8,7 @@ type RuntimeMethod = (...args: unknown[]) => unknown
 interface RuntimeBinding {
   EventsOn?: (eventName: string, handler: (...args: unknown[]) => void) => unknown
   EventsOff?: (eventName: string) => void
+  BrowserOpenURL?: (url: string) => void
   ClipboardGetText?: () => Promise<string> | string
   ClipboardSetText?: (text: string) => Promise<boolean> | boolean
 }
@@ -304,6 +305,10 @@ async function callRuntime<T>(method: string, fallbackValue: T, ...args: unknown
   }
 
   return fn(...args) as T
+}
+
+export async function browserOpenURL(url: string): Promise<void> {
+  return callRuntime('BrowserOpenURL', undefined, url)
 }
 
 export async function windowGetSize(): Promise<{ w: number; h: number }> {

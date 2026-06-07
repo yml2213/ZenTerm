@@ -474,7 +474,12 @@ function SecuritySettings({
 }
 
 function TerminalSettings() {
-  const { quickEditEnabled, setQuickEditEnabled } = useTerminalPreferences()
+  const {
+    quickEditEnabled,
+    webLinksEnabled,
+    setQuickEditEnabled,
+    setWebLinksEnabled,
+  } = useTerminalPreferences()
 
   return (
     <div className="settings-section-stack">
@@ -497,6 +502,18 @@ function TerminalSettings() {
             <span>
               <strong>快速编辑模式</strong>
               <small>选中文本时右键复制，没有选区时右键粘贴。</small>
+            </span>
+          </label>
+
+          <label className="settings-toggle-row">
+            <input
+              type="checkbox"
+              checked={webLinksEnabled}
+              onChange={(event) => setWebLinksEnabled(event.target.checked)}
+            />
+            <span>
+              <strong>URL 点击打开</strong>
+              <small>识别终端输出中的 http 和 https 链接，点击后用系统浏览器打开。</small>
             </span>
           </label>
         </div>

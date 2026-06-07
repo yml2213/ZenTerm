@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, type MouseEvent } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { onRuntimeEvent, readClipboardText, writeClipboardText } from '../lib/backend'
+import { browserOpenURL, onRuntimeEvent, readClipboardText, writeClipboardText } from '../lib/backend'
 import { measureTerminalGeometry } from '../lib/terminalGeometry'
 import { useTerminalPreferences, type TerminalPreferences } from '../contexts/TerminalPreferencesProvider'
 import { builtinTerminalPlugins, type TerminalPluginContext, type TerminalSessionMeta } from '../lib/terminal/plugins/builtin'
@@ -53,6 +53,7 @@ export default function TerminalPane({
   const sessionsRef = useRef<Session[]>(sessions)
   const preferencesRef = useRef<TerminalPreferences>({
     quickEditEnabled: terminalPreferences.quickEditEnabled,
+    webLinksEnabled: terminalPreferences.webLinksEnabled,
   })
   const pluginRuntimeRef = useRef<TerminalPluginRuntime | null>(null)
 
@@ -224,6 +225,7 @@ export default function TerminalPane({
       getPreferences: () => preferencesRef.current,
       readClipboardText,
       writeClipboardText,
+      openExternalURL: browserOpenURL,
       reportError: reportPluginError,
     }
     pluginRuntimeRef.current = createTerminalPluginRuntime(builtinTerminalPlugins, pluginContext)
@@ -290,10 +292,11 @@ export default function TerminalPane({
   useEffect(() => {
     const nextPreferences = {
       quickEditEnabled: terminalPreferences.quickEditEnabled,
+      webLinksEnabled: terminalPreferences.webLinksEnabled,
     }
     preferencesRef.current = nextPreferences
     notifyPluginPreferencesChange(nextPreferences)
-  }, [terminalPreferences.quickEditEnabled])
+  }, [terminalPreferences.quickEditEnabled, terminalPreferences.webLinksEnabled])
 
   useEffect(() => {
     sessionsRef.current = sessions

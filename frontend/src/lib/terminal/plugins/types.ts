@@ -18,6 +18,7 @@ export interface TerminalPluginContext {
   getPreferences: () => TerminalPreferences
   readClipboardText: () => Promise<string>
   writeClipboardText: (text: string) => Promise<boolean>
+  openExternalURL: (url: string) => Promise<void>
   reportError: (error: unknown) => void
 }
 

@@ -13,6 +13,7 @@ function createContext(options: {
 } = {}) {
   const preferences = {
     quickEditEnabled: options.quickEditEnabled ?? true,
+    webLinksEnabled: true,
   }
   const terminal = {
     options: {
@@ -32,6 +33,7 @@ function createContext(options: {
     getPreferences: () => preferences,
     readClipboardText: vi.fn(async () => options.clipboardText ?? ''),
     writeClipboardText: vi.fn(async () => true),
+    openExternalURL: vi.fn(async () => {}),
     reportError: vi.fn(),
   }
 
