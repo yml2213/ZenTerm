@@ -76,54 +76,59 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.68rem;
   min-height: var(--workspace-strip-height);
-  padding: 0 1.25rem 0 7rem;
-  border-bottom: 1px solid var(--window-top-border, var(--border-subtle));
-  background: var(--window-top-bg, var(--toolbar-bg));
+  padding: 0 1.18rem 0 7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--window-top-border, var(--border-subtle)) 76%, transparent);
+  background: color-mix(in srgb, var(--window-top-bg, var(--toolbar-bg)) 88%, transparent);
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
   --wails-draggable: drag;
   -webkit-app-region: drag;
 }
 
 .app-shell-tabbed .workspace-strip {
-  border-bottom-color: var(--window-top-border, transparent);
-  background: var(--window-top-bg, var(--terminal-toolbar-bg));
+  border-bottom-color: color-mix(in srgb, var(--window-top-border, transparent) 78%, transparent);
+  background: color-mix(in srgb, var(--window-top-bg, var(--terminal-toolbar-bg)) 88%, transparent);
   color: var(--terminal-control);
-  backdrop-filter: none;
 }
 
 .app-shell-sftp .workspace-strip {
-  border-bottom-color: var(--sftp-window-top-border);
-  background: var(--sftp-window-top-bg);
+  border-bottom-color: color-mix(in srgb, var(--sftp-window-top-border) 76%, transparent);
+  background: color-mix(in srgb, var(--sftp-window-top-bg) 88%, transparent);
   color: var(--text-secondary);
-  backdrop-filter: none;
 }
 
 .workspace-modules {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.28rem;
   justify-self: start;
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
+}
+
+.workspace-strip.has-workspace-tabs .workspace-modules {
+  padding-right: 0.72rem;
+  border-right: 1px solid color-mix(in srgb, var(--border-default) 56%, transparent);
 }
 
 .workspace-module {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
-  min-width: 96px;
+  gap: 0.36rem;
+  min-width: 88px;
   max-width: 132px;
   justify-content: center;
-  padding: 0.56rem 0.92rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-default);
-  background: var(--chrome-tab-bg);
+  height: 36px;
+  padding: 0 0.78rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -137,59 +142,58 @@
     transform 180ms ease,
     opacity 180ms ease,
     box-shadow 180ms ease;
-  box-shadow: var(--shadow-sm);
-  opacity: 0.78;
+  box-shadow: none;
+  opacity: 0.74;
 }
 
 .workspace-module:hover {
-  background: var(--chrome-tab-hover-bg);
-  border-color: var(--border-hover);
+  background: color-mix(in srgb, var(--chrome-tab-hover-bg) 78%, transparent);
+  border-color: color-mix(in srgb, var(--border-hover) 76%, transparent);
   color: var(--text-primary);
-  transform: translateY(-0.5px);
   opacity: 1;
 }
 
 .workspace-module.active {
-  min-width: 116px;
+  min-width: 108px;
   max-width: 158px;
-  padding-inline: 1.08rem;
+  padding-inline: 0.98rem;
   color: var(--chrome-tab-active-text);
-  background: var(--chrome-tab-active-bg);
-  border-color: var(--chrome-tab-active-border);
-  box-shadow: var(--chrome-tab-active-shadow);
+  background: color-mix(in srgb, var(--chrome-tab-active-bg) 88%, transparent);
+  border-color: color-mix(in srgb, var(--chrome-tab-active-border) 86%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 color-mix(in srgb, var(--accent-primary) 32%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.12);
   transform: translateY(-1px);
   opacity: 1;
 }
 
 .app-shell-tabbed .workspace-module {
   border-color: rgba(255, 255, 255, 0.03);
-  background: var(--terminal-tab-bg);
+  background: transparent;
   color: var(--terminal-control);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.02),
-    0 0 0 1px rgba(12, 18, 34, 0.08);
-  opacity: 0.72;
+  box-shadow: none;
+  opacity: 0.74;
 }
 
 .app-shell-tabbed .workspace-module:hover {
   border-color: var(--terminal-border);
-  background: var(--terminal-tab-hover-bg);
+  background: color-mix(in srgb, var(--terminal-tab-hover-bg) 78%, transparent);
   color: var(--terminal-tab-hover-text);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 18px rgba(6, 10, 20, 0.16);
-  opacity: 0.92;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  opacity: 1;
 }
 
 .app-shell-tabbed .workspace-module.active {
-  min-width: 124px;
-  max-width: 170px;
+  min-width: 108px;
+  max-width: 164px;
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
   color: var(--terminal-tab-active-text);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(6, 10, 20, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 hsl(var(--accent-hue) 52% 52% / 0.3),
+    0 8px 18px rgba(6, 10, 20, 0.18);
   transform: translateY(-1px);
   opacity: 1;
 }
@@ -207,17 +211,13 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.3rem;
   --wails-draggable: drag;
   -webkit-app-region: drag;
 }
 
 .workspace-tab-strip.has-tabs::before {
-  content: "";
-  width: 1px;
-  height: 32px;
-  margin-right: 0.22rem;
-  background: var(--terminal-divider);
+  content: none;
 }
 
 .workspace-strip-spacer {
@@ -225,14 +225,14 @@
 }
 
 .workspace-new-tab-btn {
-  width: var(--workspace-control-size);
-  height: var(--workspace-control-size);
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 9px;
   color: var(--text-secondary);
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
@@ -242,6 +242,11 @@
 }
 
 .workspace-new-tab-btn:hover {
+  background: color-mix(in srgb, var(--panel-muted) 72%, transparent);
+  color: var(--text-primary);
+}
+
+.app-shell-tabbed .workspace-new-tab-btn:hover {
   background: var(--terminal-tab-hover-bg);
   color: var(--terminal-tab-hover-text);
 }
@@ -288,7 +293,7 @@
   min-height: var(--session-tab-height);
   display: flex;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.3rem;
   overflow: auto hidden;
 }
 
@@ -326,16 +331,16 @@
 
 .session-tab {
   flex: 0 0 auto;
-  min-width: 132px;
-  max-width: 184px;
+  min-width: 128px;
+  max-width: 196px;
   height: var(--session-tab-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
-  border-radius: 11px;
-  background: var(--chrome-tab-bg);
-  box-shadow: var(--shadow-sm);
-  opacity: 0.78;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--chrome-tab-bg) 76%, transparent);
+  box-shadow: none;
+  opacity: 0.76;
   overflow: hidden;
   transition:
     min-width 180ms ease,
@@ -348,31 +353,36 @@
 }
 
 .session-tab.active {
-  min-width: 188px;
+  min-width: 176px;
   max-width: 248px;
-  background: var(--chrome-tab-active-bg);
-  border-color: var(--chrome-tab-active-border);
+  background: color-mix(in srgb, var(--chrome-tab-active-bg) 88%, transparent);
+  border-color: color-mix(in srgb, var(--chrome-tab-active-border) 88%, transparent);
   opacity: 1;
-  box-shadow: var(--chrome-tab-active-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 color-mix(in srgb, var(--accent-primary) 28%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
 }
 
 .app-shell-tabbed .session-tab {
   border-color: transparent;
-  background: var(--terminal-tab-bg);
+  background: color-mix(in srgb, var(--terminal-tab-bg) 82%, transparent);
   color: var(--terminal-control);
   box-shadow: none;
   opacity: 0.72;
 }
 
 .app-shell-tabbed .session-tab.active {
-  min-width: 196px;
-  max-width: 268px;
+  min-width: 184px;
+  max-width: 260px;
   border-color: var(--terminal-tab-active-border);
   background: var(--terminal-tab-active-bg);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(6, 10, 20, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 hsl(var(--accent-hue) 52% 52% / 0.3),
+    0 8px 18px rgba(6, 10, 20, 0.18);
+  transform: translateY(-1px);
   opacity: 1;
 }
 
@@ -391,8 +401,8 @@
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 0.38rem;
-  padding: 0 0.64rem;
+  gap: 0.34rem;
+  padding: 0 0.62rem;
   text-align: left;
   color: var(--text-primary);
 }
@@ -415,26 +425,27 @@
 
 .session-tab-main strong {
   font-size: 0.82rem;
+  font-weight: 680;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .session-tab.active .session-tab-main strong {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: inherit;
 }
 
 .session-tab-close {
-  width: 28px;
-  height: 28px;
-  margin-right: 0.22rem;
+  width: 26px;
+  height: 26px;
+  margin-right: 0.18rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--text-tertiary);
-  opacity: 0.78;
+  opacity: 0.48;
   transition:
     background 150ms ease,
     color 150ms ease,
@@ -448,7 +459,7 @@
 
 .session-tab.active .session-tab-close {
   color: color-mix(in srgb, var(--text-primary) 74%, transparent);
-  opacity: 0.9;
+  opacity: 0.76;
 }
 
 .app-shell-tabbed .session-tab.active .session-tab-close {
