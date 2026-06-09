@@ -369,7 +369,7 @@ export default function HostList({
 
             <div className="host-tag-row" aria-label="主机标签">
               <Tags size={13} />
-              {(tags.length > 0 ? tags : ['未标记']).slice(0, 3).map((tag) => (
+              {(tags.length > 0 ? tags : ['未标记']).slice(0, 2).map((tag) => (
                 <span key={tag}>{tag}</span>
               ))}
             </div>
@@ -417,7 +417,7 @@ export default function HostList({
                   disabled={disabled || connecting}
                 >
                   <PlugZap size={14} />
-                  {connecting ? '连接中' : '连接'}
+                  <span className="host-connect-label">{connecting ? '连接中' : '连接'}</span>
                 </button>
               </div>
             </div>
