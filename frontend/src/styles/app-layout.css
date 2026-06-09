@@ -38,7 +38,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0 1.25rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 86%, transparent);
   background: var(--toolbar-bg);
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.02);
 }
@@ -110,40 +110,41 @@
 
 .page-toolbar-meta.hosts .toolbar-btn.primary {
   min-height: 40px;
-  padding: 0.62rem 0.84rem;
+  padding: 0.58rem 0.84rem;
   border-radius: 8px;
   gap: 0.36rem;
   font-size: 0.86rem;
   font-weight: 650;
+  box-shadow: none;
 }
 
 .view-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.22rem;
-  padding: 0.22rem;
-  border: 1px solid var(--border-default);
+  gap: 0.18rem;
+  padding: 0.2rem;
+  border: 1px solid color-mix(in srgb, var(--border-default) 82%, transparent);
   border-radius: 8px;
-  background: var(--panel-muted);
+  background: color-mix(in srgb, var(--panel-muted) 72%, transparent);
 }
 
 .view-toggle button {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
-  padding: 0.48rem 0.62rem;
+  padding: 0.46rem 0.58rem;
   border-radius: 6px;
   color: var(--text-secondary);
   font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 650;
   transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
 .view-toggle button:hover,
 .view-toggle button.active {
   color: var(--text-primary);
-  background: var(--panel-bg-strong);
-  box-shadow: var(--shadow-sm);
+  background: color-mix(in srgb, var(--panel-bg-strong) 90%, transparent);
+  box-shadow: none;
 }
 
 .search-bar {
@@ -152,9 +153,9 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.9rem 1rem;
+  padding: 0.84rem 0.95rem;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.09);
+  border: 1px solid color-mix(in srgb, var(--border-default) 62%, transparent);
   background: var(--input-bg);
   color: var(--text-tertiary);
   transition:
@@ -193,9 +194,9 @@
 }
 
 .search-bar:focus-within {
-  border-color: var(--border-strong);
+  border-color: color-mix(in srgb, var(--accent-cyan) 34%, var(--border-strong));
   background: var(--input-focus);
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-cyan) 12%, transparent);
   color: var(--accent-secondary);
 }
 
@@ -270,6 +271,7 @@
   background: var(--accent-primary);
   color: var(--text-inverse);
   font-weight: 700;
+  box-shadow: none;
 }
 
 .toolbar-btn.primary:hover,
@@ -323,11 +325,11 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 1.15rem 1.25rem 1.25rem;
+  padding: 1.05rem 1.25rem 1.25rem;
   overflow: auto;
   background-color: var(--content-bg);
   background-image:
-    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 18%),
+    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 16%),
     linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
   background-size: auto, 64px 64px, 64px 64px;
