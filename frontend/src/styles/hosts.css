@@ -31,16 +31,14 @@
   gap: 0.56rem;
   min-width: 0;
   cursor: pointer;
-  background: color-mix(in srgb, var(--card-bg) 82%, transparent);
+  background: var(--card-bg);
   border-color: hsl(0 0% 100% / 0.065);
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.025);
-  backdrop-filter: blur(16px) saturate(1.05);
-  -webkit-backdrop-filter: blur(16px) saturate(1.05);
   transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .host-card:hover {
-  background: color-mix(in srgb, var(--card-hover) 86%, transparent);
+  background: var(--card-hover);
   border-color: hsl(0 0% 100% / 0.105);
   transform: translateY(-1px);
   box-shadow:
@@ -49,7 +47,7 @@
 }
 
 .host-card.active {
-  background: color-mix(in srgb, var(--card-active) 88%, transparent);
+  background: var(--card-active);
   border-color: color-mix(in srgb, var(--accent-cyan) 30%, hsl(0 0% 100% / 0.12));
   box-shadow:
     inset 2px 0 0 color-mix(in srgb, var(--accent-cyan) 58%, transparent),
@@ -58,19 +56,19 @@
 }
 
 [data-theme="light"] .host-card {
-  background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+  background: var(--card-bg);
   border-color: rgba(55, 72, 96, 0.1);
   box-shadow: 0 1px 2px rgba(55, 72, 96, 0.035);
 }
 
 [data-theme="light"] .host-card:hover {
-  background: color-mix(in srgb, var(--card-hover) 96%, transparent);
+  background: var(--card-hover);
   border-color: rgba(55, 72, 96, 0.14);
   box-shadow: 0 2px 5px rgba(55, 72, 96, 0.05);
 }
 
 [data-theme="light"] .host-card.active {
-  background: color-mix(in srgb, var(--card-active) 94%, transparent);
+  background: var(--card-active);
   box-shadow:
     inset 2px 0 0 color-mix(in srgb, var(--accent-cyan) 42%, transparent),
     0 2px 5px rgba(55, 72, 96, 0.045);
@@ -220,22 +218,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-inverse);
+  color: color-mix(in srgb, var(--host-avatar-color, var(--text-secondary)) 96%, var(--text-primary));
   flex: 0 0 auto;
-  filter: saturate(0.92);
+  background: color-mix(in srgb, var(--host-avatar-color, var(--text-secondary)) 7%, var(--panel-bg-strong));
+  border: 1px solid color-mix(in srgb, var(--host-avatar-color, var(--text-secondary)) 42%, var(--border-default));
+  box-shadow: none;
 }
 
 .host-card-avatar svg {
-  width: 18px;
-  height: 18px;
+  width: 21px;
+  height: 21px;
 }
 
 .host-card-avatar.system-ubuntu {
-  background: linear-gradient(135deg, #f9733a, #e95420);
+  --host-avatar-color: #f97316;
 }
 
 .host-card-avatar.system-debian {
-  background: linear-gradient(135deg, #d22552, #a91239);
+  --host-avatar-color: #d22552;
 }
 
 .host-card-avatar.system-macos,
@@ -246,23 +246,23 @@
 .host-card-avatar.system-fedora,
 .host-card-avatar.system-alpine,
 .host-card-avatar.system-arch {
-  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  --host-avatar-color: var(--accent-info);
 }
 
 .host-card-avatar.system-windows {
-  background: linear-gradient(135deg, #60a5fa, #0ea5e9);
+  --host-avatar-color: #0ea5e9;
 }
 
 .host-card-avatar.system-database {
-  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  --host-avatar-color: var(--accent-violet);
 }
 
 .host-card-avatar.system-cache {
-  background: linear-gradient(135deg, #fb7185, #e11d48);
+  --host-avatar-color: var(--accent-danger);
 }
 
 .host-card-avatar.system-gateway {
-  background: linear-gradient(135deg, #fb923c, #ea580c);
+  --host-avatar-color: var(--accent-amber);
 }
 
 .host-card-title {
@@ -526,10 +526,11 @@
   padding-inline: 0.62rem;
   border-radius: 9px;
   gap: 0.34rem;
-  color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary));
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--panel-bg-strong));
+  color: color-mix(in srgb, var(--accent-primary) 86%, var(--text-primary));
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 34%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--panel-bg-strong));
   box-shadow: none;
+  font-weight: 700;
 }
 
 .host-connect-label {
