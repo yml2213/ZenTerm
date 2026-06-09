@@ -165,7 +165,7 @@ export default function VaultWorkspace({
   )
 
   return (
-    <div className={`app-content${hostDrawer ? ' app-content-drawer-open' : ''}`}>
+    <div className={`app-content${hostDrawer ? ' app-content-drawer-open' : ''}${isSettingsPage ? ' app-content-settings' : ''}`}>
       <aside className="sidebar">
         <section className="sidebar-brand-card">
           <div className="sidebar-brand-icon" aria-hidden="true">
@@ -400,6 +400,7 @@ export default function VaultWorkspace({
               onChangePassword={onChangeMasterPassword}
               onResetConfirmedChange={onResetVaultConfirmedChange}
               onResetVault={onResetVault}
+              onBackToApp={() => onSidebarPageChange('hosts')}
             />
           ) : isKnownHostsPage ? (
             <KnownHostsPanel hosts={hosts} onToolbarChange={handleKnownHostsToolbarChange} />
