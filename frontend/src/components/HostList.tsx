@@ -367,17 +367,13 @@ export default function HostList({
               </span>
             </div>
 
-            <div className="host-tag-row" aria-label="主机标签">
-              <Tags size={13} />
-              {(tags.length > 0 ? tags : ['未标记']).slice(0, 2).map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-
             <div className="host-card-footer">
-              <span className="host-card-summary">
-                {disabled ? '输入主密码后可继续连接与编辑' : trusted ? '可信指纹已写入' : '首次连接会确认指纹'}
-              </span>
+              <div className="host-tag-row" aria-label="主机标签">
+                <Tags size={13} />
+                {(tags.length > 0 ? tags : ['未标记']).slice(0, 2).map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
               <div
                 className="host-card-actions"
                 onDoubleClick={(event) => event.stopPropagation()}

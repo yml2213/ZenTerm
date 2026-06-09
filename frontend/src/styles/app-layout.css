@@ -113,11 +113,11 @@
 }
 
 .page-toolbar-meta.hosts .toolbar-btn.primary {
-  min-height: 40px;
-  padding: 0.58rem 0.84rem;
+  min-height: 36px;
+  padding: 0.48rem 0.72rem;
   border-radius: 8px;
-  gap: 0.36rem;
-  font-size: 0.86rem;
+  gap: 0.32rem;
+  font-size: 0.82rem;
   font-weight: 650;
   box-shadow: none;
 }
