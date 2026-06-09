@@ -14,8 +14,8 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 
 const THEME_KEY = 'zenterm-theme'
 const NATIVE_WINDOW_BACKGROUND = {
-  dark: [5, 7, 11, 255],
-  light: [233, 238, 244, 255],
+  dark: [8, 8, 8, 0],
+  light: [238, 238, 238, 0],
 } satisfies Record<ResolvedThemeName, [number, number, number, number]>
 
 export function useTheme() {

@@ -199,7 +199,7 @@ export default function VaultWorkspace({
         {isHostsPage ? (
           <section className="sidebar-filter-section" aria-label="主机筛选">
             <div className="sidebar-filter-head">
-              <span className="sidebar-label">Views</span>
+              <span className="sidebar-label">视图</span>
               {hostFilterKey !== 'all' ? (
                 <button type="button" onClick={() => onHostFilterChange('all')}>清除</button>
               ) : null}
@@ -236,7 +236,7 @@ export default function VaultWorkspace({
 
             {hostGroups.length > 0 ? (
               <div className="sidebar-filter-group">
-                <span className="sidebar-label">Groups</span>
+                <span className="sidebar-label">分组</span>
                 <div className="sidebar-filter-list">
                   {hostGroups.map((group) => {
                     const filterKey = `group:${group}`
@@ -260,7 +260,7 @@ export default function VaultWorkspace({
 
             {hostTags.length > 0 ? (
               <div className="sidebar-filter-group">
-                <span className="sidebar-label">Tags</span>
+                <span className="sidebar-label">标签</span>
                 <div className="sidebar-tag-cloud">
                   {hostTags.map((tag) => {
                     const filterKey = `tag:${tag}`

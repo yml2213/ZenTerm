@@ -196,6 +196,13 @@ export default function TerminalPane({
       return undefined
     }
 
+    const rootStyles = getComputedStyle(document.documentElement)
+    const terminalTheme = {
+      background: rootStyles.getPropertyValue('--terminal-bg').trim() || '#111111',
+      foreground: rootStyles.getPropertyValue('--terminal-fg').trim() || '#e5e5e5',
+      cursor: rootStyles.getPropertyValue('--terminal-cursor').trim() || '#6ee7b7',
+    }
+
     const terminal = new XTerm({
       convertEol: true,
       cursorBlink: false,
@@ -203,11 +210,7 @@ export default function TerminalPane({
       fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
       fontSize: 14,
       scrollback: 10000,
-      theme: {
-        background: '#141526',
-        foreground: '#dfe8f2',
-        cursor: '#6ee7b7',
-      },
+      theme: terminalTheme,
     })
 
     const fitAddon = new FitAddon()
