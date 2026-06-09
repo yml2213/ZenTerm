@@ -33,7 +33,7 @@ export default function WorkspaceStrip({
   sftpLabel,
 }: WorkspaceStripProps) {
   return (
-    <section className="workspace-strip" onDoubleClick={onWorkspaceStripDoubleClick}>
+    <section className={`workspace-strip${workspaceTabs.length > 0 ? ' has-workspace-tabs' : ''}`} onDoubleClick={onWorkspaceStripDoubleClick}>
       <div className="workspace-modules">
         <button
           type="button"
