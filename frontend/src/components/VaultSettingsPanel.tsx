@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   Cloud,
   Database,
   Download,
@@ -45,6 +46,7 @@ interface VaultSettingsPanelProps {
   onChangePassword: (event: FormEvent) => void
   onResetConfirmedChange: (value: boolean) => void
   onResetVault: () => void
+  onBackToApp: () => void
 }
 
 const settingsSections: Array<{
@@ -71,6 +73,7 @@ export default function VaultSettingsPanel({
   onChangePassword,
   onResetConfirmedChange,
   onResetVault,
+  onBackToApp,
 }: VaultSettingsPanelProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('security')
 
@@ -82,8 +85,13 @@ export default function VaultSettingsPanel({
   return (
     <section className="settings-stage" aria-label="设置">
       <aside className="settings-nav-panel" aria-label="设置分类">
+        <button type="button" className="settings-back-button" onClick={onBackToApp}>
+          <ArrowLeft size={15} />
+          返回应用
+        </button>
+
         <div className="settings-nav-head">
-          <span className="panel-kicker">Settings</span>
+          <span className="panel-kicker">偏好设置</span>
           <h1>设置</h1>
         </div>
 
