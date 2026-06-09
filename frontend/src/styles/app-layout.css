@@ -5,6 +5,8 @@
   grid-template-rows: var(--app-panel-bar-height) minmax(0, 1fr);
   overflow: hidden;
   background: var(--content-bg);
+  backdrop-filter: blur(18px) saturate(1.05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.05);
 }
 
 .ssh-page {
@@ -328,12 +330,7 @@
   padding: 1.05rem 1.25rem 1.25rem;
   overflow: auto;
   background-color: var(--content-bg);
-  background-image:
-    radial-gradient(circle at top center, var(--panel-grid-glow), transparent 16%),
-    linear-gradient(to right, var(--panel-grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--panel-grid-line) 1px, transparent 1px);
-  background-size: auto, 64px 64px, 64px 64px;
-  background-position: center top, center center, center center;
+  background-image: none;
 }
 
 .content-area-flush,
