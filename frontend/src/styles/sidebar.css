@@ -29,7 +29,11 @@
   border-top: 0;
   border-bottom: 0;
   border-left: 0;
-  background: color-mix(in srgb, var(--sidebar-bg) 72%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--sidebar-bg) var(--panel-opacity, 72%),
+    transparent
+  );
   backdrop-filter: blur(30px) saturate(1.12);
   -webkit-backdrop-filter: blur(30px) saturate(1.12);
   box-shadow: inset -1px 0 0 hsl(0 0% 100% / 0.08),
@@ -287,7 +291,11 @@
 }
 
 [data-theme="light"] .sidebar {
-  background: color-mix(in srgb, var(--sidebar-bg) 44%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--sidebar-bg) var(--panel-opacity, 44%),
+    transparent
+  );
   box-shadow: inset -1px 0 0 rgba(55, 72, 96, 0.08),
     inset 1px 0 0 rgba(255, 255, 255, 0.72);
 }
