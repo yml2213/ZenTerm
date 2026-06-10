@@ -31,11 +31,11 @@
   border-left: 0;
   background: color-mix(
     in srgb,
-    var(--sidebar-bg) var(--panel-opacity, 72%),
+    var(--sidebar-bg) var(--sidebar-opacity, 82%),
     transparent
   );
-  backdrop-filter: blur(30px) saturate(1.12);
-  -webkit-backdrop-filter: blur(30px) saturate(1.12);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
   box-shadow: inset -1px 0 0 hsl(0 0% 100% / 0.08),
     inset 1px 0 0 hsl(0 0% 100% / 0.035);
   padding: 0.96rem 0.68rem 0.86rem;
