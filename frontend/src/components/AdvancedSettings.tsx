@@ -2,28 +2,33 @@ import { Settings2, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getAppPreferences,
+  getAppVersion,
   saveAppPreferences,
   browserOpenURL,
   type AppPreferences,
 } from "../lib/backend";
 
 const GITHUB_URL = "https://github.com/user/ZenTerm";
-const APP_VERSION = "0.1.2";
 
 export default function AdvancedSettings() {
   const [prefs, setPrefs] = useState<AppPreferences>({});
+  const [appVersion, setAppVersion] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadPrefs();
+    loadData();
   }, []);
 
-  const loadPrefs = async () => {
+  const loadData = async () => {
     try {
-      const data = await getAppPreferences();
-      setPrefs(data);
+      const [prefsData, version] = await Promise.all([
+        getAppPreferences(),
+        getAppVersion(),
+      ]);
+      setPrefs(prefsData);
+      setAppVersion(version);
     } catch (e) {
-      console.error("Failed to load app preferences:", e);
+      console.error("Failed to load data:", e);
     } finally {
       setLoading(false);
     }
@@ -86,7 +91,9 @@ export default function AdvancedSettings() {
             <div className="about-logo-icon">⚡</div>
             <div>
               <div className="about-name">ZenTerm</div>
-              <div className="about-version">版本 {APP_VERSION}</div>
+              <div className="about-version">
+                版本 {appVersion || "加载中..."}
+              </div>
             </div>
           </div>
           <div className="about-links">
