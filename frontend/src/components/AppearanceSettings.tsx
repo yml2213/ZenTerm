@@ -6,7 +6,7 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
+import { useRef, type ChangeEvent, type CSSProperties } from "react";
 import { useTheme } from "../contexts/ThemeProvider";
 import { useAppearance } from "../contexts/AppearanceProvider";
 
@@ -80,9 +80,11 @@ export default function AppearanceSettings() {
     accentHue,
     accentSaturation,
     panelOpacity,
+    sidebarOpacity,
     setAccentHue,
     setAccentSaturation,
     setPanelOpacity,
+    setSidebarOpacity,
     resetAppearance,
   } = useAppearance();
 
@@ -92,6 +94,11 @@ export default function AppearanceSettings() {
       preset.hue === accentHue && preset.saturation === accentSaturation
   );
   const isCustom = !activePreset;
+
+  function fillStyle(value: number, min: number, max: number) {
+    const pct = ((value - min) / (max - min)) * 100;
+    return { "--fill": `${pct}%` } as CSSProperties;
+  }
 
   function handleCustomColorChange(e: ChangeEvent<HTMLInputElement>) {
     const hex = e.target.value;
@@ -203,6 +210,7 @@ export default function AppearanceSettings() {
             min={0}
             max={360}
             value={accentHue}
+            style={fillStyle(accentHue, 0, 360)}
             onChange={(e) => setAccentHue(Number(e.target.value))}
           />
           <output>{accentHue}°</output>
@@ -215,6 +223,7 @@ export default function AppearanceSettings() {
             min={20}
             max={80}
             value={accentSaturation}
+            style={fillStyle(accentSaturation, 20, 80)}
             onChange={(e) => setAccentSaturation(Number(e.target.value))}
           />
           <output>{accentSaturation}%</output>
@@ -227,17 +236,31 @@ export default function AppearanceSettings() {
           <Palette size={18} />
           <div>
             <h3>面板透明度</h3>
-            <p>控制侧边栏和内容区域的背景透明程度。</p>
+            <p>分别控制侧边栏与内容区域的背景透明程度。</p>
           </div>
         </div>
 
         <label className="appearance-slider-row">
-          <span>透明度</span>
+          <span>侧边栏</span>
+          <input
+            type="range"
+            min={20}
+            max={100}
+            value={sidebarOpacity}
+            style={fillStyle(sidebarOpacity, 20, 100)}
+            onChange={(e) => setSidebarOpacity(Number(e.target.value))}
+          />
+          <output>{sidebarOpacity}%</output>
+        </label>
+
+        <label className="appearance-slider-row">
+          <span>内容区</span>
           <input
             type="range"
             min={20}
             max={100}
             value={panelOpacity}
+            style={fillStyle(panelOpacity, 20, 100)}
             onChange={(e) => setPanelOpacity(Number(e.target.value))}
           />
           <output>{panelOpacity}%</output>

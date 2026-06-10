@@ -9,18 +9,22 @@ import {
 const ACCENT_HUE_KEY = "zenterm-accent-hue";
 const ACCENT_SAT_KEY = "zenterm-accent-saturation";
 const PANEL_OPACITY_KEY = "zenterm-panel-opacity";
+const SIDEBAR_OPACITY_KEY = "zenterm-sidebar-opacity";
 
 const DEFAULT_HUE = 145;
 const DEFAULT_SATURATION = 55;
 const DEFAULT_OPACITY = 44;
+const DEFAULT_SIDEBAR_OPACITY = 82;
 
 interface AppearanceContextValue {
   accentHue: number;
   accentSaturation: number;
   panelOpacity: number;
+  sidebarOpacity: number;
   setAccentHue: (hue: number) => void;
   setAccentSaturation: (saturation: number) => void;
   setPanelOpacity: (opacity: number) => void;
+  setSidebarOpacity: (opacity: number) => void;
   resetAppearance: () => void;
 }
 
@@ -61,15 +65,19 @@ export default function AppearanceProvider({
   const [hasExplicitOpacity, setHasExplicitOpacity] = useState(
     () => localStorage.getItem(PANEL_OPACITY_KEY) !== null
   );
+  const [sidebarOpacity, setSidebarOpacityState] = useState(() =>
+    loadNumber(SIDEBAR_OPACITY_KEY, DEFAULT_SIDEBAR_OPACITY)
+  );
 
   useEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--accent-hue", String(accentHue));
     root.setProperty("--accent-saturation", `${accentSaturation}%`);
+    root.setProperty("--sidebar-opacity", `${sidebarOpacity}%`);
     if (hasExplicitOpacity) {
       root.setProperty("--panel-opacity", `${panelOpacity}%`);
     }
-  }, [accentHue, accentSaturation, panelOpacity, hasExplicitOpacity]);
+  }, [accentHue, accentSaturation, panelOpacity, sidebarOpacity, hasExplicitOpacity]);
 
   const setAccentHue = (hue: number) => {
     setAccentHueState(hue);
@@ -87,12 +95,19 @@ export default function AppearanceProvider({
     localStorage.setItem(PANEL_OPACITY_KEY, String(opacity));
   };
 
+  const setSidebarOpacity = (opacity: number) => {
+    setSidebarOpacityState(opacity);
+    localStorage.setItem(SIDEBAR_OPACITY_KEY, String(opacity));
+  };
+
   const resetAppearance = () => {
     setAccentHue(DEFAULT_HUE);
     setAccentSaturation(DEFAULT_SATURATION);
     setPanelOpacityState(DEFAULT_OPACITY);
     setHasExplicitOpacity(false);
     localStorage.removeItem(PANEL_OPACITY_KEY);
+    setSidebarOpacityState(DEFAULT_SIDEBAR_OPACITY);
+    localStorage.removeItem(SIDEBAR_OPACITY_KEY);
   };
 
   return (
@@ -101,9 +116,11 @@ export default function AppearanceProvider({
         accentHue,
         accentSaturation,
         panelOpacity,
+        sidebarOpacity,
         setAccentHue,
         setAccentSaturation,
         setPanelOpacity,
+        setSidebarOpacity,
         resetAppearance,
       }}
     >
