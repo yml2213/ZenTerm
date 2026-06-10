@@ -558,7 +558,7 @@ function SecuritySettings({
   onChangePassword,
   onResetConfirmedChange,
   onResetVault,
-}: VaultSettingsPanelProps) {
+}: Omit<VaultSettingsPanelProps, "onBackToApp">) {
   return (
     <div className="settings-section-stack">
       <section className="settings-section-panel">
