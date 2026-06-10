@@ -33,6 +33,8 @@ import {
 } from "../lib/backend";
 import { useTerminalPreferences } from "../contexts/TerminalPreferencesProvider";
 import AppearanceSettings from "./AppearanceSettings";
+import DataSettings from "./DataSettings";
+import AdvancedSettings from "./AdvancedSettings";
 import type { ChangeMasterForm } from "../types";
 import type { UpdateConfig, UpdateInfo, UpdateProgress } from "../types/update";
 
@@ -176,8 +178,12 @@ export default function VaultSettingsPanel({
           <UpdateSettings />
         ) : activeSection === "terminal" ? (
           <TerminalSettings />
+        ) : activeSection === "data" ? (
+          <DataSettings />
         ) : activeSection === "appearance" ? (
           <AppearanceSettings />
+        ) : activeSection === "advanced" ? (
+          <AdvancedSettings />
         ) : (
           <ReservedSettings section={activeSection} />
         )}

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 
+	"zenterm/internal/db"
 	"zenterm/internal/model"
 
 	"github.com/wailsapp/wails/v2"
@@ -25,6 +26,8 @@ func main() {
 	if err != nil {
 		windowState = model.WindowState{}
 	}
+
+	appPreferences := db.LoadAppPreferencesFromFile(storePath)
 
 	app, err := NewDefaultApp()
 	if err != nil {
@@ -69,7 +72,7 @@ func main() {
 			WindowIsTranslucent:  true,
 		},
 		Debug: options.Debug{
-			OpenInspectorOnStartup: false,
+			OpenInspectorOnStartup: appPreferences.OpenInspectorOnStartup,
 		},
 	})
 	if err != nil {

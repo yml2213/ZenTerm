@@ -177,6 +177,11 @@ type FileTransferResult struct {
 	BytesCopied int64  `json:"bytesCopied"`
 }
 
+// AppPreferences 全局应用偏好 / global application preferences.
+type AppPreferences struct {
+	OpenInspectorOnStartup bool `json:"open_inspector_on_startup,omitempty"`
+}
+
 // UpdateConfig 更新配置 / update configuration.
 type UpdateConfig struct {
 	Enabled        bool   `json:"enabled"`         // 是否启用自动检查
