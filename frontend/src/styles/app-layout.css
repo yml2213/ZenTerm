@@ -331,7 +331,7 @@
   flex-direction: column;
   padding: 1.05rem 1.25rem 1.25rem;
   overflow: auto;
-  background-color: var(--content-bg);
+  background-color: transparent;
   background-image: none;
 }
 
