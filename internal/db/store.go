@@ -36,6 +36,7 @@ type fileData struct {
 	Vault              vaultData                `json:"vault"`
 	Window             model.WindowState        `json:"window,omitempty"`
 	UpdateConfig       model.UpdateConfig       `json:"update_config,omitempty"`
+	AppPreferences     model.AppPreferences     `json:"app_preferences,omitempty"`
 	Hosts              []hostEntry              `json:"hosts"`
 	Credentials        []credentialEntry        `json:"credentials"`
 	SessionLogs        []model.SessionLog       `json:"session_logs,omitempty"`
