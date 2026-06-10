@@ -15,10 +15,6 @@ export default function AdvancedSettings() {
   const [appVersion, setAppVersion] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       const [prefsData, version] = await Promise.all([
@@ -33,6 +29,10 @@ export default function AdvancedSettings() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleToggle = async (key: keyof AppPreferences, value: boolean) => {
     const newPrefs = { ...prefs, [key]: value };
