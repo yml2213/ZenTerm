@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 
+	"zenterm/cmd"
 	"zenterm/internal/model"
 
 	"github.com/wailsapp/wails/v2"
@@ -16,17 +17,17 @@ import (
 var assets embed.FS
 
 func main() {
-	storePath, err := DefaultStorePath()
+	storePath, err := cmd.DefaultStorePath()
 	if err != nil {
 		panic(fmt.Errorf("resolve default store path: %w", err))
 	}
 
-	windowState, err := LoadSavedWindowState(storePath)
+	windowState, err := cmd.LoadSavedWindowState(storePath)
 	if err != nil {
 		windowState = model.WindowState{}
 	}
 
-	app, err := NewDefaultApp()
+	app, err := cmd.NewDefaultApp()
 	if err != nil {
 		panic(fmt.Errorf("create app: %w", err))
 	}
@@ -55,10 +56,10 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Menu:          buildApplicationMenu(app),
-		OnStartup:     app.startup,
-		OnBeforeClose: app.beforeClose,
-		OnShutdown:    app.shutdown,
+		Menu:          cmd.BuildApplicationMenu(app),
+		OnStartup:     app.Startup,
+		OnBeforeClose: app.BeforeClose,
+		OnShutdown:    app.Shutdown,
 		Bind: []interface{}{
 			app,
 		},

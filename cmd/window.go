@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -6,21 +6,23 @@ import (
 
 	"zenterm/internal/model"
 
+	"github.com/wailsapp/wails/v2/pkg/menu"
+	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	// 启动后检查更新
-	a.startupCheckUpdate(ctx)
+	a.startupCheckUpdate()
 }
 
-func (a *App) beforeClose(context.Context) bool {
+func (a *App) BeforeClose(ctx context.Context) bool {
 	a.persistWindowState()
 	return false
 }
 
-func (a *App) shutdown(context.Context) {
+func (a *App) Shutdown(ctx context.Context) {
 	a.persistWindowState()
 	_ = a.service.CloseAll()
 }
@@ -53,4 +55,25 @@ func (a *App) emitEvent(event string, payload any) {
 	}
 
 	runtime.EventsEmit(a.ctx, event, payload)
+}
+
+// buildApplicationMenu 构建应用原生菜单 / builds the native application menu.
+func BuildApplicationMenu(app *App) *menu.Menu {
+	appMenu := menu.NewMenu()
+	zenTermMenu := appMenu.AddSubmenu("ZenTerm")
+
+	zenTermMenu.AddText("检查更新...", keys.CmdOrCtrl("u"), func(*menu.CallbackData) {
+		app.emitEvent("update:check-requested", nil)
+	})
+	zenTermMenu.AddSeparator()
+	zenTermMenu.AddText("退出", keys.CmdOrCtrl("q"), func(*menu.CallbackData) {
+		if app.ctx != nil {
+			runtime.Quit(app.ctx)
+		}
+	})
+
+	appMenu.Append(menu.EditMenu())
+	appMenu.Append(menu.WindowMenu())
+
+	return appMenu
 }
