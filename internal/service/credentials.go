@@ -136,7 +136,7 @@ func (s *Service) ImportCredential(label, privateKeyPEM, passphrase string) (str
 
 	signer, err := parsePrivateKeySigner(privateKeyPEM, passphrase)
 	if err != nil {
-		return "", fmt.Errorf("parse private key: %w", err)
+		return "", ErrInvalidPrivateKey
 	}
 	pubKey := signer.PublicKey()
 
@@ -268,9 +268,10 @@ func algorithmFromPublicKey(publicKey ssh.PublicKey) string {
 }
 
 func newCredentialID() string {
-	buf := make([]byte, 4)
+	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
-		return fmt.Sprintf("cred_%s_%d", time.Now().Format("20060102150405"), time.Now().UnixNano())
+		// 极端情况下 crypto/rand 失败，退化为时间戳兜底，避免凭据创建完全失败 / fall back to a timestamp when crypto/rand fails so credential creation never hard-fails.
+		return fmt.Sprintf("cred_%d", time.Now().UnixNano())
 	}
-	return fmt.Sprintf("cred_%s_%s", time.Now().Format("20060102150405"), hex.EncodeToString(buf))
+	return "cred_" + hex.EncodeToString(buf)
 }

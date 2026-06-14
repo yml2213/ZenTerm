@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -453,6 +454,32 @@ func TestGenerateECDSACredential(t *testing.T) {
 				t.Errorf("未找到凭据 %s", tc.name)
 			}
 		})
+	}
+}
+
+// TestImportCredentialRejectsInvalidPrivateKey 验证：导入坏私钥时返回归一化的 ErrInvalidPrivateKey，不向调用方透传 PEM 解析细节 / verifies that importing an unparseable key surfaces as the sanitised ErrInvalidPrivateKey rather than leaking PEM parsing internals.
+func TestImportCredentialRejectsInvalidPrivateKey(t *testing.T) {
+	svc, cleanup := setupTestServiceWithT(t)
+	defer cleanup()
+
+	_, err := svc.ImportCredential("bad-key", "-----BEGIN OPENSSH PRIVATE KEY-----\nnot a real key\n-----END OPENSSH PRIVATE KEY-----", "")
+	if !errors.Is(err, ErrInvalidPrivateKey) {
+		t.Fatalf("ImportCredential(invalid) error = %v, want %v", err, ErrInvalidPrivateKey)
+	}
+}
+
+// TestNewCredentialIDIsRandom 验证：连续生成的凭据 ID 互不相同且不带可猜测的时间戳前缀 / verifies that consecutive credential IDs are distinct and do not carry a guessable timestamp prefix.
+func TestNewCredentialIDIsRandom(t *testing.T) {
+	seen := make(map[string]struct{}, 100)
+	for i := 0; i < 100; i++ {
+		id := newCredentialID()
+		if !strings.HasPrefix(id, "cred_") {
+			t.Fatalf("credential id = %q, want cred_ prefix", id)
+		}
+		if _, dup := seen[id]; dup {
+			t.Fatalf("duplicate credential id generated: %q", id)
+		}
+		seen[id] = struct{}{}
 	}
 }
 

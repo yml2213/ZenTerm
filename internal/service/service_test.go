@@ -8,6 +8,7 @@ import (
 	"os"
 	pathpkg "path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +53,7 @@ func (d *stubDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshCl
 }
 
 type stubSSHClient struct {
+	mu             sync.Mutex
 	session        *stubSSHSession
 	sftp           *stubSFTPClient
 	closed         bool
@@ -61,6 +63,8 @@ type stubSSHClient struct {
 }
 
 func (c *stubSSHClient) NewSession() (sshSession, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.newSessionHits++
 	if c.session == nil {
 		c.session = &stubSSHSession{}
@@ -76,6 +80,8 @@ func (c *stubSSHClient) NewSession() (sshSession, error) {
 }
 
 func (c *stubSSHClient) NewSFTPClient() (sftpClient, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.newSFTPHits++
 	if c.sftp == nil {
 		c.sftp = &stubSFTPClient{
@@ -91,11 +97,18 @@ func (c *stubSSHClient) NewSFTPClient() (sftpClient, error) {
 }
 
 func (c *stubSSHClient) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.closed = true
 	return nil
 }
 
+func (c *stubSSHClient) SendKeepAlive() error {
+	return nil
+}
+
 type stubSFTPClient struct {
+	mu        sync.Mutex
 	cwd       string
 	realPaths map[string]string
 	dirs      map[string][]os.FileInfo
@@ -105,6 +118,8 @@ type stubSFTPClient struct {
 }
 
 func (c *stubSFTPClient) ReadDir(path string) ([]os.FileInfo, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	entries, ok := c.dirs[path]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -114,6 +129,8 @@ func (c *stubSFTPClient) ReadDir(path string) ([]os.FileInfo, error) {
 }
 
 func (c *stubSFTPClient) RealPath(path string) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if resolved, ok := c.realPaths[path]; ok {
 		return resolved, nil
 	}
@@ -122,10 +139,14 @@ func (c *stubSFTPClient) RealPath(path string) (string, error) {
 }
 
 func (c *stubSFTPClient) Getwd() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.cwd, nil
 }
 
 func (c *stubSFTPClient) Stat(path string) (os.FileInfo, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if info, ok := c.stats[path]; ok {
 		return info, nil
 	}
@@ -140,6 +161,8 @@ func (c *stubSFTPClient) Stat(path string) (os.FileInfo, error) {
 }
 
 func (c *stubSFTPClient) Open(path string) (io.ReadCloser, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	payload, ok := c.files[path]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -151,6 +174,8 @@ func (c *stubSFTPClient) Open(path string) (io.ReadCloser, error) {
 func (c *stubSFTPClient) Create(path string) (io.WriteCloser, error) {
 	return &stubSFTPWriteCloser{
 		onClose: func(data []byte) {
+			c.mu.Lock()
+			defer c.mu.Unlock()
 			if c.files == nil {
 				c.files = make(map[string][]byte)
 			}
@@ -170,6 +195,8 @@ func (c *stubSFTPClient) Create(path string) (io.WriteCloser, error) {
 }
 
 func (c *stubSFTPClient) Mkdir(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.dirs == nil {
 		c.dirs = make(map[string][]os.FileInfo)
 	}
@@ -186,6 +213,8 @@ func (c *stubSFTPClient) Mkdir(path string) error {
 }
 
 func (c *stubSFTPClient) Rename(oldPath, newPath string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if info, ok := c.stats[oldPath]; ok {
 		c.stats[newPath] = stubFileInfo{
 			name:    pathpkg.Base(newPath),
@@ -208,18 +237,24 @@ func (c *stubSFTPClient) Rename(oldPath, newPath string) error {
 }
 
 func (c *stubSFTPClient) Remove(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	delete(c.files, path)
 	delete(c.stats, path)
 	return nil
 }
 
 func (c *stubSFTPClient) RemoveDirectory(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	delete(c.dirs, path)
 	delete(c.stats, path)
 	return nil
 }
 
 func (c *stubSFTPClient) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.closed = true
 	return nil
 }
@@ -256,6 +291,7 @@ func (s stubFileInfo) IsDir() bool        { return s.dir }
 func (s stubFileInfo) Sys() any           { return nil }
 
 type stubSSHSession struct {
+	mu              sync.Mutex
 	stdin           bytes.Buffer
 	stdout          io.ReadCloser
 	stderr          io.ReadCloser
@@ -270,6 +306,8 @@ type stubSSHSession struct {
 }
 
 func (s *stubSSHSession) ensureDefaults() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.stdout == nil {
 		s.stdout = io.NopCloser(strings.NewReader(""))
 	}
@@ -288,16 +326,22 @@ func (s *stubSSHSession) StdinPipe() (io.WriteCloser, error) {
 
 func (s *stubSSHSession) StdoutPipe() (io.Reader, error) {
 	s.ensureDefaults()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.stdout, nil
 }
 
 func (s *stubSSHSession) StderrPipe() (io.Reader, error) {
 	s.ensureDefaults()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.stderr, nil
 }
 
 func (s *stubSSHSession) RequestPty(_ string, h, w int, _ ssh.TerminalModes) error {
 	s.ensureDefaults()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.ptyRequested = true
 	s.windowRows = h
 	s.windowCols = w
@@ -306,17 +350,23 @@ func (s *stubSSHSession) RequestPty(_ string, h, w int, _ ssh.TerminalModes) err
 
 func (s *stubSSHSession) Shell() error {
 	s.ensureDefaults()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.shellStarted = true
 	return nil
 }
 
 func (s *stubSSHSession) CombinedOutput(cmd string) ([]byte, error) {
 	s.ensureDefaults()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.combinedCommand = cmd
 	return []byte(s.combinedOutput), nil
 }
 
 func (s *stubSSHSession) WindowChange(h, w int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.windowRows = h
 	s.windowCols = w
 	return nil
@@ -324,11 +374,16 @@ func (s *stubSSHSession) WindowChange(h, w int) error {
 
 func (s *stubSSHSession) Wait() error {
 	s.ensureDefaults()
-	<-s.waitCh
+	s.mu.Lock()
+	ch := s.waitCh
+	s.mu.Unlock()
+	<-ch
 	return nil
 }
 
 func (s *stubSSHSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return nil
 	}

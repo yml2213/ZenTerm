@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -481,4 +482,123 @@ func TestDownloadFileOverwritesLocalFileWhenRequested(t *testing.T) {
 	if string(downloaded) != string(content) {
 		t.Fatalf("downloaded content after overwrite = %q, want %q", string(downloaded), string(content))
 	}
+}
+
+// TestDeleteRemoteEntryDoesNotDeadlockOnWideTree 回归测试：根目录有 10 个子目录（超过 remoteDeleteWorkers=8），每个子目录含文件。
+// 旧实现里 goroutine 在派发前就占用一个令牌并跨整个子树持有，10 个 goroutine 立刻占满 8 个令牌，
+// 孙子文件的 client.Remove 也要获取令牌 → 与父层 wg.Wait() 互相死锁。新实现令牌只包具体 SFTP 操作，必须能在超时内完成。
+//
+// Regression: root has 10 subdirs (more than remoteDeleteWorkers=8), each holding a file. The old
+// implementation acquired a token per goroutine before dispatch and held it across the whole subtree;
+// 10 goroutines would saturate the 8-slot semaphore, then grandchild file Removes would block on
+// acquire while parents sat in wg.Wait() — a deadlock. The fix holds tokens only around concrete SFTP
+// ops, so this must finish well within the timeout.
+func TestDeleteRemoteEntryDoesNotDeadlockOnWideTree(t *testing.T) {
+	deleteRemoteEntryDeadlockTest(t, func(root string) (dirs map[string][]os.FileInfo, stats map[string]os.FileInfo, files map[string][]byte) {
+		dirs = map[string][]os.FileInfo{}
+		stats = map[string]os.FileInfo{root: stubFileInfo{name: filepath.Base(root), mode: os.ModeDir | 0o755, dir: true}}
+		files = map[string][]byte{}
+		for i := 0; i < 10; i++ {
+			sub := filepath.Join(root, fmt.Sprintf("d%d", i))
+			leaf := filepath.Join(sub, "f.txt")
+			dirs[sub] = []os.FileInfo{stubFileInfo{name: "f.txt", size: 1, mode: 0o644}}
+			dirs[root] = append(dirs[root], stubFileInfo{name: fmt.Sprintf("d%d", i), mode: os.ModeDir | 0o755, dir: true})
+			stats[sub] = stubFileInfo{name: fmt.Sprintf("d%d", i), mode: os.ModeDir | 0o755, dir: true}
+			stats[leaf] = stubFileInfo{name: "f.txt", size: 1, mode: 0o644}
+			files[leaf] = []byte("x")
+		}
+		return dirs, stats, files
+	}, "/srv/wide")
+}
+
+// TestDeleteRemoteEntryDoesNotDeadlockOnDeepChain 回归测试：单链目录深度 10（> remoteDeleteWorkers=8）。
+// 旧实现里深度超过 8 的单链也会因为每层都持令牌再下沉而死锁 / Regression: a depth-10 single chain
+// also deadlocked in the old impl since each level held a token before descending past depth 8.
+func TestDeleteRemoteEntryDoesNotDeadlockOnDeepChain(t *testing.T) {
+	deleteRemoteEntryDeadlockTest(t, func(root string) (dirs map[string][]os.FileInfo, stats map[string]os.FileInfo, files map[string][]byte) {
+		dirs = map[string][]os.FileInfo{}
+		stats = map[string]os.FileInfo{root: stubFileInfo{name: filepath.Base(root), mode: os.ModeDir | 0o755, dir: true}}
+		files = map[string][]byte{}
+		cur := root
+		for i := 0; i < 10; i++ {
+			next := filepath.Join(cur, fmt.Sprintf("lvl%d", i))
+			dirs[cur] = []os.FileInfo{stubFileInfo{name: fmt.Sprintf("lvl%d", i), mode: os.ModeDir | 0o755, dir: true}}
+			stats[next] = stubFileInfo{name: fmt.Sprintf("lvl%d", i), mode: os.ModeDir | 0o755, dir: true}
+			cur = next
+		}
+		// 叶子目录里放一个文件，确保最后一层也走 Remove / a leaf file so the deepest level also does a Remove.
+		leaf := filepath.Join(cur, "end.txt")
+		dirs[cur] = []os.FileInfo{stubFileInfo{name: "end.txt", size: 1, mode: 0o644}}
+		stats[leaf] = stubFileInfo{name: "end.txt", size: 1, mode: 0o644}
+		files[leaf] = []byte("x")
+		return dirs, stats, files
+	}, "/srv/deep")
+}
+
+func deleteRemoteEntryDeadlockTest(t *testing.T, seed func(root string) (map[string][]os.FileInfo, map[string]os.FileInfo, map[string][]byte), root string) {
+	t.Helper()
+	store, vault := setupDeleteTestStore(t)
+	host := model.Host{ID: "host-delete-tree", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	dirs, stats, files := seed(root)
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd: "/home/zen",
+			realPaths: map[string]string{
+				".":    "/home/zen",
+				root:   root,
+			},
+			dirs:  dirs,
+			stats: stats,
+			files: files,
+		},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	// 在独立 goroutine 跑删除，主线程带 5s 超时等待；旧实现会死锁、超时触发 fatal / run the delete in a goroutine and bound it with a 5s timeout; the old impl would hang and trip this timeout.
+	done := make(chan error, 1)
+	go func() {
+		err := svc.DeleteRemoteEntry(host.ID, root)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("DeleteRemoteEntry() error = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("DeleteRemoteEntry() deadlocked: did not finish within 5s (wide/deep tree vs bounded workers)")
+	}
+
+	// 删除完成后根目录应已被 RemoveDirectory 清理 / the root must be removed after the delete.
+	client.sftp.mu.Lock()
+	_, rootStillThere := client.sftp.dirs[root]
+	client.sftp.mu.Unlock()
+	if rootStillThere {
+		t.Fatalf("root %q still present after delete — recursive delete did not clean it up", root)
+	}
+}
+
+func setupDeleteTestStore(t *testing.T) (*db.Store, *security.Vault) {
+	t.Helper()
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	return store, vault
 }
