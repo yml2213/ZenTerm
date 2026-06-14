@@ -1,7 +1,6 @@
-package main
+package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -299,8 +298,8 @@ func shouldRunScheduledUpdateCheck(config model.UpdateConfig, now time.Time) boo
 	return now.After(nextCheck)
 }
 
-// startup 应用启动时的初始化（在启动后检查更新）
-func (a *App) startupCheckUpdate(ctx context.Context) {
+// startupCheckUpdate 应用启动时的初始化（在启动后检查更新）
+func (a *App) startupCheckUpdate() {
 	// 延迟 5 秒后检查更新，避免影响启动速度
 	go func() {
 		time.Sleep(5 * time.Second)
@@ -319,7 +318,7 @@ func (a *App) startupCheckUpdate(ctx context.Context) {
 
 		if info.Available {
 			// 通知前端有新版本可用
-			wailsRuntime.EventsEmit(ctx, "update:available", info)
+			wailsRuntime.EventsEmit(a.ctx, "update:available", info)
 			if config.AutoDownload && info.DownloadURL != "" {
 				_ = a.DownloadUpdate(info.DownloadURL)
 			}
