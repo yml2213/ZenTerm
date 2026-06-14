@@ -1,4 +1,4 @@
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { SessionTab } from '../types'
 
 interface SessionSnapshot {
@@ -62,7 +62,7 @@ interface HostKeyPrompt {
 
 export function buildSessionTabs(
   snapshot: SessionSnapshot[],
-  hosts: main.Host[],
+  hosts: cmd.Host[],
   previousTabs: SessionTab[]
 ): SessionTab[] {
   const normalizedSnapshot = snapshot.map((session) => ({
@@ -113,7 +113,7 @@ export function buildSessionTabs(
   return nextTabs
 }
 
-export function buildOptimisticSessionTab(host: main.Host | null, sessionID: string): SessionTab {
+export function buildOptimisticSessionTab(host: cmd.Host | null, sessionID: string): SessionTab {
   return {
     tabId: `ssh-${sessionID}`,
     sessionId: sessionID,

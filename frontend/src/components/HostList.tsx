@@ -1,6 +1,6 @@
 import { Clock3, Copy, Database, FolderOpen, GripVertical, HardDrive, Monitor, PencilLine, Pin, PlugZap, SearchX, Server, ShieldCheck, ShieldQuestion, Star, Tags, TerminalSquare, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ComponentType, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
 function parseTags(tags?: string) {
   return String(tags || '')
@@ -90,13 +90,13 @@ function formatLastConnected(value?: string) {
 }
 
 interface HostContextMenu {
-  host: main.Host
+  host: cmd.Host
   x: number
   y: number
 }
 
 interface HostListProps {
-  hosts: main.Host[]
+  hosts: cmd.Host[]
   hasAnyHosts: boolean
   searchQuery: string
   viewMode?: 'grid' | 'list'
@@ -105,11 +105,11 @@ interface HostListProps {
   connectingHostIds: string[]
   onSelect: (id: string) => void
   onConnect: (id: string) => void
-  onEdit: (host: main.Host) => void
-  onDelete: (host: main.Host) => void
-  onCopyAddress?: (host: main.Host) => void
-  onToggleFavorite?: (host: main.Host) => void
-  onTogglePinned?: (host: main.Host) => void
+  onEdit: (host: cmd.Host) => void
+  onDelete: (host: cmd.Host) => void
+  onCopyAddress?: (host: cmd.Host) => void
+  onToggleFavorite?: (host: cmd.Host) => void
+  onTogglePinned?: (host: cmd.Host) => void
   onReorderHosts?: (orderedHostIds: string[]) => void
   disabled: boolean
 }
@@ -142,7 +142,7 @@ export default function HostList({
     setDragOverHostId(null)
   }
 
-  function handleDragStart(event: DragEvent<HTMLElement>, host: main.Host) {
+  function handleDragStart(event: DragEvent<HTMLElement>, host: cmd.Host) {
     if (!canReorder) {
       event.preventDefault()
       return
@@ -154,7 +154,7 @@ export default function HostList({
     event.dataTransfer.setData('text/plain', host.id)
   }
 
-  function handleDragOver(event: DragEvent<HTMLElement>, host: main.Host) {
+  function handleDragOver(event: DragEvent<HTMLElement>, host: cmd.Host) {
     if (!canReorder || draggingHostId === host.id) {
       return
     }
@@ -166,7 +166,7 @@ export default function HostList({
     }
   }
 
-  function handleDrop(event: DragEvent<HTMLElement>, targetHost: main.Host) {
+  function handleDrop(event: DragEvent<HTMLElement>, targetHost: cmd.Host) {
     if (!canReorder) {
       return
     }

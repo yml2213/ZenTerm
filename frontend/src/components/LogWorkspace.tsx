@@ -4,7 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { getSessionTranscript } from '../lib/backend'
 import { measureTerminalGeometry } from '../lib/terminalGeometry'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
 interface LogTab {
   logId: string
@@ -67,7 +67,7 @@ export default function LogWorkspace({
   const fitFrameRef = useRef<number | null>(null)
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
-  const [meta, setMeta] = useState<main.SessionTranscript | null>(null)
+  const [meta, setMeta] = useState<cmd.SessionTranscript | null>(null)
 
   useEffect(() => {
     if (!surfaceRef.current) {

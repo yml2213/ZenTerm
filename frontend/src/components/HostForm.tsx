@@ -17,10 +17,10 @@ import {
 } from 'lucide-react'
 import { getCredentials } from '../lib/backend'
 import type { HostFormModel } from '../types'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
-type Credential = main.Credential
-type Host = main.Host
+type Credential = cmd.Credential
+type Host = cmd.Host
 
 const initialState: HostFormModel = {
   id: '',

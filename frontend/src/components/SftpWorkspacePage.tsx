@@ -1,7 +1,7 @@
 import SftpWorkspace from './SftpWorkspace'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
-type Host = main.Host
+type Host = cmd.Host
 
 interface SftpWorkspacePageProps {
   hosts: Host[]

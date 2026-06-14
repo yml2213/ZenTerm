@@ -12,9 +12,9 @@ import {
   buildActionSuccessMessage,
   type FileListing,
 } from '../../lib/sftpUtils'
-import { main } from '../../wailsjs/wailsjs/go/models'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
 
-type Host = main.Host
+type Host = cmd.Host
 type SftpScope = 'local' | 'remote'
 type TransferDirection = 'upload' | 'download'
 

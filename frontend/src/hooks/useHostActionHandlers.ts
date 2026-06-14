@@ -10,16 +10,16 @@ import {
   withDemoHosts,
 } from '../lib/appHostUtils'
 import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '../lib/backend'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab } from '../types'
 
 interface HostActionHandlersProps {
   state: {
-    hosts: main.Host[]
+    hosts: cmd.Host[]
     hostDialogMode: 'create' | 'edit' | null
     hostForm: HostFormModel
     vaultUnlocked: boolean
-    deleteCandidate: main.Host | null
+    deleteCandidate: cmd.Host | null
     selectedHostId: string | null
     selectedSftpHostId: string | null
     sessionTabs: SessionTab[]
@@ -28,11 +28,11 @@ interface HostActionHandlersProps {
     setError: (error: string | null) => void
     setHostForm: (form: HostFormModel) => void
     setHostDialogMode: (mode: 'create' | 'edit' | null) => void
-    setHosts: (hosts: main.Host[]) => void
+    setHosts: (hosts: cmd.Host[]) => void
     setSelectedHostId: (updater: string | null | ((current: string | null) => string | null)) => void
     setSelectedSftpHostId: (updater: string | null | ((current: string | null) => string | null)) => void
     setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
-    setDeleteCandidate: (host: main.Host | null) => void
+    setDeleteCandidate: (host: cmd.Host | null) => void
     setIsSavingHost: (isSaving: boolean) => void
   }
   helpers: {
@@ -107,7 +107,7 @@ export function useHostActionHandlers({
       .catch((err) => setError(err.message || String(err)))
   }
 
-  function openEditHost(host: main.Host) {
+  function openEditHost(host: cmd.Host) {
     if (isDemoHost(host)) {
       setError('演示主机仅用于界面预览，不会写入保险箱。')
       return
@@ -176,7 +176,7 @@ export function useHostActionHandlers({
       .catch((err) => setError(err.message || String(err)))
   }
 
-  function handleCopyHostAddress(host: main.Host) {
+  function handleCopyHostAddress(host: cmd.Host) {
     const address = `${host.username}@${host.address}:${host.port || 22}`
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(address).catch((err: Error) => setError(err.message || String(err)))
@@ -186,14 +186,14 @@ export function useHostActionHandlers({
     setError('当前环境不支持自动复制，请手动复制主机地址。')
   }
 
-  function handleToggleFavorite(host: main.Host) {
+  function handleToggleFavorite(host: cmd.Host) {
     if (isDemoHost(host)) {
       setHosts(hosts.map((item) => {
         if (item.id !== host.id) {
           return item
         }
 
-        return new main.Host({
+        return new cmd.Host({
           ...item,
           favorite: !item.favorite,
         })
@@ -201,7 +201,7 @@ export function useHostActionHandlers({
       return
     }
 
-    const nextHost = new main.Host({
+    const nextHost = new cmd.Host({
       id: host.id,
       name: host.name,
       address: host.address,
@@ -225,14 +225,14 @@ export function useHostActionHandlers({
       .catch((err) => setError(toUserMessage(err)))
   }
 
-  function handleTogglePinned(host: main.Host) {
+  function handleTogglePinned(host: cmd.Host) {
     const nextPinned = !host.pinned
     const nextHosts = hosts.map((item) => {
       if (item.id !== host.id) {
         return item
       }
 
-      return new main.Host({
+      return new cmd.Host({
         ...item,
         pinned: nextPinned,
       })
@@ -287,12 +287,12 @@ export function useHostActionHandlers({
           return null
         }
 
-        return new main.Host({
+        return new cmd.Host({
           ...host,
           sort_order: index + 1,
         })
       })
-      .filter((host): host is main.Host => Boolean(host))
+      .filter((host): host is cmd.Host => Boolean(host))
 
     const persistedHostIds = nextHostIds.filter((hostId) => !isDemoHost(hostById.get(hostId)))
 

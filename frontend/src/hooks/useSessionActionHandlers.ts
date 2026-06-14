@@ -11,19 +11,19 @@ import {
   sendInput,
 } from '../lib/backend'
 import { isDemoHost, toUserMessage, withDemoHosts } from '../lib/appHostUtils'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '../types'
 
 interface SessionActionHandlersProps {
   state: {
-    hosts: main.Host[]
+    hosts: cmd.Host[]
     activeWorkspace: WorkspaceType
     activeNewTabId: string | null
     hostKeyPrompt: HostKeyPrompt | null
   }
   setters: {
     setError: (error: string | null) => void
-    setHosts: (hosts: main.Host[]) => void
+    setHosts: (hosts: cmd.Host[]) => void
     setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
     setActiveSessionId: (updater: string | null | ((current: string | null) => string | null)) => void
     setNewTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
