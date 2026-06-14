@@ -1,6 +1,6 @@
 import { persistWindowState, windowToggleMaximise } from '../lib/backend'
 import { createLogWorkspaceTab, createNewWorkspaceTab } from '../lib/appSessionUtils'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { SessionTab, WorkspaceTab, WorkspaceType } from '../types'
 
 interface WorkspaceActionHandlersProps {
@@ -97,7 +97,7 @@ export function useWorkspaceActionHandlers({
     })
   }
 
-  function openLogTab(log: main.SessionLog) {
+  function openLogTab(log: cmd.SessionLog) {
     if (!log?.id) {
       return
     }

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
 import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '../lib/backend'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
-type SessionLog = main.SessionLog
-type SessionTranscript = main.SessionTranscript
+type SessionLog = cmd.SessionLog
+type SessionTranscript = cmd.SessionTranscript
 
 interface SessionLogPanelProps {
   vaultUnlocked: boolean

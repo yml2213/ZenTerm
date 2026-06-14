@@ -10,11 +10,11 @@ import {
 } from '../lib/backend'
 import { buildSessionTabs, normalizeHostKeyPrompt } from '../lib/appSessionUtils'
 import { withDemoHosts } from '../lib/appHostUtils'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, SSHConfigImportPrompt, WorkspaceTab, WorkspaceType } from '../types'
 
 interface AppBootstrapProps {
-  setHosts: (hosts: main.Host[]) => void
+  setHosts: (hosts: cmd.Host[]) => void
   setSelectedHostId: (id: string | null) => void
   setSessionTabs: (tabs: SessionTab[]) => void
   setActiveSessionId: (id: string | null) => void
@@ -115,7 +115,7 @@ export function useAppBootstrap({
 
 interface SSHConfigImportPromptProps {
   vaultUnlocked: boolean
-  hosts: main.Host[]
+  hosts: cmd.Host[]
   setError: (error: string | null) => void
   setSSHConfigImportPrompt: (prompt: SSHConfigImportPrompt | null) => void
 }

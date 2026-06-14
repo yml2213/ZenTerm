@@ -8,12 +8,12 @@ import {
   sortHosts,
 } from '../lib/appHostUtils'
 import { sidebarPages, SidebarPage } from '../lib/appShellConfig'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab } from '../types'
 
 export function useHostState(sessionTabs: SessionTab[]) {
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
-  const [hosts, setHosts] = useState<main.Host[]>([])
+  const [hosts, setHosts] = useState<cmd.Host[]>([])
   const [selectedHostId, setSelectedHostId] = useState<string | null>(null)
   const [selectedSftpHostId, setSelectedSftpHostId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -23,7 +23,7 @@ export function useHostState(sessionTabs: SessionTab[]) {
   const [hostDialogMode, setHostDialogMode] = useState<'create' | 'edit' | null>(null)
   const [hostForm, setHostForm] = useState<HostFormModel>(() => createInitialHostForm() as HostFormModel)
   const [isSavingHost, setIsSavingHost] = useState(false)
-  const [deleteCandidate, setDeleteCandidate] = useState<main.Host | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<cmd.Host | null>(null)
 
   const filteredHosts = sortHosts(hosts.filter((host) => (
     matchesHost(host, searchQuery) && matchesHostFilter(host, hostFilterKey)

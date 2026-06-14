@@ -6,7 +6,7 @@ import {
   resetVault,
   unlockWithPreferences,
 } from '../lib/backend'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { VaultSetupForm, ChangeMasterForm, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../types'
 
 interface VaultActionHandlersProps {
@@ -26,7 +26,7 @@ interface VaultActionHandlersProps {
     setAccessPassword: (password: string) => void
     setActiveWorkspace: (workspace: WorkspaceType) => void
     setActiveSidebarPage: (page: string) => void
-    setHosts: (hosts: main.Host[]) => void
+    setHosts: (hosts: cmd.Host[]) => void
     setSelectedHostId: (id: string | null) => void
     setSelectedSftpHostId: (id: string | null) => void
     setSearchQuery: (query: string) => void
@@ -36,7 +36,7 @@ interface VaultActionHandlersProps {
     setResetVaultBusy: (busy: boolean) => void
     setResetVaultConfirmed: (confirmed: boolean) => void
     setHostDialogMode: (mode: 'create' | 'edit' | null) => void
-    setDeleteCandidate: (host: main.Host | null) => void
+    setDeleteCandidate: (host: cmd.Host | null) => void
     setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
     setSessionTabs: (tabs: SessionTab[]) => void
     setActiveSessionId: (id: string | null) => void

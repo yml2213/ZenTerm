@@ -1,7 +1,7 @@
 import { useHostActionHandlers } from './useHostActionHandlers'
 import { useSessionActionHandlers } from './useSessionActionHandlers'
 import { useVaultActionHandlers } from './useVaultActionHandlers'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab, WorkspaceType, HostKeyPrompt, VaultSetupForm, ChangeMasterForm } from '../types'
 import type { AppStateRefs, AppStateSetters } from './useAppState'
 
@@ -13,17 +13,17 @@ interface AppActionHandlersProps {
     resetVaultConfirmed: boolean
   }
   hostState: {
-    hosts: main.Host[]
+    hosts: cmd.Host[]
     hostDialogMode: 'create' | 'edit' | null
     hostForm: HostFormModel
     vaultUnlocked: boolean
-    deleteCandidate: main.Host | null
+    deleteCandidate: cmd.Host | null
     selectedHostId: string | null
     selectedSftpHostId: string | null
     sessionTabs: SessionTab[]
   }
   sessionState: {
-    hosts: main.Host[]
+    hosts: cmd.Host[]
     activeWorkspace: WorkspaceType
     activeNewTabId: string | null
     sessionTabs: SessionTab[]
