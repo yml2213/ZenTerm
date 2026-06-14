@@ -1,12 +1,15 @@
 package db
 
 import (
+	cryptoRand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"zenterm/internal/model"
 )
@@ -56,6 +59,38 @@ func NewStore(path string) (*Store, error) {
 // Path 返回当前 JSON 存储文件路径 / returns the configured file location for the JSON store.
 func (s *Store) Path() string {
 	return s.path
+}
+
+// BackupCurrent 把当前存储文件复制到同目录的 backups/config-{timestamp}-{rand}.zen，返回备份路径；如果当前还没有数据文件则跳过 / copies the current store file to backups/config-{timestamp}-{rand}.zen next to it and returns the backup path; no-op when the data file does not exist yet.
+// 文件名带纳秒时间戳和随机后缀，避免连续导入落在同一秒互相覆盖 / the name carries a nanosecond timestamp plus a random suffix so back-to-back imports in the same second never overwrite each other.
+func (s *Store) BackupCurrent() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	bytes, err := os.ReadFile(s.path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read store for backup: %w", err)
+	}
+
+	backupDir := filepath.Join(filepath.Dir(s.path), "backups")
+	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+		return "", fmt.Errorf("create backup directory: %w", err)
+	}
+
+	now := time.Now().UTC()
+	suffix := make([]byte, 4)
+	if _, err := cryptoRand.Read(suffix); err != nil {
+		return "", fmt.Errorf("generate backup suffix: %w", err)
+	}
+	backupPath := filepath.Join(backupDir, fmt.Sprintf("config-%s-%s.zen", now.Format("20060102-150405.000000000"), hex.EncodeToString(suffix)))
+	if err := writeFileAtomic(backupPath, bytes, 0o600); err != nil {
+		return "", fmt.Errorf("write backup: %w", err)
+	}
+
+	return backupPath, nil
 }
 
 // EnsureSalt 返回已持久化的 Vault 盐值；如果存储尚未初始化则自动创建 / returns the persisted vault salt, creating one if the store does not exist yet.

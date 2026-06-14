@@ -79,6 +79,8 @@ func normalizeFrontendError(err error) error {
 		return service.ErrFileNameRequired
 	case errors.Is(err, service.ErrFileEntryAlreadyExists):
 		return service.ErrFileEntryAlreadyExists
+	case errors.Is(err, service.ErrInvalidPrivateKey):
+		return service.ErrInvalidPrivateKey
 	case errors.Is(err, syncer.ErrSyncNotConfigured):
 		return syncer.ErrSyncNotConfigured
 	case errors.Is(err, syncer.ErrSyncConflict):

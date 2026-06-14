@@ -7,9 +7,13 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"zenterm/internal/model"
 )
+
+// remoteDeleteWorkers 限制远端并发删除的最大并发度，避免单个连接被 SFTP 请求打满 / caps concurrency for remote recursive deletes so a single SSH channel is not flooded.
+const remoteDeleteWorkers = 8
 
 // CreateLocalDirectory 在本地目录下创建文件夹 / creates a directory inside a local parent directory.
 func (s *Service) CreateLocalDirectory(parentPath, name string) (model.FileEntry, error) {
@@ -298,7 +302,7 @@ func (s *Service) DeleteRemoteEntry(hostID, targetPath string) error {
 			return fmt.Errorf("stat remote delete target: %w", err)
 		}
 
-		if err := removeRemoteEntry(client, resolvedPath, info); err != nil {
+		if err := removeRemoteEntry(client, resolvedPath, info, make(chan struct{}, remoteDeleteWorkers)); err != nil {
 			return fmt.Errorf("delete remote entry: %w", err)
 		}
 
@@ -306,8 +310,13 @@ func (s *Service) DeleteRemoteEntry(hostID, targetPath string) error {
 	})
 }
 
-func removeRemoteEntry(client sftpClient, targetPath string, info os.FileInfo) error {
+// removeRemoteEntry 递归删除远端条目；sem 在整个删除任务（含所有递归层）共享，确保并发上限是 remoteDeleteWorkers / removes a remote entry recursively; sem is shared across the whole delete task so the concurrency cap is remoteDeleteWorkers globally.
+//
+// 关键约束：sem 只在具体的 SFTP 操作（Remove/RemoveDirectory）周围短暂持有，绝不跨递归子树持有。否则一旦 8 个 goroutine 各占一个令牌再进入下一层，孙子节点要获取令牌时就会和父层的 wg.Wait() 互相死锁。这里树遍历本身不持令牌，叶子操作 acquire/release 配对，wg.Wait() 期间没有任何令牌被持有 / critical: sem is held only around concrete SFTP ops (Remove/RemoveDirectory), never across a recursion subtree — otherwise 8 goroutines each holding a token then descending would deadlock against their own wg.Wait() when grandchildren try to acquire. The walk itself holds no token; leaf ops acquire/release in pairs; no token is held while a frame sits in wg.Wait().
+func removeRemoteEntry(client sftpClient, targetPath string, info os.FileInfo, sem chan struct{}) error {
 	if !info.IsDir() {
+		sem <- struct{}{}
+		defer func() { <-sem }()
 		return client.Remove(targetPath)
 	}
 
@@ -316,12 +325,37 @@ func removeRemoteEntry(client sftpClient, targetPath string, info os.FileInfo) e
 		return err
 	}
 
-	for _, child := range children {
-		childPath := pathpkg.Join(targetPath, child.Name())
-		if err := removeRemoteEntry(client, childPath, child); err != nil {
-			return err
+	// 子目录树派发 goroutine 并发删除；goroutine 进入递归时不再持有令牌，由叶子操作自行 acquire/release，避免跨子树持有造成死锁 / dispatch child subtrees to goroutines; the goroutine holds no token when it recurses — leaf ops acquire/release themselves — so no token is held across a subtree and wg.Wait() can always progress.
+	var wg sync.WaitGroup
+	var firstErr error
+	var errMu sync.Mutex
+	setErr := func(err error) {
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
 		}
+		errMu.Unlock()
 	}
 
+	for _, child := range children {
+		childPath := pathpkg.Join(targetPath, child.Name())
+		child := child
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := removeRemoteEntry(client, childPath, child, sem); err != nil {
+				setErr(err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if firstErr != nil {
+		return firstErr
+	}
+
+	// 目录本身的 RemoveDirectory 是具体 SFTP 操作，acquire/release 一对 / the directory's own RemoveDirectory is a concrete SFTP op, so acquire/release around just that.
+	sem <- struct{}{}
+	defer func() { <-sem }()
 	return client.RemoveDirectory(targetPath)
 }
