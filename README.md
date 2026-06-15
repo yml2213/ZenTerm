@@ -29,16 +29,16 @@ ZenTerm 是一个基于 Wails v2 的桌面 SSH 终端与 SFTP 客户端，后端
 ```text
 ZenTerm/
 ├── main.go                    # Wails 应用入口
-├── app.go                     # App 构造、默认存储路径
-├── app_hosts_sessions.go      # 主机、SSH 会话、会话日志 API
-├── app_credentials.go         # 凭据中心、本机 SSH 导入、凭据部署 API
-├── app_files.go               # 本地和远端文件操作 API
-├── app_sync.go                # WebDAV 同步 API
-├── app_vault.go               # Vault 和钥匙串 API
-├── app_window.go              # 生命周期、窗口状态、事件发射
-├── app_models.go              # 前端 DTO 和模型转换
-├── app_errors.go              # 错误规范化
-├── vault_preferences.go       # 系统钥匙串中的 Vault 密码保存
+├── cmd/                       # Wails 绑定层、菜单、窗口生命周期和前端 DTO
+│   ├── app.go                 # App 构造、默认存储路径
+│   ├── hosts.go               # 主机、SSH 会话、会话日志 API
+│   ├── credentials.go         # 凭据中心、本机 SSH 导入、凭据部署 API
+│   ├── files.go               # 本地和远端文件操作 API
+│   ├── sync.go                # WebDAV 同步 API
+│   ├── vault.go               # Vault 和钥匙串 API
+│   ├── window.go              # 生命周期、窗口状态、事件发射
+│   ├── models.go              # 前端 DTO 和模型转换
+│   └── errors.go              # 错误规范化
 ├── internal/
 │   ├── db/                    # JSON 存储、Vault 加密、会话记录分块文件
 │   ├── model/                 # 跨层共享领域模型
@@ -51,7 +51,8 @@ ZenTerm/
 │   ├── src/hooks/             # Vault、Host、Workspace、Session 相关 hooks
 │   ├── src/lib/               # Wails 绑定封装和工具函数
 │   ├── src/styles/            # 应用样式
-│   └── src/__tests__/         # 前端测试
+│   ├── src/test/              # 前端测试辅助
+│   └── src/wailsjs/           # Wails 生成绑定目录，不手动编辑
 └── wails.json                 # Wails 配置
 ```
 
@@ -75,6 +76,8 @@ npm run lint
 npm test
 npm run build
 ```
+
+`frontend/src/wailsjs/` 由 Wails 生成，新环境中如果尚未生成绑定，请先运行一次 `wails dev`、`wails build` 或 Release workflow 中的绑定生成步骤，再单独执行前端类型检查。
 
 ## GitHub 云端发布
 
