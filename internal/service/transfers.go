@@ -15,8 +15,9 @@ import (
 
 // sftpDialCall 表示一次进行中的 SFTP 拨号；首个发起者负责发布结果，其它并发等待者通过 done 信号读取共享结果 / represents an in-flight SFTP dial; the first caller publishes the result, concurrent waiters read it through the done signal.
 type sftpDialCall struct {
-	done chan struct{}
-	once sync.Once
+	done       chan struct{}
+	once       sync.Once
+	generation uint64
 
 	conn *managedSFTPConnection
 	err  error
@@ -180,12 +181,13 @@ func (s *Service) getOrCreateSFTPConnection(hostID string) (*managedSFTPConnecti
 		}
 		return call.conn, nil
 	}
-	// 注册自己作为这次拨号的发布者 / register ourselves as the publisher of this dial.
-	call := &sftpDialCall{done: make(chan struct{})}
+	// 注册自己作为这次拨号的发布者，并记录当前连接池代际；CloseAll 会推进代际，让旧拨号成功后也不能回写缓存 / register ourselves as the publisher of this dial and remember the pool generation; CloseAll advances it so old dials cannot populate the cache after shutdown.
+	generation := s.sftpGeneration
+	call := &sftpDialCall{done: make(chan struct{}), generation: generation}
 	s.sftpInFlight[hostID] = call
 	s.sftpMu.Unlock()
 
-	conn, err := s.dialSFTPConnection(hostID)
+	conn, err := s.dialSFTPConnection(hostID, generation)
 	if err != nil {
 		s.finishSFTPDial(hostID, call, nil, err)
 		return nil, err
@@ -195,7 +197,7 @@ func (s *Service) getOrCreateSFTPConnection(hostID string) (*managedSFTPConnecti
 }
 
 // dialSFTPConnection 执行实际的 SFTP 拨号；调用方负责去重 / performs the actual SFTP dial; the caller handles dedup.
-func (s *Service) dialSFTPConnection(hostID string) (*managedSFTPConnection, error) {
+func (s *Service) dialSFTPConnection(hostID string, generation uint64) (*managedSFTPConnection, error) {
 	host, err := s.store.GetHost(hostID)
 	if err != nil {
 		return nil, err
@@ -223,6 +225,11 @@ func (s *Service) dialSFTPConnection(hostID string) (*managedSFTPConnection, err
 	}
 
 	s.sftpMu.Lock()
+	if generation != s.sftpGeneration {
+		s.sftpMu.Unlock()
+		_ = conn.close()
+		return nil, ErrSFTPConnectionClosed
+	}
 	// 二次检查：若在此期间有别的拨号已经成功写入缓存，丢弃自己新建的连接 / double-check: if another dial won the race while we held no lock, discard our fresh connection.
 	if existing, ok := s.sftpConnections[hostID]; ok {
 		s.sftpMu.Unlock()
@@ -265,10 +272,15 @@ func (s *Service) closeSFTPConnection(hostID string) error {
 
 func (s *Service) closeAllSFTPConnections() error {
 	s.sftpMu.Lock()
+	s.sftpGeneration++
 	connections := make([]*managedSFTPConnection, 0, len(s.sftpConnections))
 	for hostID, conn := range s.sftpConnections {
 		delete(s.sftpConnections, hostID)
 		connections = append(connections, conn)
+	}
+	inFlight := make(map[string]*sftpDialCall, len(s.sftpInFlight))
+	for hostID, call := range s.sftpInFlight {
+		inFlight[hostID] = call
 	}
 	s.sftpMu.Unlock()
 
@@ -276,6 +288,20 @@ func (s *Service) closeAllSFTPConnections() error {
 	var errs []error
 	for _, conn := range connections {
 		if err := conn.close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for hostID, call := range inFlight {
+		<-call.done
+		if call.conn == nil {
+			continue
+		}
+		s.sftpMu.Lock()
+		if s.sftpConnections[hostID] == call.conn {
+			delete(s.sftpConnections, hostID)
+		}
+		s.sftpMu.Unlock()
+		if err := call.conn.close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

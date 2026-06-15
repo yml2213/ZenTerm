@@ -26,11 +26,12 @@ var (
 )
 
 // Argon2Params 控制如何将主密码拉伸为 AES 密钥 / controls how the master password is stretched into an AES key.
+// 字段带上 json tag 以便序列化进 vaultData，为未来升级密钥派生成本（调高 Memory/Time）留迁移路径 / fields carry json tags so they persist into vaultData, leaving a migration path for raising KDF cost later.
 type Argon2Params struct {
-	Time    uint32
-	Memory  uint32
-	Threads uint8
-	KeyLen  uint32
+	Time    uint32 `json:"time"`
+	Memory  uint32 `json:"memory"`
+	Threads uint8  `json:"threads"`
+	KeyLen  uint32 `json:"key_len"`
 }
 
 // DefaultArgon2Params 返回默认 Argon2 参数，在交互式解锁延迟与抗暴力破解成本之间做平衡 / returns default Argon2 parameters balancing unlock latency and brute-force resistance.
@@ -41,6 +42,24 @@ func DefaultArgon2Params() Argon2Params {
 		Threads: 4,
 		KeyLen:  aesKeySize,
 	}
+}
+
+// Sanitize 返回一份安全可用的参数副本：KeyLen 强制为 aesKeySize，其余字段补零回退到默认值 / returns a safe copy of the params, forcing KeyLen to aesKeySize and falling back zero fields to defaults.
+// 用于信任读取自磁盘的 KDF 参数前做归一化，避免历史/手改数据导致派生密钥长度异常 / used to normalize KDF params read from disk before trusting them, so historical or hand-edited data can't produce an odd key length.
+func (p Argon2Params) Sanitize() Argon2Params {
+	if p.KeyLen != aesKeySize {
+		p.KeyLen = aesKeySize
+	}
+	if p.Time == 0 {
+		p.Time = DefaultArgon2Params().Time
+	}
+	if p.Memory == 0 {
+		p.Memory = DefaultArgon2Params().Memory
+	}
+	if p.Threads == 0 {
+		p.Threads = DefaultArgon2Params().Threads
+	}
+	return p
 }
 
 // Ciphertext 表示自包含的密文载荷，字段使用 base64 编码 / stores a self-contained encrypted payload with base64-encoded fields.
@@ -64,6 +83,16 @@ func NewVault() *Vault {
 		params: DefaultArgon2Params(),
 		reader: rand.Reader,
 	}
+}
+
+// Params 返回当前 Vault 使用的 KDF 参数，供持久化或诊断使用 / returns the KDF parameters currently configured on the vault, for persistence or diagnostics.
+func (v *Vault) Params() Argon2Params {
+	return v.params
+}
+
+// SetParams 覆盖 KDF 参数；必须在 Unlock 之前调用，且参数会被 Sanitize 归一化以避免异常 KeyLen / overrides the KDF parameters; must be called before Unlock, and the params are sanitized to guard against an odd KeyLen.
+func (v *Vault) SetParams(params Argon2Params) {
+	v.params = params.Sanitize()
 }
 
 // NewSalt 生成用于 Argon2id 的随机盐值 / creates a random salt for Argon2id.

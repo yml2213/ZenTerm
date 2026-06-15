@@ -1009,3 +1009,71 @@ func TestStoreLoadWindowStateFallsBackToLegacyConfig(t *testing.T) {
 		t.Fatalf("LoadWindowState() = %#v, want %#v", state, expected)
 	}
 }
+
+// TestStoreKDFParamsRoundTrip 验证：SaveKDFParams 写入的参数能被 LoadKDFParams 原样读回 / verifies SaveKDFParams / LoadKDFParams round-trip preserves the persisted params.
+func TestStoreKDFParamsRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	custom := security.Argon2Params{Time: 2, Memory: 128 * 1024, Threads: 2, KeyLen: 32}
+	if err := store.SaveKDFParams(custom); err != nil {
+		t.Fatalf("SaveKDFParams() error = %v", err)
+	}
+
+	got, err := store.LoadKDFParams()
+	if err != nil {
+		t.Fatalf("LoadKDFParams() error = %v", err)
+	}
+	if got != custom {
+		t.Fatalf("LoadKDFParams() = %#v, want %#v", got, custom)
+	}
+}
+
+// TestStoreLoadKDFParamsFallsBackToDefaultForLegacyVault 验证：旧 vault 没有 KDF 字段时，LoadKDFParams 返回默认参数，保持向后兼容 / verifies LoadKDFParams returns defaults for a legacy vault that predates the KDF field.
+func TestStoreLoadKDFParamsFallsBackToDefaultForLegacyVault(t *testing.T) {
+	dir := t.TempDir()
+	storePath := filepath.Join(dir, "config.zen")
+	// 写一份只含 salt + check 的旧格式 vault，刻意不带 kdf 字段 / write a legacy vault payload with only salt + check, deliberately omitting the kdf field.
+	legacy := `{"version":1,"vault":{"salt":"c2FsdC0xNg==","check":null},"hosts":[],"credentials":[]}`
+	if err := os.WriteFile(storePath, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := NewStore(storePath)
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	got, err := store.LoadKDFParams()
+	if err != nil {
+		t.Fatalf("LoadKDFParams() error = %v", err)
+	}
+	if got != security.DefaultArgon2Params() {
+		t.Fatalf("LoadKDFParams() = %#v, want defaults %#v", got, security.DefaultArgon2Params())
+	}
+}
+
+// TestStoreSaveKDFParamsSanitizesBadKeyLen 验证：SaveKDFParams 对异常 KeyLen 做归一化，避免磁盘上落一个派生不出 AES-256 的参数 / verifies SaveKDFParams normalizes an odd KeyLen so the disk never holds params that can't derive an AES-256 key.
+func TestStoreSaveKDFParamsSanitizesBadKeyLen(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	bad := security.Argon2Params{Time: 1, Memory: 64 * 1024, Threads: 4, KeyLen: 16}
+	if err := store.SaveKDFParams(bad); err != nil {
+		t.Fatalf("SaveKDFParams() error = %v", err)
+	}
+
+	got, err := store.LoadKDFParams()
+	if err != nil {
+		t.Fatalf("LoadKDFParams() error = %v", err)
+	}
+	if got.KeyLen != 32 {
+		t.Fatalf("LoadKDFParams().KeyLen = %d, want 32 (sanitized)", got.KeyLen)
+	}
+}

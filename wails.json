@@ -11,8 +11,7 @@
   "wailsjsdir": "frontend/src/wailsjs",
   "build:dir": "build",
   "author": {
-    "name": "yml",
-    "email": "yml@example.com"
+    "name": "yml"
   },
   "info": {
     "companyName": "ZenTerm",

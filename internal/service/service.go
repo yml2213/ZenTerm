@@ -30,6 +30,7 @@ type Service struct {
 	sftpMu          sync.Mutex
 	sftpConnections map[string]*managedSFTPConnection
 	sftpInFlight    map[string]*sftpDialCall
+	sftpGeneration  uint64
 	hostKeyMu       sync.Mutex
 	pendingHostKeys map[string]*pendingHostKeyConfirmation
 }

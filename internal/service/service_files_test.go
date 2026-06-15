@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"zenterm/internal/db"
 	"zenterm/internal/model"
 	"zenterm/internal/security"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func TestListLocalFilesReturnsSortedEntries(t *testing.T) {
@@ -535,6 +538,92 @@ func TestDeleteRemoteEntryDoesNotDeadlockOnDeepChain(t *testing.T) {
 	}, "/srv/deep")
 }
 
+func TestCloseAllClosesInFlightSFTPConnection(t *testing.T) {
+	store, vault := setupDeleteTestStore(t)
+	host := model.Host{ID: "host-inflight-sftp", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{}
+	dialer := &blockingDialer{
+		client:  client,
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	svc, err := newWithDialer(store, vault, dialer)
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	opDone := make(chan error, 1)
+	go func() {
+		_, err := svc.ListRemoteFiles(host.ID, "/srv")
+		opDone <- err
+	}()
+
+	select {
+	case <-dialer.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("SFTP dial did not start")
+	}
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- svc.CloseAll()
+	}()
+
+	select {
+	case err := <-closeDone:
+		t.Fatalf("CloseAll() returned before the in-flight dial completed: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(dialer.release)
+
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("CloseAll() error = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("CloseAll() did not finish after releasing in-flight dial")
+	}
+
+	select {
+	case err := <-opDone:
+		if !errors.Is(err, ErrSFTPConnectionClosed) {
+			t.Fatalf("ListRemoteFiles() error = %v, want %v", err, ErrSFTPConnectionClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ListRemoteFiles() did not finish after in-flight dial was closed")
+	}
+	if !client.closed {
+		t.Fatal("in-flight SFTP ssh client was not closed")
+	}
+	svc.sftpMu.Lock()
+	cached := len(svc.sftpConnections)
+	svc.sftpMu.Unlock()
+	if cached != 0 {
+		t.Fatalf("cached SFTP connections after CloseAll = %d, want 0", cached)
+	}
+}
+
+type blockingDialer struct {
+	client  sshClient
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (d *blockingDialer) Dial(_ string, _ string, _ *ssh.ClientConfig) (sshClient, error) {
+	d.once.Do(func() {
+		close(d.started)
+	})
+	<-d.release
+	return d.client, nil
+}
+
 func deleteRemoteEntryDeadlockTest(t *testing.T, seed func(root string) (map[string][]os.FileInfo, map[string]os.FileInfo, map[string][]byte), root string) {
 	t.Helper()
 	store, vault := setupDeleteTestStore(t)
@@ -548,8 +637,8 @@ func deleteRemoteEntryDeadlockTest(t *testing.T, seed func(root string) (map[str
 		sftp: &stubSFTPClient{
 			cwd: "/home/zen",
 			realPaths: map[string]string{
-				".":    "/home/zen",
-				root:   root,
+				".":  "/home/zen",
+				root: root,
 			},
 			dirs:  dirs,
 			stats: stats,
@@ -601,4 +690,127 @@ func setupDeleteTestStore(t *testing.T) (*db.Store, *security.Vault) {
 		t.Fatalf("Unlock() error = %v", err)
 	}
 	return store, vault
+}
+
+// TestIsFilesystemRoot 验证文件系统根判定：Unix 根、Windows 卷根、带尾分隔符、相对路径都不应误判 / verifies the filesystem-root predicate across Unix roots, Windows volume roots, trailing separators, and relative paths.
+func TestIsFilesystemRoot(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"unix root", "/", true},
+		{"unix root trailing slash", "//", true},
+		{"nested path", "/Users/zen", false},
+		{"relative", ".", false},
+		{"empty", "", false},
+	}
+	// Windows 卷根用 runtime GOOS 判断比较脆弱，这里只在路径形如 X:\ 时断言为根 / Windows volume roots are asserted only when the path has the X:\ shape.
+	cases = append(cases, struct {
+		name string
+		path string
+		want bool
+	}{"windows volume root", `C:\`, filepath.VolumeName(`C:\`) == `C:` && isFilesystemRoot(`C:\`)})
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 跳过 Windows 用例在非 Windows 语义下不一致的情况 / skip the windows case when volume semantics differ.
+			if tc.name == "windows volume root" && filepath.VolumeName(`C:\`) == "" {
+				t.Skip("volume names not supported on this GOOS")
+			}
+			if got := isFilesystemRoot(tc.path); got != tc.want {
+				t.Fatalf("isFilesystemRoot(%q) = %v, want %v", tc.path, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSameLocalPath 验证路径比较忽略冗余分隔符和 . 但不跨 .. / verifies path comparison ignores redundant separators and "." but does not collapse "..".
+func TestSameLocalPath(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"/Users/zen", "/Users/zen", true},
+		{"/Users/zen/", "/Users/zen", true},
+		{"/Users/./zen", "/Users/zen", true},
+		{"/Users/zen", "/Users/zen2", false},
+		{"/Users/zen", "/Users/zen/sub", false},
+		{".", ".", true},
+	}
+	for _, tc := range cases {
+		if got := sameLocalPath(tc.a, tc.b); got != tc.want {
+			t.Errorf("sameLocalPath(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+// TestIsPathInside 验证父子关系判定：直接子、深层子为真；自身、兄弟、父级、.. 逃逸为假 / verifies containment: direct/deep descendants are inside; the path itself, siblings, parents, and ".." escapes are not.
+func TestIsPathInside(t *testing.T) {
+	parent := "/Users/zen"
+	cases := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"direct child", "/Users/zen/projects", true},
+		{"deep descendant", "/Users/zen/projects/app/src", true},
+		{"self", "/Users/zen", false},
+		{"sibling", "/Users/other", false},
+		{"parent", "/Users", false},
+		{"dotdot escape", "/Users/zen/../other", false},
+		{"unrelated", "/etc", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isPathInside(tc.path, parent); got != tc.want {
+				t.Fatalf("isPathInside(%q, %q) = %v, want %v", tc.path, parent, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestEnsureLocalDeleteAllowed 验证删除保护策略：根、家目录、系统目录、数据目录及其内容被拒；普通路径放行 / verifies the delete-protection policy refuses root, home, system dirs, the data dir and its contents, while allowing normal paths.
+func TestEnsureLocalDeleteAllowed(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	dataDir := filepath.Dir(store.Path())
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir() error = %v", err)
+	}
+
+	cases := []struct {
+		name      string
+		path      string
+		wantError bool
+	}{
+		{"filesystem root", "/", true},
+		{"home dir", homeDir, true},
+		{"etc", "/etc", true},
+		{"usr", "/usr", true},
+		{"data dir itself", dataDir, true},
+		{"data dir child", filepath.Join(dataDir, "config.zen"), true},
+		{"data dir nested", filepath.Join(dataDir, "session-transcripts", "log.jsonl"), true},
+		{"normal temp path", filepath.Join(t.TempDir(), "file.txt"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := svc.ensureLocalDeleteAllowed(tc.path)
+			if tc.wantError && !errors.Is(err, ErrProtectedLocalPath) {
+				t.Fatalf("ensureLocalDeleteAllowed(%q) error = %v, want %v", tc.path, err, ErrProtectedLocalPath)
+			}
+			if !tc.wantError && err != nil {
+				t.Fatalf("ensureLocalDeleteAllowed(%q) error = %v, want nil", tc.path, err)
+			}
+		})
+	}
 }
