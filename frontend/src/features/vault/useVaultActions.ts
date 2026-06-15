@@ -1,13 +1,13 @@
 import { startTransition } from 'react'
-import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils'
+import { createChangeMasterForm, createVaultSetupForm } from '../../lib/appVaultUtils'
 import {
   changeMasterPassword,
   initializeVaultWithPreferences,
   resetVault,
   unlockWithPreferences,
-} from '../lib/backend'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import { VaultSetupForm, ChangeMasterForm, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../types'
+} from '../../lib/backend'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
+import { VaultSetupForm, ChangeMasterForm, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../../types'
 
 interface VaultActionHandlersProps {
   state: {
@@ -49,7 +49,7 @@ interface VaultActionHandlersProps {
   }
 }
 
-export function useVaultActionHandlers({
+export function useVaultActions({
   state,
   setters,
   refs,

@@ -1,5 +1,5 @@
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
-import HostForm, { createInitialHostForm } from './components/HostForm'
+import HostForm from './components/HostForm'
 import AppOverlays from './components/AppOverlays'
 import LogWorkspace from './components/LogWorkspace'
 import NewTabWorkspace from './components/NewTabWorkspace'
@@ -11,16 +11,15 @@ import { UpdateNotification } from './components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
 import { navigationItems } from './lib/appShellConfig'
-import {
-  useAppBootstrap,
-  useGlobalHostSearchHotkey,
-  useSSHConfigImportPrompt,
-  useWindowStatePersistence,
-  useWorkspaceAutoFallback,
-} from './hooks/useAppEffects'
+import { createInitialHostForm } from './features/hosts/hostFormModel'
+import { useWorkspaceActions } from './features/workspace/useWorkspaceActions'
+import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useAppActionHandlers } from './hooks/useAppActionHandlers'
 import { useAppState } from './hooks/useAppState'
-import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers'
+import { useGlobalHostSearchHotkey } from './hooks/useGlobalHostSearchHotkey'
+import { useSSHConfigImportPrompt } from './hooks/useSSHConfigImportPrompt'
+import { useWindowStatePersistence } from './hooks/useWindowStatePersistence'
+import { useWorkspaceAutoFallback } from './hooks/useWorkspaceAutoFallback'
 import { HostFormModel, WorkspaceTab } from './types'
 
 export default function App() {
@@ -108,7 +107,7 @@ export default function App() {
     handleWorkspaceStripDoubleClick,
     handleWorkspaceChange,
     handleWorkspaceTabSelect,
-  } = useWorkspaceActionHandlers({
+  } = useWorkspaceActions({
     state: workspaceState,
     setters,
     refs,

@@ -1,7 +1,7 @@
 import { startTransition } from 'react'
-import { useHostActionHandlers } from './useHostActionHandlers'
-import { useSessionActionHandlers } from './useSessionActionHandlers'
-import { useVaultActionHandlers } from './useVaultActionHandlers'
+import { useHostActions } from '../features/hosts/useHostActions'
+import { useSessionActions } from '../features/sessions/useSessionActions'
+import { useVaultActions } from '../features/vault/useVaultActions'
 import { withDemoHosts } from '../lib/appHostUtils'
 import { importLocalSSHConfigHosts, listHosts } from '../lib/backend'
 import { cmd } from '../wailsjs/wailsjs/go/models'
@@ -63,19 +63,19 @@ export function useAppActionHandlers({
   refs,
   helpers,
 }: AppActionHandlersProps) {
-  const vaultActions = useVaultActionHandlers({
+  const vaultActions = useVaultActions({
     state: vaultState,
     setters,
     refs,
   })
 
-  const hostActions = useHostActionHandlers({
+  const hostActions = useHostActions({
     state: hostState,
     setters,
     helpers,
   })
 
-  const sessionActions = useSessionActionHandlers({
+  const sessionActions = useSessionActions({
     state: sessionState,
     setters,
     refs,
