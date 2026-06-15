@@ -248,8 +248,8 @@ export function useHostActionHandlers({
     updateHostPinned(host.id, nextPinned)
       .then(() => setSelectedHostId(host.id))
       .catch((err) => {
-        setHosts(hosts)
         setError(toUserMessage(err))
+        void refreshHosts()
       })
   }
 
@@ -305,8 +305,8 @@ export function useHostActionHandlers({
 
     reorderHosts(persistedHostIds)
       .catch((err) => {
-        setHosts(hosts)
         setError(toUserMessage(err))
+        void refreshHosts()
       })
   }
 

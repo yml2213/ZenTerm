@@ -1,4 +1,3 @@
-import { startTransition } from 'react'
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import HostForm, { createInitialHostForm } from './components/HostForm'
 import AppOverlays from './components/AppOverlays'
@@ -12,7 +11,6 @@ import { UpdateNotification } from './components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
 import { navigationItems } from './lib/appShellConfig'
-import { withDemoHosts } from './lib/appHostUtils'
 import {
   useAppBootstrap,
   useGlobalHostSearchHotkey,
@@ -24,7 +22,6 @@ import { useAppActionHandlers } from './hooks/useAppActionHandlers'
 import { useAppState } from './hooks/useAppState'
 import { useWorkspaceActionHandlers } from './hooks/useWorkspaceActionHandlers'
 import { HostFormModel, WorkspaceTab } from './types'
-import { importLocalSSHConfigHosts, listHosts } from './lib/backend'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -83,6 +80,7 @@ export default function App() {
     vaultState,
     hostState,
     sessionState,
+    sshConfigImportState,
     workspaceState,
     setters,
     refs,
@@ -140,10 +138,13 @@ export default function App() {
     handleAcceptHostKey,
     handleRejectHostKey,
     handlePickSftpHost,
+    dismissSSHConfigImportPrompt,
+    handleConfirmSSHConfigImport,
   } = useAppActionHandlers({
     vaultState,
     hostState,
     sessionState,
+    sshConfigImportState,
     setters,
     refs,
     helpers: {
@@ -213,34 +214,6 @@ export default function App() {
       setTheme('dark')
     } else {
       setTheme('auto')
-    }
-  }
-
-  function dismissSSHConfigImportPrompt() {
-    if (sshConfigImportPrompt) {
-      window.sessionStorage.setItem(sshConfigImportPrompt.promptKey, 'dismissed')
-    }
-    setters.setSSHConfigImportPrompt(null)
-  }
-
-  async function handleConfirmSSHConfigImport() {
-    if (!sshConfigImportPrompt || sshConfigImportBusy) {
-      return
-    }
-
-    setters.setSSHConfigImportBusy(true)
-    try {
-      await importLocalSSHConfigHosts(sshConfigImportPrompt.hostIds)
-      const nextHosts = withDemoHosts(await listHosts())
-      startTransition(() => {
-        setters.setHosts(nextHosts)
-        setters.setSelectedHostId(nextHosts[0]?.id || null)
-        setters.setSSHConfigImportPrompt(null)
-      })
-    } catch (err) {
-      setters.setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setters.setSSHConfigImportBusy(false)
     }
   }
 
