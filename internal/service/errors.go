@@ -36,6 +36,7 @@ var (
 	ErrTransferSourceNotFile       = errors.New("transfer source must be a file")
 	ErrTransferTargetNotDirectory  = errors.New("transfer target must be a directory")
 	ErrTransferTargetExists        = errors.New("transfer target already exists")
+	ErrSFTPConnectionClosed        = errors.New("sftp connection was closed")
 	ErrFileActionPathRequired      = errors.New("file action path is required")
 	ErrFileNameRequired            = errors.New("file name is required")
 	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
@@ -125,20 +126,20 @@ type ZenService interface {
 
 type managedSession struct {
 	Session
-	client    sshClient
-	ssh       sshSession
-	stdin     io.WriteCloser
-	logID     string
+	client        sshClient
+	ssh           sshSession
+	stdin         io.WriteCloser
+	logID         string
 	stopKeepAlive func()
-	closeOnce sync.Once
+	closeOnce     sync.Once
 }
 
 type managedSFTPConnection struct {
-	hostID     string
-	remoteAddr string
-	client     sshClient
+	hostID        string
+	remoteAddr    string
+	client        sshClient
 	stopKeepAlive func()
-	closeOnce  sync.Once
+	closeOnce     sync.Once
 }
 
 type pendingHostKeyConfirmation struct {

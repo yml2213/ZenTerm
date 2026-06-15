@@ -111,6 +111,12 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	if err := s.store.ImportSyncSnapshot([]byte(payload)); err != nil {
 		return "", "", "", err
 	}
+	// 导入后用快照自带的 KDF 参数派生本地密钥，保证与源端一致 / after import, derive the local key with the snapshot's own KDF params so it matches the source.
+	importedParams, err := s.store.LoadKDFParams()
+	if err != nil {
+		return "", "", "", err
+	}
+	s.vault.SetParams(importedParams)
 	if err := s.vault.Unlock(masterPassword, salt); err != nil {
 		s.vault.Lock()
 		return "", "", "", err
