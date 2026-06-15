@@ -11,14 +11,18 @@ interface WorkspaceActionHandlersProps {
     activeLogTabId: string | null
   }
   setters: {
-    setError: (error: string | null) => void
-    setActiveNewTabId: (id: string | null) => void
-    setActiveWorkspace: (workspace: WorkspaceType) => void
-    setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
-    setActiveSessionId: (updater: string | null | ((current: string | null) => string | null)) => void
-    setNewTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
-    setLogTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
-    setActiveLogTabId: (id: string | null) => void
+    app: {
+      setError: (error: string | null) => void
+    }
+    workspace: {
+      setActiveNewTabId: (id: string | null) => void
+      setActiveWorkspace: (workspace: WorkspaceType) => void
+      setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
+      setActiveSessionId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setNewTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
+      setLogTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
+      setActiveLogTabId: (id: string | null) => void
+    }
   }
   refs: {
     newTabCounterRef: React.MutableRefObject<number>
@@ -38,6 +42,8 @@ export function useWorkspaceActions({
   } = state
   const {
     setError,
+  } = setters.app
+  const {
     setActiveNewTabId,
     setActiveWorkspace,
     setSessionTabs,
@@ -45,7 +51,7 @@ export function useWorkspaceActions({
     setNewTabs,
     setLogTabs,
     setActiveLogTabId,
-  } = setters
+  } = setters.workspace
   const { newTabCounterRef } = refs
 
   function createNextNewTab() {

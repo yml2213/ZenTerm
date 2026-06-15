@@ -1,4 +1,3 @@
-import { startTransition } from 'react'
 import { createChangeMasterForm, createVaultSetupForm } from '../../lib/appVaultUtils'
 import {
   changeMasterPassword,
@@ -6,8 +5,7 @@ import {
   resetVault,
   unlockWithPreferences,
 } from '../../lib/backend'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
-import { VaultSetupForm, ChangeMasterForm, SessionTab, WorkspaceTab, WorkspaceType, HostKeyPrompt } from '../../types'
+import { VaultSetupForm, ChangeMasterForm } from '../../types'
 
 interface VaultActionHandlersProps {
   state: {
@@ -17,42 +15,30 @@ interface VaultActionHandlersProps {
     resetVaultConfirmed: boolean
   }
   setters: {
-    setError: (error: string | null) => void
-    setVaultSetupBusy: (busy: boolean) => void
-    setVaultInitialized: (initialized: boolean) => void
-    setVaultUnlocked: (unlocked: boolean) => void
-    setVaultSetupForm: (form: VaultSetupForm) => void
-    setAccessBusy: (busy: boolean) => void
-    setAccessPassword: (password: string) => void
-    setActiveWorkspace: (workspace: WorkspaceType) => void
-    setActiveSidebarPage: (page: string) => void
-    setHosts: (hosts: cmd.Host[]) => void
-    setSelectedHostId: (id: string | null) => void
-    setSelectedSftpHostId: (id: string | null) => void
-    setSearchQuery: (query: string) => void
-    setNewTabSearchQuery: (query: string) => void
-    setChangeMasterBusy: (busy: boolean) => void
-    setChangeMasterForm: (form: ChangeMasterForm | ((current: ChangeMasterForm) => ChangeMasterForm)) => void
-    setResetVaultBusy: (busy: boolean) => void
-    setResetVaultConfirmed: (confirmed: boolean) => void
-    setHostDialogMode: (mode: 'create' | 'edit' | null) => void
-    setDeleteCandidate: (host: cmd.Host | null) => void
-    setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
-    setSessionTabs: (tabs: SessionTab[]) => void
-    setActiveSessionId: (id: string | null) => void
-    setNewTabs: (tabs: WorkspaceTab[]) => void
-    setActiveNewTabId: (id: string | null) => void
-    setConnectingHostIds: (ids: string[]) => void
+    app: {
+      setError: (error: string | null) => void
+    }
+    vault: {
+      setVaultSetupBusy: (busy: boolean) => void
+      setVaultInitialized: (initialized: boolean) => void
+      setVaultUnlocked: (unlocked: boolean) => void
+      setVaultSetupForm: (form: VaultSetupForm) => void
+      setAccessBusy: (busy: boolean) => void
+      setAccessPassword: (password: string) => void
+      setChangeMasterBusy: (busy: boolean) => void
+      setChangeMasterForm: (form: ChangeMasterForm | ((current: ChangeMasterForm) => ChangeMasterForm)) => void
+      setResetVaultBusy: (busy: boolean) => void
+    }
   }
-  refs: {
-    newTabCounterRef: React.MutableRefObject<number>
+  helpers: {
+    resetAppStateAfterVaultReset: () => void
   }
 }
 
 export function useVaultActions({
   state,
   setters,
-  refs,
+  helpers,
 }: VaultActionHandlersProps) {
   const {
     vaultSetupForm,
@@ -62,33 +48,19 @@ export function useVaultActions({
   } = state
   const {
     setError,
+  } = setters.app
+  const {
     setVaultSetupBusy,
     setVaultInitialized,
     setVaultUnlocked,
     setVaultSetupForm,
     setAccessBusy,
     setAccessPassword,
-    setActiveWorkspace,
-    setActiveSidebarPage,
-    setHosts,
-    setSelectedHostId,
-    setSelectedSftpHostId,
-    setSearchQuery,
-    setNewTabSearchQuery,
     setChangeMasterBusy,
     setChangeMasterForm,
     setResetVaultBusy,
-    setResetVaultConfirmed,
-    setHostDialogMode,
-    setDeleteCandidate,
-    setHostKeyPrompt,
-    setSessionTabs,
-    setActiveSessionId,
-    setNewTabs,
-    setActiveNewTabId,
-    setConnectingHostIds,
-  } = setters
-  const { newTabCounterRef } = refs
+  } = setters.vault
+  const { resetAppStateAfterVaultReset } = helpers
 
   function handleInitializeVault(event: React.FormEvent) {
     event.preventDefault()
@@ -170,30 +142,7 @@ export function useVaultActions({
 
     resetVault()
       .then(() => {
-        startTransition(() => {
-          setActiveWorkspace('vaults')
-          setActiveSidebarPage('hosts')
-          setHosts([])
-          setSelectedHostId(null)
-          setSelectedSftpHostId(null)
-          setSearchQuery('')
-          setNewTabSearchQuery('')
-          setVaultInitialized(false)
-          setVaultUnlocked(false)
-          setVaultSetupForm(createVaultSetupForm())
-          setAccessPassword('')
-          setChangeMasterForm(createChangeMasterForm())
-          setResetVaultConfirmed(false)
-          setHostDialogMode(null)
-          setDeleteCandidate(null)
-          setHostKeyPrompt(null)
-          setSessionTabs([])
-          setActiveSessionId(null)
-          newTabCounterRef.current = 0
-          setNewTabs([])
-          setActiveNewTabId(null)
-          setConnectingHostIds([])
-        })
+        resetAppStateAfterVaultReset()
       })
       .catch((err) => setError(err.message || String(err)))
       .finally(() => setResetVaultBusy(false))

@@ -51,6 +51,7 @@ interface AppActionHandlersProps {
   helpers: {
     removeSessionTab: (sessionID: string) => void
     openCreateHost: () => void
+    resetAppStateAfterVaultReset: () => void
   }
 }
 
@@ -66,7 +67,9 @@ export function useAppActionHandlers({
   const vaultActions = useVaultActions({
     state: vaultState,
     setters,
-    refs,
+    helpers: {
+      resetAppStateAfterVaultReset: helpers.resetAppStateAfterVaultReset,
+    },
   })
 
   const hostActions = useHostActions({
@@ -87,7 +90,7 @@ export function useAppActionHandlers({
     if (sshConfigImportPrompt) {
       window.sessionStorage.setItem(sshConfigImportPrompt.promptKey, 'dismissed')
     }
-    setters.setSSHConfigImportPrompt(null)
+    setters.app.setSSHConfigImportPrompt(null)
   }
 
   async function handleConfirmSSHConfigImport() {
@@ -96,24 +99,24 @@ export function useAppActionHandlers({
       return
     }
 
-    setters.setSSHConfigImportBusy(true)
+    setters.app.setSSHConfigImportBusy(true)
     try {
       await importLocalSSHConfigHosts(sshConfigImportPrompt.hostIds)
       const nextHosts = withDemoHosts(await listHosts())
       startTransition(() => {
-        setters.setHosts(nextHosts)
-        setters.setSelectedHostId(nextHosts[0]?.id || null)
-        setters.setSSHConfigImportPrompt(null)
+        setters.hosts.setHosts(nextHosts)
+        setters.hosts.setSelectedHostId(nextHosts[0]?.id || null)
+        setters.app.setSSHConfigImportPrompt(null)
       })
     } catch (err) {
-      setters.setError(err instanceof Error ? err.message : String(err))
+      setters.app.setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setters.setSSHConfigImportBusy(false)
+      setters.app.setSSHConfigImportBusy(false)
     }
   }
 
   function handleSidebarPageChange(page: string) {
-    setters.setActiveSidebarPage(page)
+    setters.hosts.setActiveSidebarPage(page)
   }
 
   return {
