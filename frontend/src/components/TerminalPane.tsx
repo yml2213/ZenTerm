@@ -304,6 +304,7 @@ export default function TerminalPane({
 
     const unsubscribeMap = unsubscribeMapRef.current
     const buffers = buffersRef.current
+    const currentRenderToken = renderTokenRef.current
 
     return () => {
       if (fitFrameRef.current) {
@@ -311,7 +312,7 @@ export default function TerminalPane({
         fitFrameRef.current = null
       }
       // 作废任何未完成的分块渲染循环，避免在已卸载的 terminal 上继续写入 / invalidate any in-flight chunked render loop so it stops writing to the disposed terminal.
-      renderTokenRef.current++
+      renderTokenRef.current = currentRenderToken + 1
       renderingSessionRef.current = null
       renderingOffsetRef.current = 0
 
