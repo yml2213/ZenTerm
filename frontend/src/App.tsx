@@ -26,7 +26,33 @@ export default function App() {
   const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
   const {
+    app,
+    hosts: hostView,
+    vault,
+    workspace,
+    sessions,
+    page,
+    actionStates,
+    setters,
+    refs,
+  } = useAppState()
+  const {
+    error,
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
+  } = app
+  const {
     activeWorkspace,
+    sessionTabs,
+    activeSessionId,
+    activeLogTabId,
+    activeSession,
+    activeLogTab,
+    workspaceTabs,
+    activeWorkspaceTabId,
+    shellClassName,
+  } = workspace
+  const {
     activeSidebarPage,
     hosts,
     selectedHostId,
@@ -34,6 +60,24 @@ export default function App() {
     newTabSearchQuery,
     hostViewMode,
     hostFilterKey,
+    hostDialogMode,
+    hostForm,
+    isSavingHost,
+    deleteCandidate,
+    filteredHosts,
+    hostGroups,
+    hostTags,
+    favoriteHostCount,
+    recentHostCount,
+    sessionCountByHost,
+    selectedSftpHost,
+    isHostsPage,
+    isSettingsPage,
+    isKnownHostsPage,
+    isKeychainPage,
+    isLogsPage,
+  } = hostView
+  const {
     vaultUnlocked,
     vaultSetupForm,
     vaultSetupBusy,
@@ -43,47 +87,24 @@ export default function App() {
     changeMasterBusy,
     resetVaultConfirmed,
     resetVaultBusy,
-    hostDialogMode,
-    hostForm,
-    isSavingHost,
-    error,
-    sshConfigImportPrompt,
-    sshConfigImportBusy,
-    deleteCandidate,
-    hostKeyPrompt,
-    isAcceptingKey,
-    sessionTabs,
-    activeSessionId,
-    activeLogTabId,
-    connectingHostIds,
-    filteredHosts,
-    hostGroups,
-    hostTags,
-    favoriteHostCount,
-    recentHostCount,
-    sessionCountByHost,
-    selectedSftpHost,
-    activeSession,
-    activeLogTab,
-    workspaceTabs,
-    activeWorkspaceTabId,
     showSetupModal,
     showAccessModal,
-    isHostsPage,
-    isSettingsPage,
-    isKnownHostsPage,
-    isKeychainPage,
-    isLogsPage,
-    shellClassName,
+  } = vault
+  const {
+    hostKeyPrompt,
+    isAcceptingKey,
+    connectingHostIds,
+  } = sessions
+  const {
     resolvedPageHeader,
+  } = page
+  const {
     vaultState,
     hostState,
     sessionState,
     sshConfigImportState,
     workspaceState,
-    setters,
-    refs,
-  } = useAppState()
+  } = actionStates
   const { hostSearchInputRef, newTabSearchInputRef } = refs
 
   function openCreateHost() {
