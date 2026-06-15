@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { WorkspaceType, SessionTab, WorkspaceTab } from '../types'
 
 export function useWorkspaceState() {
@@ -10,28 +10,32 @@ export function useWorkspaceState() {
   const [logTabs, setLogTabs] = useState<WorkspaceTab[]>([])
   const [activeLogTabId, setActiveLogTabId] = useState<string | null>(null)
 
-  const activeSession = sessionTabs.find((session) => session.sessionId === activeSessionId) || null
-  const workspaceTabs: WorkspaceTab[] = newTabs
+  const activeSession = useMemo(() => (
+    sessionTabs.find((session) => session.sessionId === activeSessionId) || null
+  ), [activeSessionId, sessionTabs])
+  const workspaceTabs: WorkspaceTab[] = useMemo(() => newTabs
     .concat(sessionTabs.map((session) => ({
       ...session,
       tabId: session.sessionId!,
       type: 'ssh' as const,
     })))
-    .concat(logTabs)
-  const activeLogTab = logTabs.find((tab) => tab.tabId === activeLogTabId) || null
-  const activeWorkspaceTabId = activeWorkspace === 'new-tab'
+    .concat(logTabs), [logTabs, newTabs, sessionTabs])
+  const activeLogTab = useMemo(() => (
+    logTabs.find((tab) => tab.tabId === activeLogTabId) || null
+  ), [activeLogTabId, logTabs])
+  const activeWorkspaceTabId = useMemo(() => (activeWorkspace === 'new-tab'
     ? activeNewTabId
     : activeWorkspace === 'log'
     ? activeLogTabId
-    : activeSessionId
+    : activeSessionId), [activeLogTabId, activeNewTabId, activeSessionId, activeWorkspace])
 
-  const shellClassName = [
+  const shellClassName = useMemo(() => [
     'app-shell',
     activeWorkspace === 'ssh' || activeWorkspace === 'log' ? 'app-shell-tabbed' : '',
     activeWorkspace === 'ssh' ? 'app-shell-ssh' : '',
     activeWorkspace === 'log' ? 'app-shell-log' : '',
     activeWorkspace === 'sftp' ? 'app-shell-sftp' : '',
-  ].filter(Boolean).join(' ')
+  ].filter(Boolean).join(' '), [activeWorkspace])
 
   return {
     activeWorkspace,

@@ -163,6 +163,10 @@ export function useAppState() {
     connectingHostIds,
     isAcceptingKey,
   }
+  const sshConfigImportState = {
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
+  }
   const workspaceState = {
     activeWorkspace,
     newTabs,
@@ -282,6 +286,7 @@ export function useAppState() {
     vaultState,
     hostState,
     sessionState,
+    sshConfigImportState,
     workspaceState,
     setters,
     refs,
