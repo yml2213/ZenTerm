@@ -17,6 +17,7 @@ import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useAppActionHandlers } from './hooks/useAppActionHandlers'
 import { useAppState } from './hooks/useAppState'
 import { useGlobalHostSearchHotkey } from './hooks/useGlobalHostSearchHotkey'
+import { useResetAppState } from './hooks/useResetAppState'
 import { useSSHConfigImportPrompt } from './hooks/useSSHConfigImportPrompt'
 import { useWindowStatePersistence } from './hooks/useWindowStatePersistence'
 import { useWorkspaceAutoFallback } from './hooks/useWorkspaceAutoFallback'
@@ -106,17 +107,24 @@ export default function App() {
     workspaceState,
   } = actionStates
   const { hostSearchInputRef, newTabSearchInputRef } = refs
+  const {
+    app: appSetters,
+    hosts: hostSetters,
+    vault: vaultSetters,
+    workspace: workspaceSetters,
+    sessions: sessionSetters,
+  } = setters
 
   function openCreateHost() {
     if (!vaultUnlocked) {
-      setters.setError('请输入主密码后继续保存主机配置。')
+      appSetters.setError('请输入主密码后继续保存主机配置。')
       return
     }
 
-    setters.setHostForm(createInitialHostForm() as HostFormModel)
-    setters.setActiveWorkspace('vaults')
-    setters.setActiveSidebarPage('hosts')
-    setters.setHostDialogMode('create')
+    hostSetters.setHostForm(createInitialHostForm() as HostFormModel)
+    workspaceSetters.setActiveWorkspace('vaults')
+    hostSetters.setActiveSidebarPage('hosts')
+    hostSetters.setHostDialogMode('create')
   }
 
   const {
@@ -133,6 +141,7 @@ export default function App() {
     setters,
     refs,
   })
+  const resetAppStateAfterVaultReset = useResetAppState({ setters, refs })
 
   const {
     closeHostDialog,
@@ -170,45 +179,46 @@ export default function App() {
     helpers: {
       removeSessionTab,
       openCreateHost,
+      resetAppStateAfterVaultReset,
     },
   })
 
   useAppBootstrap({
-    setHosts: setters.setHosts,
-    setSelectedHostId: setters.setSelectedHostId,
-    setSessionTabs: setters.setSessionTabs,
-    setActiveSessionId: setters.setActiveSessionId,
-    setActiveWorkspace: setters.setActiveWorkspace,
-    setVaultInitialized: setters.setVaultInitialized,
-    setVaultUnlocked: setters.setVaultUnlocked,
-    setVaultReady: setters.setVaultReady,
-    setError: setters.setError,
-    setHostKeyPrompt: setters.setHostKeyPrompt,
+    setHosts: hostSetters.setHosts,
+    setSelectedHostId: hostSetters.setSelectedHostId,
+    setSessionTabs: workspaceSetters.setSessionTabs,
+    setActiveSessionId: workspaceSetters.setActiveSessionId,
+    setActiveWorkspace: workspaceSetters.setActiveWorkspace,
+    setVaultInitialized: vaultSetters.setVaultInitialized,
+    setVaultUnlocked: vaultSetters.setVaultUnlocked,
+    setVaultReady: vaultSetters.setVaultReady,
+    setError: appSetters.setError,
+    setHostKeyPrompt: sessionSetters.setHostKeyPrompt,
   })
 
-  useWindowStatePersistence(setters.setError)
+  useWindowStatePersistence(appSetters.setError)
 
   useSSHConfigImportPrompt({
     vaultUnlocked,
     hosts,
-    setError: setters.setError,
-    setSSHConfigImportPrompt: setters.setSSHConfigImportPrompt,
+    setError: appSetters.setError,
+    setSSHConfigImportPrompt: appSetters.setSSHConfigImportPrompt,
   })
 
   useWorkspaceAutoFallback({
     activeWorkspace,
     sessionCount: sessionTabs.length,
-    setNewTabs: setters.setNewTabs,
-    setActiveNewTabId: setters.setActiveNewTabId,
-    setActiveWorkspace: setters.setActiveWorkspace,
+    setNewTabs: workspaceSetters.setNewTabs,
+    setActiveNewTabId: workspaceSetters.setActiveNewTabId,
+    setActiveWorkspace: workspaceSetters.setActiveWorkspace,
   })
 
   useGlobalHostSearchHotkey({
     activeWorkspace,
     newTabSearchInputRef,
     hostSearchInputRef,
-    setActiveWorkspace: setters.setActiveWorkspace,
-    setActiveSidebarPage: setters.setActiveSidebarPage,
+    setActiveWorkspace: workspaceSetters.setActiveWorkspace,
+    setActiveSidebarPage: hostSetters.setActiveSidebarPage,
   })
 
   function handleWorkspaceTabClose(tab: WorkspaceTab) {
@@ -242,7 +252,7 @@ export default function App() {
     <HostForm
       mode={hostDialogMode}
       value={hostForm}
-      onChange={setters.setHostForm}
+      onChange={hostSetters.setHostForm}
       onSubmit={handleSaveHost}
       disabled={!vaultUnlocked}
       busy={isSavingHost}
@@ -293,7 +303,7 @@ export default function App() {
             onSendInput={handleSendInput}
             onResize={handleResizeTerminal}
             onSessionClosed={handleSessionClosed}
-            onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
+            onError={(err: unknown) => appSetters.setError(err instanceof Error ? err.message : String(err))}
           />
         </div>
       ) : null}
@@ -305,7 +315,7 @@ export default function App() {
           onSidebarPageChange={handleSidebarPageChange}
           isHostsPage={isHostsPage}
           hostFilterKey={hostFilterKey}
-          onHostFilterChange={setters.setHostFilterKey}
+          onHostFilterChange={hostSetters.setHostFilterKey}
           hosts={hosts}
           favoriteHostCount={favoriteHostCount}
           recentHostCount={recentHostCount}
@@ -314,20 +324,20 @@ export default function App() {
           resolvedPageHeader={resolvedPageHeader}
           hostSearchInputRef={hostSearchInputRef}
           searchQuery={searchQuery}
-          onSearchQueryChange={setters.setSearchQuery}
+          onSearchQueryChange={hostSetters.setSearchQuery}
           searchPlaceholder={t('searchPlaceholder')}
           hostViewMode={hostViewMode}
-          onHostViewModeChange={setters.setHostViewMode}
+          onHostViewModeChange={hostSetters.setHostViewMode}
           onCreateHost={openCreateHost}
           newHostLabel={t('newHost')}
           filteredHosts={filteredHosts}
           selectedHostId={selectedHostId}
           sessionCountByHost={sessionCountByHost}
           connectingHostIds={connectingHostIds}
-          onSelectHost={setters.setSelectedHostId}
+          onSelectHost={hostSetters.setSelectedHostId}
           onConnectHost={handleConnect}
           onEditHost={openEditHost}
-          onDeleteHost={setters.setDeleteCandidate}
+          onDeleteHost={hostSetters.setDeleteCandidate}
           onCopyHostAddress={handleCopyHostAddress}
           onToggleFavorite={handleToggleFavorite}
           onTogglePinned={handleTogglePinned}
@@ -341,7 +351,7 @@ export default function App() {
           resetVaultBusy={resetVaultBusy}
           onChangeMasterField={handleChangeMasterField}
           onChangeMasterPassword={handleChangeMasterPassword}
-          onResetVaultConfirmedChange={setters.setResetVaultConfirmed}
+          onResetVaultConfirmedChange={vaultSetters.setResetVaultConfirmed}
           onResetVault={handleResetVault}
           isKnownHostsPage={isKnownHostsPage}
           isKeychainPage={isKeychainPage}
@@ -353,7 +363,7 @@ export default function App() {
         <NewTabWorkspace
           searchInputRef={newTabSearchInputRef}
           searchQuery={newTabSearchQuery}
-          onSearchQueryChange={setters.setNewTabSearchQuery}
+          onSearchQueryChange={hostSetters.setNewTabSearchQuery}
           onCreateHost={openCreateHost}
           hosts={hosts}
           onConnect={handleConnect}
@@ -368,7 +378,7 @@ export default function App() {
           onChooseHost={handlePickSftpHost}
           onCreateHost={openCreateHost}
           onBackToVaults={() => handleWorkspaceChange('vaults')}
-          onError={setters.setError}
+          onError={appSetters.setError}
         />
       ) : activeWorkspace === 'log' ? (
         <LogWorkspace
@@ -383,7 +393,7 @@ export default function App() {
             remoteAddr: activeLogTab.remoteAddr,
           } : null}
           onCloseLog={() => activeLogTabId ? closeLogTab(activeLogTabId) : null}
-          onError={(err: unknown) => setters.setError(err instanceof Error ? err.message : String(err))}
+          onError={(err: unknown) => appSetters.setError(err instanceof Error ? err.message : String(err))}
         />
       ) : null}
 
@@ -391,17 +401,17 @@ export default function App() {
         showSetupModal={showSetupModal}
         vaultSetupForm={vaultSetupForm}
         vaultSetupBusy={vaultSetupBusy}
-        onVaultSetupPasswordChange={(value: string) => setters.setVaultSetupForm((current) => ({ ...current, password: value }))}
-        onVaultSetupConfirmPasswordChange={(value: string) => setters.setVaultSetupForm((current) => ({ ...current, confirmPassword: value }))}
-        onVaultSetupRiskAcknowledgedChange={(value: boolean) => setters.setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value }))}
+        onVaultSetupPasswordChange={(value: string) => vaultSetters.setVaultSetupForm((current) => ({ ...current, password: value }))}
+        onVaultSetupConfirmPasswordChange={(value: string) => vaultSetters.setVaultSetupForm((current) => ({ ...current, confirmPassword: value }))}
+        onVaultSetupRiskAcknowledgedChange={(value: boolean) => vaultSetters.setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value }))}
         onInitializeVault={handleInitializeVault}
         showAccessModal={showAccessModal}
         accessPassword={accessPassword}
         accessBusy={accessBusy}
-        onAccessPasswordChange={setters.setAccessPassword}
+        onAccessPasswordChange={vaultSetters.setAccessPassword}
         onContinueAccess={handleAccessPassword}
         deleteCandidate={deleteCandidate}
-        onCancelDeleteHost={() => setters.setDeleteCandidate(null)}
+        onCancelDeleteHost={() => hostSetters.setDeleteCandidate(null)}
         onDeleteHost={handleDeleteHost}
         sshConfigImportPrompt={sshConfigImportPrompt}
         sshConfigImportBusy={sshConfigImportBusy}
@@ -410,7 +420,7 @@ export default function App() {
         errorTitle={t('errorTitle')}
         error={error}
         confirmLabel={t('confirm')}
-        onClearError={() => setters.setError(null)}
+        onClearError={() => appSetters.setError(null)}
         hostKeyPrompt={hostKeyPrompt}
         isAcceptingKey={isAcceptingKey}
         onAcceptHostKey={handleAcceptHostKey}

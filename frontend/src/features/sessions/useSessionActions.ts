@@ -22,16 +22,24 @@ interface SessionActionHandlersProps {
     hostKeyPrompt: HostKeyPrompt | null
   }
   setters: {
-    setError: (error: string | null) => void
-    setHosts: (hosts: cmd.Host[]) => void
-    setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
-    setActiveSessionId: (updater: string | null | ((current: string | null) => string | null)) => void
-    setNewTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
-    setActiveNewTabId: (updater: string | null | ((current: string | null) => string | null)) => void
-    setConnectingHostIds: (updater: string[] | ((current: string[]) => string[])) => void
-    setActiveWorkspace: (workspace: WorkspaceType) => void
-    setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
-    setIsAcceptingKey: (isAccepting: boolean) => void
+    app: {
+      setError: (error: string | null) => void
+    }
+    hosts: {
+      setHosts: (hosts: cmd.Host[]) => void
+    }
+    workspace: {
+      setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
+      setActiveSessionId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setNewTabs: (updater: WorkspaceTab[] | ((current: WorkspaceTab[]) => WorkspaceTab[])) => void
+      setActiveNewTabId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setActiveWorkspace: (workspace: WorkspaceType) => void
+    }
+    sessions: {
+      setConnectingHostIds: (updater: string[] | ((current: string[]) => string[])) => void
+      setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
+      setIsAcceptingKey: (isAccepting: boolean) => void
+    }
   }
   refs: {
     rejectedHostIdsRef: React.MutableRefObject<Set<string>>
@@ -55,16 +63,22 @@ export function useSessionActions({
   } = state
   const {
     setError,
+  } = setters.app
+  const {
     setHosts,
+  } = setters.hosts
+  const {
     setSessionTabs,
     setActiveSessionId,
     setNewTabs,
     setActiveNewTabId,
-    setConnectingHostIds,
     setActiveWorkspace,
+  } = setters.workspace
+  const {
+    setConnectingHostIds,
     setHostKeyPrompt,
     setIsAcceptingKey,
-  } = setters
+  } = setters.sessions
   const { rejectedHostIdsRef } = refs
   const { removeSessionTab } = helpers
 

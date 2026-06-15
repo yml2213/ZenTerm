@@ -25,15 +25,21 @@ interface HostActionHandlersProps {
     sessionTabs: SessionTab[]
   }
   setters: {
-    setError: (error: string | null) => void
-    setHostForm: (form: HostFormModel) => void
-    setHostDialogMode: (mode: 'create' | 'edit' | null) => void
-    setHosts: (hosts: cmd.Host[]) => void
-    setSelectedHostId: (updater: string | null | ((current: string | null) => string | null)) => void
-    setSelectedSftpHostId: (updater: string | null | ((current: string | null) => string | null)) => void
-    setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
-    setDeleteCandidate: (host: cmd.Host | null) => void
-    setIsSavingHost: (isSaving: boolean) => void
+    app: {
+      setError: (error: string | null) => void
+    }
+    hosts: {
+      setHostForm: (form: HostFormModel) => void
+      setHostDialogMode: (mode: 'create' | 'edit' | null) => void
+      setHosts: (hosts: cmd.Host[]) => void
+      setSelectedHostId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setSelectedSftpHostId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setDeleteCandidate: (host: cmd.Host | null) => void
+      setIsSavingHost: (isSaving: boolean) => void
+    }
+    workspace: {
+      setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
+    }
   }
   helpers: {
     openCreateHost: () => void
@@ -57,15 +63,19 @@ export function useHostActions({
   } = state
   const {
     setError,
+  } = setters.app
+  const {
     setHostForm,
     setHostDialogMode,
     setHosts,
     setSelectedHostId,
     setSelectedSftpHostId,
-    setSessionTabs,
     setDeleteCandidate,
     setIsSavingHost,
-  } = setters
+  } = setters.hosts
+  const {
+    setSessionTabs,
+  } = setters.workspace
   const { openCreateHost } = helpers
 
   function closeHostDialog() {
