@@ -4,9 +4,9 @@ import {
   listLocalSSHKeys,
   type LocalSSHKey,
 } from '../../lib/backend'
-import { main } from '../../wailsjs/wailsjs/go/models'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
 
-type Credential = main.Credential
+type Credential = cmd.Credential
 
 export function useKeychainData(vaultUnlocked: boolean) {
   const [credentials, setCredentials] = useState<Credential[]>([])

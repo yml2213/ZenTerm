@@ -102,3 +102,71 @@ func TestVaultLockClearsState(t *testing.T) {
 		t.Fatalf("DecryptString() error = %v, want %v", err, ErrVaultLocked)
 	}
 }
+
+// TestArgon2ParamsSanitize 验证：异常 KeyLen 被强制为 aesKeySize，零值字段回退默认值 / verifies Sanitize forces KeyLen to aesKeySize and falls zero fields back to defaults.
+func TestArgon2ParamsSanitize(t *testing.T) {
+	cases := []struct {
+		name string
+		in   Argon2Params
+	}{
+		{"bad key len", Argon2Params{Time: 1, Memory: 64 * 1024, Threads: 4, KeyLen: 16}},
+		{"zero key len", Argon2Params{Time: 1, Memory: 64 * 1024, Threads: 4, KeyLen: 0}},
+		{"all zero", Argon2Params{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.in.Sanitize()
+			if got.KeyLen != aesKeySize {
+				t.Fatalf("KeyLen = %d, want %d", got.KeyLen, aesKeySize)
+			}
+			if got.Time == 0 || got.Memory == 0 || got.Threads == 0 {
+				t.Fatalf("Sanitize() = %#v, expected all non-zero", got)
+			}
+		})
+	}
+}
+
+// TestVaultSetParamsPersistsAcrossUnlock 验证：SetParams 设定的自定义参数真正用于派生密钥（同一密码+盐+参数才能解出同一密文） / verifies SetParams actually governs key derivation (same password+salt+params is needed to decrypt).
+func TestVaultSetParamsPersistsAcrossUnlock(t *testing.T) {
+	salt, err := NewSalt(16)
+	if err != nil {
+		t.Fatalf("NewSalt() error = %v", err)
+	}
+
+	custom := Argon2Params{Time: 2, Memory: 128 * 1024, Threads: 2, KeyLen: aesKeySize}
+	author := NewVault()
+	author.SetParams(custom)
+	if author.Params() != custom {
+		t.Fatalf("Params() = %#v, want %#v", author.Params(), custom)
+	}
+	if err := author.Unlock("master", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	payload, err := author.EncryptString("secret")
+	if err != nil {
+		t.Fatalf("EncryptString() error = %v", err)
+	}
+
+	// 用默认参数的 vault 解不出用 custom 参数加密的密文 / a default-params vault cannot decrypt what custom-params produced.
+	defaultVault := NewVault()
+	if err := defaultVault.Unlock("master", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	if _, err := defaultVault.DecryptString(payload); err == nil {
+		t.Fatal("default-params vault unexpectedly decrypted custom-params ciphertext")
+	}
+
+	// 同样 custom 参数的 vault 能解出 / a vault with the same custom params can.
+	reader := NewVault()
+	reader.SetParams(custom)
+	if err := reader.Unlock("master", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	got, err := reader.DecryptString(payload)
+	if err != nil {
+		t.Fatalf("DecryptString() error = %v", err)
+	}
+	if got != "secret" {
+		t.Fatalf("DecryptString() = %q, want %q", got, "secret")
+	}
+}

@@ -9,6 +9,8 @@ import { createTerminalPluginRuntime, type TerminalPluginRuntime } from '../lib/
 
 const MAX_SESSION_BUFFER_CHARS = 1_000_000
 const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'
+// 分块渲染阈值：超大缓冲一次性 write 会阻塞主线程，按 32KB 分块异步写入，让出主线程响应输入 / chunked render threshold: writing a huge buffer in one shot blocks the UI thread, so write in 32KB slices and yield between them.
+const RENDER_CHUNK_SIZE = 32 * 1024
 
 type Session = TerminalSessionMeta
 
@@ -56,6 +58,10 @@ export default function TerminalPane({
     webLinksEnabled: terminalPreferences.webLinksEnabled,
   })
   const pluginRuntimeRef = useRef<TerminalPluginRuntime | null>(null)
+  const renderTokenRef = useRef(0)
+  // 正在分块渲染的 session 与已写入游标；渲染期间 appendChunk 不再直接 write，而是由渲染循环持续追赶 buffer 末尾，避免实时输出被插到旧快照中间 / the session being chunk-rendered and how far we've written; during render appendChunk does not write directly — the render loop chases the buffer tail so live output lands in order rather than ahead of the replayed backlog.
+  const renderingSessionRef = useRef<string | null>(null)
+  const renderingOffsetRef = useRef(0)
 
   const syncSize = useEffectEvent(async () => {
     const terminal = terminalRef.current
@@ -124,6 +130,11 @@ export default function TerminalPane({
       return
     }
 
+    // 每次渲染自增 token，让上一轮未完成的分块写入循环自行作废，避免标签快速切换时新旧输出叠加 / bump the token so an in-progress chunked write from a previous render cancels itself, preventing overlapping output when tabs switch quickly.
+    const token = ++renderTokenRef.current
+    renderingSessionRef.current = null
+    renderingOffsetRef.current = 0
+
     terminal.reset()
     terminal.clear()
 
@@ -136,9 +147,44 @@ export default function TerminalPane({
 
     const output = buffersRef.current.get(activeSessionId) || `\x1b[32mConnected:\x1b[0m ${activeSessionTitle}\r\n`
     buffersRef.current.set(activeSessionId, output)
-    terminal.write(output)
-    terminal.focus()
-    scheduleSyncSize()
+
+    // 小缓冲直接写入并立即完成；大缓冲进入追赶循环：每次写一块后重读 buffer 长度，如果远端在此期间追加输出，循环会继续追到新末尾，保证实时输出顺序正确 / small buffers write in one shot; larger ones enter a chase loop: after each slice we re-read the buffer length, so live output appended during replay gets written in order at the tail.
+    if (output.length <= RENDER_CHUNK_SIZE) {
+      terminal.write(output)
+      terminal.focus()
+      scheduleSyncSize()
+      return
+    }
+
+    renderingSessionRef.current = activeSessionId
+    renderingOffsetRef.current = 0
+
+    const writeNext = () => {
+      if (token !== renderTokenRef.current) {
+        // 渲染被新 token 取代：清空渲染标记，appendChunk 恢复直接写入 / a newer render superseded us; drop the rendering marker so appendChunk writes directly again.
+        if (renderingSessionRef.current === activeSessionId) {
+          renderingSessionRef.current = null
+          renderingOffsetRef.current = 0
+        }
+        return
+      }
+      const sessionId = activeSessionId
+      const current = buffersRef.current.get(sessionId) || ''
+      const offset = renderingOffsetRef.current
+      if (offset >= current.length) {
+        // 已追上 buffer 末尾：渲染完成，恢复 appendChunk 直接写入 / caught up to the buffer tail; render is done, let appendChunk write directly again.
+        renderingSessionRef.current = null
+        renderingOffsetRef.current = 0
+        terminal.focus()
+        scheduleSyncSize()
+        return
+      }
+      const end = Math.min(offset + RENDER_CHUNK_SIZE, current.length)
+      terminal.write(current.slice(offset, end))
+      renderingOffsetRef.current = end
+      setTimeout(writeNext, 0)
+    }
+    writeNext()
   })
 
   const appendChunk = useEffectEvent((sessionId: string, chunk: unknown) => {
@@ -149,6 +195,10 @@ export default function TerminalPane({
     const next = trimSessionBuffer(previous + text)
     buffersRef.current.set(sessionId, next)
 
+    // 当前 session 正在分块追赶时跳过直接写入：buffer 已更新，渲染循环会按顺序把新内容写到末尾，避免实时输出插到旧回放内容中间 / when the active session is mid-chunk-replay, skip the direct write — the buffer is already updated and the render loop will tail-chase the new content in order, preventing live output from landing ahead of the backlog.
+    if (sessionId === renderingSessionRef.current) {
+      return
+    }
     if (sessionId === activeSessionIdRef.current && terminalRef.current) {
       terminalRef.current.write(text)
     }
@@ -254,12 +304,17 @@ export default function TerminalPane({
 
     const unsubscribeMap = unsubscribeMapRef.current
     const buffers = buffersRef.current
+    const currentRenderToken = renderTokenRef.current
 
     return () => {
       if (fitFrameRef.current) {
         window.cancelAnimationFrame(fitFrameRef.current)
         fitFrameRef.current = null
       }
+      // 作废任何未完成的分块渲染循环，避免在已卸载的 terminal 上继续写入 / invalidate any in-flight chunked render loop so it stops writing to the disposed terminal.
+      renderTokenRef.current = currentRenderToken + 1
+      renderingSessionRef.current = null
+      renderingOffsetRef.current = 0
 
       resizeObserver.disconnect()
       disposable.dispose()

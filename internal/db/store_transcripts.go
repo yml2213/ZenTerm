@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +18,10 @@ import (
 )
 
 const (
-	transcriptDirName = "session-transcripts"
-	transcriptFileExt = ".jsonl"
+	transcriptDirName       = "session-transcripts"
+	transcriptFileExt       = ".jsonl"
+	transcriptShardExt      = ".jsonl"
+	transcriptShardMaxBytes = 4 * 1024 * 1024
 )
 
 type sessionTranscriptEntry struct {
@@ -177,7 +181,12 @@ func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, 
 		return fmt.Errorf("create session transcript directory: %w", err)
 	}
 
-	file, err := os.OpenFile(s.transcriptFilePath(logID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	shardPath, err := s.activeTranscriptShardPath(logID)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(shardPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("open session transcript file: %w", err)
 	}
@@ -194,49 +203,88 @@ func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, 
 	}
 	return nil
 }
-func (s *Store) readTranscriptFileLocked(logID string, vault *security.Vault) (model.SessionTranscript, bool, error) {
-	file, err := os.Open(s.transcriptFilePath(logID))
+
+// activeTranscriptShardPath 返回当前应写入的分片路径：若现有最新分片已达到 transcriptShardMaxBytes 上限，则滚动到下一个分片序号 / returns the shard path that should receive the next chunk, rolling over once the active shard reaches the size limit.
+func (s *Store) activeTranscriptShardPath(logID string) (string, error) {
+	shards, err := s.transcriptShardPaths(logID)
+	if err != nil {
+		return "", err
+	}
+
+	if len(shards) == 0 {
+		return s.transcriptFilePath(logID), nil
+	}
+
+	latest := shards[len(shards)-1]
+	info, err := os.Stat(latest)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return model.SessionTranscript{}, false, nil
+			return s.transcriptFilePath(logID), nil
 		}
-		return model.SessionTranscript{}, false, fmt.Errorf("open session transcript file: %w", err)
+		return "", fmt.Errorf("stat session transcript shard: %w", err)
 	}
-	defer func() { _ = file.Close() }()
+	if info.Size() < transcriptShardMaxBytes {
+		return latest, nil
+	}
 
-	decoder := json.NewDecoder(file)
+	return s.transcriptShardPath(logID, len(shards)), nil
+}
+func (s *Store) readTranscriptFileLocked(logID string, vault *security.Vault) (model.SessionTranscript, bool, error) {
+	shards, err := s.transcriptShardPaths(logID)
+	if err != nil {
+		return model.SessionTranscript{}, false, err
+	}
+	if len(shards) == 0 {
+		return model.SessionTranscript{}, false, nil
+	}
+
 	transcript := model.SessionTranscript{LogID: logID}
 	var builder strings.Builder
 	found := false
-	for {
-		var record sessionTranscriptFileChunk
-		if err := decoder.Decode(&record); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
+
+	for _, shardPath := range shards {
+		file, err := os.Open(shardPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
 			}
-			return model.SessionTranscript{}, false, fmt.Errorf("decode session transcript chunk: %w", err)
+			return model.SessionTranscript{}, false, fmt.Errorf("open session transcript file: %w", err)
 		}
 
-		plaintext, err := vault.DecryptString(record.Content)
-		if err != nil {
-			return model.SessionTranscript{}, false, fmt.Errorf("decrypt session transcript chunk: %w", err)
+		decoder := json.NewDecoder(file)
+		for {
+			var record sessionTranscriptFileChunk
+			if err := decoder.Decode(&record); err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				_ = file.Close()
+				return model.SessionTranscript{}, false, fmt.Errorf("decode session transcript chunk: %w", err)
+			}
+
+			plaintext, err := vault.DecryptString(record.Content)
+			if err != nil {
+				_ = file.Close()
+				return model.SessionTranscript{}, false, fmt.Errorf("decrypt session transcript chunk: %w", err)
+			}
+			builder.WriteString(plaintext)
+			if record.SizeBytes > 0 {
+				transcript.SizeBytes += record.SizeBytes
+			} else {
+				transcript.SizeBytes += int64(len([]byte(plaintext)))
+			}
+			if record.SessionID != "" {
+				transcript.SessionID = record.SessionID
+			}
+			if transcript.RecordedAt.IsZero() || (!record.RecordedAt.IsZero() && record.RecordedAt.Before(transcript.RecordedAt)) {
+				transcript.RecordedAt = record.RecordedAt
+			}
+			if record.RecordedAt.After(transcript.UpdatedAt) {
+				transcript.UpdatedAt = record.RecordedAt
+			}
+			found = true
 		}
-		builder.WriteString(plaintext)
-		if record.SizeBytes > 0 {
-			transcript.SizeBytes += record.SizeBytes
-		} else {
-			transcript.SizeBytes += int64(len([]byte(plaintext)))
-		}
-		if record.SessionID != "" {
-			transcript.SessionID = record.SessionID
-		}
-		if transcript.RecordedAt.IsZero() || (!record.RecordedAt.IsZero() && record.RecordedAt.Before(transcript.RecordedAt)) {
-			transcript.RecordedAt = record.RecordedAt
-		}
-		if record.RecordedAt.After(transcript.UpdatedAt) {
-			transcript.UpdatedAt = record.RecordedAt
-		}
-		found = true
+		_ = file.Close()
 	}
 
 	transcript.Content = builder.String()
@@ -342,8 +390,14 @@ func (s *Store) deleteTranscriptFilesLocked(logIDs []string) error {
 		}
 		seen[logID] = struct{}{}
 
-		if err := os.Remove(s.transcriptFilePath(logID)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove session transcript file: %w", err)
+		shards, err := s.transcriptShardPaths(logID)
+		if err != nil {
+			return err
+		}
+		for _, shard := range shards {
+			if err := os.Remove(shard); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("remove session transcript file: %w", err)
+			}
 		}
 	}
 	return nil
@@ -351,7 +405,69 @@ func (s *Store) deleteTranscriptFilesLocked(logIDs []string) error {
 func (s *Store) transcriptDirPath() string {
 	return filepath.Join(filepath.Dir(s.path), transcriptDirName)
 }
+
+// transcriptFilePath 返回该 logID 的主分片路径（seq=0），保留用于向后兼容的单文件入口 / returns the primary shard path (seq=0) for a log, kept as the backwards-compatible single-file entry point.
 func (s *Store) transcriptFilePath(logID string) string {
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))
 	return filepath.Join(s.transcriptDirPath(), encoded+transcriptFileExt)
+}
+
+// transcriptShardPath 返回指定序号的分片路径；seq=0 等价于 transcriptFilePath / returns the shard path for the given sequence; seq=0 is equivalent to transcriptFilePath.
+func (s *Store) transcriptShardPath(logID string, seq int) string {
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))
+	name := encoded + transcriptShardExt
+	if seq > 0 {
+		name = fmt.Sprintf("%s.%d%s", encoded, seq, transcriptShardExt)
+	}
+	return filepath.Join(s.transcriptDirPath(), name)
+}
+
+// transcriptShardPaths 扫描 transcript 目录，返回该 logID 所有分片路径，按 seq 升序排列，seq=0（无后缀）排在最前 / scans the transcript directory and returns all shard paths for the log in ascending order, with the legacy un-suffixed file first.
+func (s *Store) transcriptShardPaths(logID string) ([]string, error) {
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))
+	prefix := encoded + "."
+	suffix := transcriptShardExt
+
+	dir := s.transcriptDirPath()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read session transcript directory: %w", err)
+	}
+
+	type shardEntry struct {
+		seq  int
+		path string
+	}
+	var shards []shardEntry
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name == encoded+suffix {
+			shards = append(shards, shardEntry{seq: 0, path: filepath.Join(dir, name)})
+			continue
+		}
+		if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+			continue
+		}
+		mid := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+		seq, err := strconv.Atoi(mid)
+		if err != nil || seq < 1 {
+			continue
+		}
+		shards = append(shards, shardEntry{seq: seq, path: filepath.Join(dir, name)})
+	}
+
+	sort.Slice(shards, func(i, j int) bool {
+		return shards[i].seq < shards[j].seq
+	})
+	result := make([]string, len(shards))
+	for i, shard := range shards {
+		result[i] = shard.path
+	}
+	return result, nil
 }

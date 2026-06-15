@@ -2,14 +2,18 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"zenterm/internal/db"
 	"zenterm/internal/model"
 	"zenterm/internal/security"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func TestListLocalFilesReturnsSortedEntries(t *testing.T) {
@@ -480,5 +484,333 @@ func TestDownloadFileOverwritesLocalFileWhenRequested(t *testing.T) {
 	}
 	if string(downloaded) != string(content) {
 		t.Fatalf("downloaded content after overwrite = %q, want %q", string(downloaded), string(content))
+	}
+}
+
+// TestDeleteRemoteEntryDoesNotDeadlockOnWideTree 回归测试：根目录有 10 个子目录（超过 remoteDeleteWorkers=8），每个子目录含文件。
+// 旧实现里 goroutine 在派发前就占用一个令牌并跨整个子树持有，10 个 goroutine 立刻占满 8 个令牌，
+// 孙子文件的 client.Remove 也要获取令牌 → 与父层 wg.Wait() 互相死锁。新实现令牌只包具体 SFTP 操作，必须能在超时内完成。
+//
+// Regression: root has 10 subdirs (more than remoteDeleteWorkers=8), each holding a file. The old
+// implementation acquired a token per goroutine before dispatch and held it across the whole subtree;
+// 10 goroutines would saturate the 8-slot semaphore, then grandchild file Removes would block on
+// acquire while parents sat in wg.Wait() — a deadlock. The fix holds tokens only around concrete SFTP
+// ops, so this must finish well within the timeout.
+func TestDeleteRemoteEntryDoesNotDeadlockOnWideTree(t *testing.T) {
+	deleteRemoteEntryDeadlockTest(t, func(root string) (dirs map[string][]os.FileInfo, stats map[string]os.FileInfo, files map[string][]byte) {
+		dirs = map[string][]os.FileInfo{}
+		stats = map[string]os.FileInfo{root: stubFileInfo{name: filepath.Base(root), mode: os.ModeDir | 0o755, dir: true}}
+		files = map[string][]byte{}
+		for i := 0; i < 10; i++ {
+			sub := filepath.Join(root, fmt.Sprintf("d%d", i))
+			leaf := filepath.Join(sub, "f.txt")
+			dirs[sub] = []os.FileInfo{stubFileInfo{name: "f.txt", size: 1, mode: 0o644}}
+			dirs[root] = append(dirs[root], stubFileInfo{name: fmt.Sprintf("d%d", i), mode: os.ModeDir | 0o755, dir: true})
+			stats[sub] = stubFileInfo{name: fmt.Sprintf("d%d", i), mode: os.ModeDir | 0o755, dir: true}
+			stats[leaf] = stubFileInfo{name: "f.txt", size: 1, mode: 0o644}
+			files[leaf] = []byte("x")
+		}
+		return dirs, stats, files
+	}, "/srv/wide")
+}
+
+// TestDeleteRemoteEntryDoesNotDeadlockOnDeepChain 回归测试：单链目录深度 10（> remoteDeleteWorkers=8）。
+// 旧实现里深度超过 8 的单链也会因为每层都持令牌再下沉而死锁 / Regression: a depth-10 single chain
+// also deadlocked in the old impl since each level held a token before descending past depth 8.
+func TestDeleteRemoteEntryDoesNotDeadlockOnDeepChain(t *testing.T) {
+	deleteRemoteEntryDeadlockTest(t, func(root string) (dirs map[string][]os.FileInfo, stats map[string]os.FileInfo, files map[string][]byte) {
+		dirs = map[string][]os.FileInfo{}
+		stats = map[string]os.FileInfo{root: stubFileInfo{name: filepath.Base(root), mode: os.ModeDir | 0o755, dir: true}}
+		files = map[string][]byte{}
+		cur := root
+		for i := 0; i < 10; i++ {
+			next := filepath.Join(cur, fmt.Sprintf("lvl%d", i))
+			dirs[cur] = []os.FileInfo{stubFileInfo{name: fmt.Sprintf("lvl%d", i), mode: os.ModeDir | 0o755, dir: true}}
+			stats[next] = stubFileInfo{name: fmt.Sprintf("lvl%d", i), mode: os.ModeDir | 0o755, dir: true}
+			cur = next
+		}
+		// 叶子目录里放一个文件，确保最后一层也走 Remove / a leaf file so the deepest level also does a Remove.
+		leaf := filepath.Join(cur, "end.txt")
+		dirs[cur] = []os.FileInfo{stubFileInfo{name: "end.txt", size: 1, mode: 0o644}}
+		stats[leaf] = stubFileInfo{name: "end.txt", size: 1, mode: 0o644}
+		files[leaf] = []byte("x")
+		return dirs, stats, files
+	}, "/srv/deep")
+}
+
+func TestCloseAllClosesInFlightSFTPConnection(t *testing.T) {
+	store, vault := setupDeleteTestStore(t)
+	host := model.Host{ID: "host-inflight-sftp", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{}
+	dialer := &blockingDialer{
+		client:  client,
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	svc, err := newWithDialer(store, vault, dialer)
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	opDone := make(chan error, 1)
+	go func() {
+		_, err := svc.ListRemoteFiles(host.ID, "/srv")
+		opDone <- err
+	}()
+
+	select {
+	case <-dialer.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("SFTP dial did not start")
+	}
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- svc.CloseAll()
+	}()
+
+	select {
+	case err := <-closeDone:
+		t.Fatalf("CloseAll() returned before the in-flight dial completed: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(dialer.release)
+
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("CloseAll() error = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("CloseAll() did not finish after releasing in-flight dial")
+	}
+
+	select {
+	case err := <-opDone:
+		if !errors.Is(err, ErrSFTPConnectionClosed) {
+			t.Fatalf("ListRemoteFiles() error = %v, want %v", err, ErrSFTPConnectionClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ListRemoteFiles() did not finish after in-flight dial was closed")
+	}
+	if !client.closed {
+		t.Fatal("in-flight SFTP ssh client was not closed")
+	}
+	svc.sftpMu.Lock()
+	cached := len(svc.sftpConnections)
+	svc.sftpMu.Unlock()
+	if cached != 0 {
+		t.Fatalf("cached SFTP connections after CloseAll = %d, want 0", cached)
+	}
+}
+
+type blockingDialer struct {
+	client  sshClient
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (d *blockingDialer) Dial(_ string, _ string, _ *ssh.ClientConfig) (sshClient, error) {
+	d.once.Do(func() {
+		close(d.started)
+	})
+	<-d.release
+	return d.client, nil
+}
+
+func deleteRemoteEntryDeadlockTest(t *testing.T, seed func(root string) (map[string][]os.FileInfo, map[string]os.FileInfo, map[string][]byte), root string) {
+	t.Helper()
+	store, vault := setupDeleteTestStore(t)
+	host := model.Host{ID: "host-delete-tree", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	dirs, stats, files := seed(root)
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd: "/home/zen",
+			realPaths: map[string]string{
+				".":  "/home/zen",
+				root: root,
+			},
+			dirs:  dirs,
+			stats: stats,
+			files: files,
+		},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	// 在独立 goroutine 跑删除，主线程带 5s 超时等待；旧实现会死锁、超时触发 fatal / run the delete in a goroutine and bound it with a 5s timeout; the old impl would hang and trip this timeout.
+	done := make(chan error, 1)
+	go func() {
+		err := svc.DeleteRemoteEntry(host.ID, root)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("DeleteRemoteEntry() error = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("DeleteRemoteEntry() deadlocked: did not finish within 5s (wide/deep tree vs bounded workers)")
+	}
+
+	// 删除完成后根目录应已被 RemoveDirectory 清理 / the root must be removed after the delete.
+	client.sftp.mu.Lock()
+	_, rootStillThere := client.sftp.dirs[root]
+	client.sftp.mu.Unlock()
+	if rootStillThere {
+		t.Fatalf("root %q still present after delete — recursive delete did not clean it up", root)
+	}
+}
+
+func setupDeleteTestStore(t *testing.T) (*db.Store, *security.Vault) {
+	t.Helper()
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	return store, vault
+}
+
+// TestIsFilesystemRoot 验证文件系统根判定：Unix 根、Windows 卷根、带尾分隔符、相对路径都不应误判 / verifies the filesystem-root predicate across Unix roots, Windows volume roots, trailing separators, and relative paths.
+func TestIsFilesystemRoot(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"unix root", "/", true},
+		{"unix root trailing slash", "//", true},
+		{"nested path", "/Users/zen", false},
+		{"relative", ".", false},
+		{"empty", "", false},
+	}
+	// Windows 卷根用 runtime GOOS 判断比较脆弱，这里只在路径形如 X:\ 时断言为根 / Windows volume roots are asserted only when the path has the X:\ shape.
+	cases = append(cases, struct {
+		name string
+		path string
+		want bool
+	}{"windows volume root", `C:\`, filepath.VolumeName(`C:\`) == `C:` && isFilesystemRoot(`C:\`)})
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 跳过 Windows 用例在非 Windows 语义下不一致的情况 / skip the windows case when volume semantics differ.
+			if tc.name == "windows volume root" && filepath.VolumeName(`C:\`) == "" {
+				t.Skip("volume names not supported on this GOOS")
+			}
+			if got := isFilesystemRoot(tc.path); got != tc.want {
+				t.Fatalf("isFilesystemRoot(%q) = %v, want %v", tc.path, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSameLocalPath 验证路径比较忽略冗余分隔符和 . 但不跨 .. / verifies path comparison ignores redundant separators and "." but does not collapse "..".
+func TestSameLocalPath(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"/Users/zen", "/Users/zen", true},
+		{"/Users/zen/", "/Users/zen", true},
+		{"/Users/./zen", "/Users/zen", true},
+		{"/Users/zen", "/Users/zen2", false},
+		{"/Users/zen", "/Users/zen/sub", false},
+		{".", ".", true},
+	}
+	for _, tc := range cases {
+		if got := sameLocalPath(tc.a, tc.b); got != tc.want {
+			t.Errorf("sameLocalPath(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+// TestIsPathInside 验证父子关系判定：直接子、深层子为真；自身、兄弟、父级、.. 逃逸为假 / verifies containment: direct/deep descendants are inside; the path itself, siblings, parents, and ".." escapes are not.
+func TestIsPathInside(t *testing.T) {
+	parent := "/Users/zen"
+	cases := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"direct child", "/Users/zen/projects", true},
+		{"deep descendant", "/Users/zen/projects/app/src", true},
+		{"self", "/Users/zen", false},
+		{"sibling", "/Users/other", false},
+		{"parent", "/Users", false},
+		{"dotdot escape", "/Users/zen/../other", false},
+		{"unrelated", "/etc", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isPathInside(tc.path, parent); got != tc.want {
+				t.Fatalf("isPathInside(%q, %q) = %v, want %v", tc.path, parent, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestEnsureLocalDeleteAllowed 验证删除保护策略：根、家目录、系统目录、数据目录及其内容被拒；普通路径放行 / verifies the delete-protection policy refuses root, home, system dirs, the data dir and its contents, while allowing normal paths.
+func TestEnsureLocalDeleteAllowed(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	dataDir := filepath.Dir(store.Path())
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir() error = %v", err)
+	}
+
+	cases := []struct {
+		name      string
+		path      string
+		wantError bool
+	}{
+		{"filesystem root", "/", true},
+		{"home dir", homeDir, true},
+		{"etc", "/etc", true},
+		{"usr", "/usr", true},
+		{"data dir itself", dataDir, true},
+		{"data dir child", filepath.Join(dataDir, "config.zen"), true},
+		{"data dir nested", filepath.Join(dataDir, "session-transcripts", "log.jsonl"), true},
+		{"normal temp path", filepath.Join(t.TempDir(), "file.txt"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := svc.ensureLocalDeleteAllowed(tc.path)
+			if tc.wantError && !errors.Is(err, ErrProtectedLocalPath) {
+				t.Fatalf("ensureLocalDeleteAllowed(%q) error = %v, want %v", tc.path, err, ErrProtectedLocalPath)
+			}
+			if !tc.wantError && err != nil {
+				t.Fatalf("ensureLocalDeleteAllowed(%q) error = %v, want nil", tc.path, err)
+			}
+		})
 	}
 }

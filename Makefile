@@ -3,7 +3,7 @@
 test: test-go test-frontend
 
 test-go:
-	go test . ./internal/...
+	go test . ./cmd ./internal/...
 
 test-frontend:
 	cd frontend && npm test

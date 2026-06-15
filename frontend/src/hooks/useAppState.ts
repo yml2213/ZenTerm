@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { useHostState } from './useHostState'
-import { useSessionWorkspaceState } from './useSessionWorkspaceState'
-import { useVaultState } from './useVaultState'
+import { useHostState } from '../features/hosts/useHostState'
+import { useSessionWorkspaceState } from '../features/sessions/useSessionWorkspaceState'
+import { useVaultState } from '../features/vault/useVaultState'
+import { usePageHeaderState } from './usePageHeaderState'
 import type { SSHConfigImportPrompt } from '../types'
 
 export function useAppState() {
@@ -109,34 +110,18 @@ export function useAppState() {
     showSetupModal,
     showAccessModal,
   } = vault
-  const pageHeader = activeWorkspace === 'ssh'
-    ? {
-        kicker: 'SSH',
-        title: activeSession?.title || '终端工作区',
-        description: activeSession?.remoteAddr || '当前活跃 SSH 会话会在这里独立展示。',
-      }
-    : activeWorkspace === 'sftp'
-    ? {
-        kicker: 'SFTP',
-        title: '文件工作区',
-        description: selectedSftpHost
-          ? `当前主机：${selectedSftpHost.name || selectedSftpHost.id} · ${selectedSftpHost.address}:${selectedSftpHost.port || 22}`
-          : 'SFTP 是独立工作区，用来浏览本地与远端目录并执行上传下载。',
-      }
-    : isSettingsPage
-    ? {
-        kicker: 'Security',
-        title: '保险箱设置',
-        description: '主密码用于保护本地保存的 SSH 凭据。ZenTerm 会默认交给系统钥匙串保管，日常不再需要手动进入。',
-      }
-    : currentSidebarPage
-  const resolvedPageHeader = isHostsPage && hostFilterKey !== 'all'
-    ? {
-        ...pageHeader,
-        title: activeHostFilterLabel,
-        description: `当前筛选出 ${filteredHosts.length} / ${hosts.length} 台主机，可继续搜索缩小范围。`,
-      }
-    : pageHeader
+  const resolvedPageHeader = usePageHeaderState({
+    activeWorkspace,
+    activeSession,
+    selectedSftpHost,
+    isSettingsPage,
+    isHostsPage,
+    hostFilterKey,
+    activeHostFilterLabel,
+    filteredHostCount: filteredHosts.length,
+    hostCount: hosts.length,
+    currentSidebarPage,
+  })
 
   const vaultState = {
     vaultSetupForm,
@@ -163,6 +148,10 @@ export function useAppState() {
     connectingHostIds,
     isAcceptingKey,
   }
+  const sshConfigImportState = {
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
+  }
   const workspaceState = {
     activeWorkspace,
     newTabs,
@@ -173,42 +162,52 @@ export function useAppState() {
     activeLogTabId,
   }
   const setters = {
-    setError,
-    setHostForm,
-    setHostDialogMode,
-    setHosts,
-    setSelectedHostId,
-    setSelectedSftpHostId,
-    setSessionTabs,
-    setActiveSessionId,
-    setHostViewMode,
-    setHostFilterKey,
-    setVaultSetupBusy,
-    setVaultInitialized,
-    setVaultUnlocked,
-    setVaultReady,
-    setVaultSetupForm,
-    setAccessBusy,
-    setAccessPassword,
-    setActiveWorkspace,
-    setActiveSidebarPage,
-    setSearchQuery,
-    setNewTabSearchQuery,
-    setChangeMasterBusy,
-    setChangeMasterForm,
-    setResetVaultBusy,
-    setResetVaultConfirmed,
-    setDeleteCandidate,
-    setHostKeyPrompt,
-    setNewTabs,
-    setActiveNewTabId,
-    setLogTabs,
-    setActiveLogTabId,
-    setConnectingHostIds,
-    setIsSavingHost,
-    setIsAcceptingKey,
-    setSSHConfigImportPrompt,
-    setSSHConfigImportBusy,
+    app: {
+      setError,
+      setSSHConfigImportPrompt,
+      setSSHConfigImportBusy,
+    },
+    hosts: {
+      setHostForm,
+      setHostDialogMode,
+      setHosts,
+      setSelectedHostId,
+      setSelectedSftpHostId,
+      setHostViewMode,
+      setHostFilterKey,
+      setActiveSidebarPage,
+      setSearchQuery,
+      setNewTabSearchQuery,
+      setDeleteCandidate,
+      setIsSavingHost,
+    },
+    vault: {
+      setVaultSetupBusy,
+      setVaultInitialized,
+      setVaultUnlocked,
+      setVaultReady,
+      setVaultSetupForm,
+      setAccessBusy,
+      setAccessPassword,
+      setChangeMasterBusy,
+      setChangeMasterForm,
+      setResetVaultBusy,
+      setResetVaultConfirmed,
+    },
+    workspace: {
+      setActiveWorkspace,
+      setSessionTabs,
+      setActiveSessionId,
+      setNewTabs,
+      setActiveNewTabId,
+      setLogTabs,
+      setActiveLogTabId,
+    },
+    sessions: {
+      setHostKeyPrompt,
+      setConnectingHostIds,
+      setIsAcceptingKey,
+    },
   }
   const refs: {
     newTabCounterRef: React.MutableRefObject<number>
@@ -222,8 +221,12 @@ export function useAppState() {
     rejectedHostIdsRef,
   }
 
-  return {
-    activeWorkspace,
+  const appState = {
+    error,
+    sshConfigImportPrompt,
+    sshConfigImportBusy,
+  }
+  const hostViewState = {
     activeSidebarPage,
     hosts,
     selectedHostId,
@@ -232,6 +235,24 @@ export function useAppState() {
     newTabSearchQuery,
     hostViewMode,
     hostFilterKey,
+    hostDialogMode,
+    hostForm,
+    isSavingHost,
+    deleteCandidate,
+    filteredHosts,
+    hostGroups,
+    hostTags,
+    favoriteHostCount,
+    recentHostCount,
+    sessionCountByHost,
+    selectedSftpHost,
+    isHostsPage,
+    isSettingsPage,
+    isKnownHostsPage,
+    isKeychainPage,
+    isLogsPage,
+  }
+  const vaultViewState = {
     vaultInitialized,
     vaultUnlocked,
     vaultReady,
@@ -243,46 +264,47 @@ export function useAppState() {
     changeMasterBusy,
     resetVaultConfirmed,
     resetVaultBusy,
-    hostDialogMode,
-    hostForm,
-    isSavingHost,
-    error,
-    sshConfigImportPrompt,
-    sshConfigImportBusy,
-    deleteCandidate,
-    hostKeyPrompt,
-    isAcceptingKey,
+    showSetupModal,
+    showAccessModal,
+  }
+  const workspaceViewState = {
+    activeWorkspace,
     sessionTabs,
     activeSessionId,
     newTabs,
     activeNewTabId,
     logTabs,
     activeLogTabId,
-    connectingHostIds,
-    filteredHosts,
-    hostGroups,
-    hostTags,
-    favoriteHostCount,
-    recentHostCount,
-    sessionCountByHost,
-    selectedSftpHost,
     activeSession,
     activeLogTab,
     workspaceTabs,
     activeWorkspaceTabId,
-    showSetupModal,
-    showAccessModal,
-    isHostsPage,
-    isSettingsPage,
-    isKnownHostsPage,
-    isKeychainPage,
-    isLogsPage,
     shellClassName,
+  }
+  const sessionViewState = {
+    hostKeyPrompt,
+    isAcceptingKey,
+    connectingHostIds,
+  }
+  const pageState = {
     resolvedPageHeader,
+  }
+  const actionStates = {
     vaultState,
     hostState,
     sessionState,
+    sshConfigImportState,
     workspaceState,
+  }
+
+  return {
+    app: appState,
+    hosts: hostViewState,
+    vault: vaultViewState,
+    workspace: workspaceViewState,
+    sessions: sessionViewState,
+    page: pageState,
+    actionStates,
     setters,
     refs,
   }

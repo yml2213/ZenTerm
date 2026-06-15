@@ -78,13 +78,13 @@ jobs:
           const version = process.env.VERSION
           const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'))
           const frontend = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'))
-          const appUpdate = fs.readFileSync('app_update.go', 'utf8')
+          const appUpdate = fs.readFileSync('cmd/update.go', 'utf8')
           const appVersion = appUpdate.match(/var\s+appVersion\s*=\s*"([^"]+)"/)?.[1]
 
           const versions = {
             'wails.json info.productVersion': wails.info?.productVersion,
             'frontend/package.json version': frontend.version,
-            'app_update.go appVersion': appVersion,
+            'cmd/update.go appVersion': appVersion,
           }
 
           for (const [name, value] of Object.entries(versions)) {
@@ -103,7 +103,7 @@ jobs:
 
       - name: 生成 Wails 绑定
         shell: bash
-        run: wails build -s -skipembedcreate -nopackage -ldflags "-X main.appVersion=${VERSION}"
+        run: wails build -s -skipembedcreate -nopackage -ldflags "-X zenterm/cmd.appVersion=${VERSION}"
 
       - name: 安装前端依赖
         working-directory: frontend
@@ -126,7 +126,7 @@ jobs:
         run: npm test
 
       - name: Go 测试
-        run: go test . ./internal/...
+        run: go test . ./cmd ./internal/...
 
   build:
     name: 构建 ${{ matrix.name }}
@@ -197,7 +197,7 @@ jobs:
 
       - name: 构建 Wails 应用
         shell: bash
-        run: wails build -platform ${{ matrix.platform }} -ldflags "-X main.appVersion=${VERSION}"
+        run: wails build -platform ${{ matrix.platform }} -ldflags "-X zenterm/cmd.appVersion=${VERSION}"
 
       - name: 打包 Linux 产物
         if: runner.os == 'Linux'
@@ -286,7 +286,7 @@ jobs:
           asset="ZenTerm-${VERSION}-${slug}.zip"
 
           rm -rf build/bin
-          wails build -clean -platform "$platform" -ldflags "-X main.appVersion=${VERSION}"
+          wails build -clean -platform "$platform" -ldflags "-X zenterm/cmd.appVersion=${VERSION}"
 
           mkdir -p dist
           if [ -d build/bin/ZenTerm.app ]; then

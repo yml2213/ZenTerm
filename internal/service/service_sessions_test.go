@@ -449,9 +449,18 @@ func TestConnectDetectsAndPersistsHostSystemType(t *testing.T) {
 	}
 	defer func() { _ = svc.Disconnect(sessionID) }()
 
-	updatedHost, err := store.GetHost(host.ID)
-	if err != nil {
-		t.Fatalf("GetHost() error = %v", err)
+	// 系统类型检测是异步执行的（Connect 不再阻塞等待探测完成），轮询等待结果落库 / system-type detection runs asynchronously, so poll until the result lands in the store.
+	deadline := time.Now().Add(2 * time.Second)
+	var updatedHost model.Host
+	for time.Now().Before(deadline) {
+		updatedHost, err = store.GetHost(host.ID)
+		if err != nil {
+			t.Fatalf("GetHost() error = %v", err)
+		}
+		if updatedHost.SystemType == "ubuntu" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	if updatedHost.SystemType != "ubuntu" {
 		t.Fatalf("GetHost().SystemType = %q, want %q", updatedHost.SystemType, "ubuntu")
@@ -649,6 +658,43 @@ func TestConnectFailsWhenIdentityHasNoAuthMethod(t *testing.T) {
 	_, err = svc.Connect(host.ID)
 	if !errors.Is(err, ErrNoIdentityAuth) {
 		t.Fatalf("Connect() error = %v, want %v", err, ErrNoIdentityAuth)
+	}
+}
+
+// TestConnectFailsWithInvalidPrivateKey 验证：私钥解析失败时返回归一化的 ErrInvalidPrivateKey，不向调用方透传 PEM 解析细节 / verifies that an unparseable private key surfaces as the sanitised ErrInvalidPrivateKey rather than leaking PEM parsing internals.
+func TestConnectFailsWithInvalidPrivateKey(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{
+		ID:       "host-bad-key",
+		Address:  "example.com",
+		Username: "zen",
+	}
+	if err := store.AddHost(host, model.Identity{PrivateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\nthis is not a real key\n-----END OPENSSH PRIVATE KEY-----"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	_, err = svc.Connect(host.ID)
+	if !errors.Is(err, ErrInvalidPrivateKey) {
+		t.Fatalf("Connect() error = %v, want %v", err, ErrInvalidPrivateKey)
 	}
 }
 

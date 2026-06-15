@@ -1,5 +1,5 @@
-import { main, model } from "../wailsjs/wailsjs/go/models";
-import type { UpdateConfig, UpdateInfo } from "../types/update";
+import { cmd, model } from '../wailsjs/wailsjs/go/models'
+import type { UpdateConfig, UpdateInfo } from '../types/update'
 
 type BackendMethod = (...args: unknown[]) => unknown;
 type AppBinding = Record<string, BackendMethod | undefined>;
@@ -19,11 +19,11 @@ interface RuntimeBinding {
 declare global {
   interface Window {
     go?: {
-      main: {
-        App?: AppBinding;
-      };
-    };
-    runtime?: RuntimeBinding;
+      cmd: {
+        App?: AppBinding
+      }
+    }
+    runtime?: RuntimeBinding
   }
 }
 
@@ -31,7 +31,7 @@ const missingBackendMessage =
   "当前未检测到 Wails 后端，请通过 Wails 运行 ZenTerm。";
 
 function getAppBinding(): AppBinding | undefined {
-  return window.go?.main?.App;
+  return window.go?.cmd?.App
 }
 
 function getRuntimeBinding(): RuntimeBinding | undefined {
@@ -195,21 +195,16 @@ export async function resetVault(): Promise<void> {
   return callApp("ResetVault");
 }
 
-export async function listHosts(): Promise<main.Host[]> {
-  return callApp("ListHosts");
+export async function listHosts(): Promise<cmd.Host[]> {
+  return callApp('ListHosts')
 }
 
-export async function listLocalFiles(
-  path: string = ""
-): Promise<main.FileListing> {
-  return callApp("ListLocalFiles", path);
+export async function listLocalFiles(path: string = ''): Promise<cmd.FileListing> {
+  return callApp('ListLocalFiles', path)
 }
 
-export async function listRemoteFiles(
-  hostID: string,
-  path: string = ""
-): Promise<main.FileListing> {
-  return callApp("ListRemoteFiles", hostID, path);
+export async function listRemoteFiles(hostID: string, path: string = ''): Promise<cmd.FileListing> {
+  return callApp('ListRemoteFiles', hostID, path)
 }
 
 export async function createLocalDirectory(
@@ -271,18 +266,12 @@ export async function downloadFile(
   return callApp("DownloadFile", hostID, remotePath, localDir, overwrite);
 }
 
-export async function addHost(
-  host: main.Host,
-  identity: model.Identity
-): Promise<string> {
-  return callApp("AddHost", host, identity);
+export async function addHost(host: cmd.Host, identity: model.Identity): Promise<string> {
+  return callApp('AddHost', host, identity)
 }
 
-export async function updateHost(
-  host: main.Host,
-  identity: model.Identity
-): Promise<void> {
-  return callApp("UpdateHost", host, identity);
+export async function updateHost(host: cmd.Host, identity: model.Identity): Promise<void> {
+  return callApp('UpdateHost', host, identity)
 }
 
 export async function updateHostPinned(
@@ -334,20 +323,16 @@ export async function disconnect(sessionID: string): Promise<void> {
   return callApp("Disconnect", sessionID);
 }
 
-export async function listSessions(): Promise<main.Session[]> {
-  return callApp("ListSessions");
+export async function listSessions(): Promise<cmd.Session[]> {
+  return callApp('ListSessions')
 }
 
-export async function listSessionLogs(
-  limit: number = 200
-): Promise<main.SessionLog[]> {
-  return callApp("ListSessionLogs", limit);
+export async function listSessionLogs(limit: number = 200): Promise<cmd.SessionLog[]> {
+  return callApp('ListSessionLogs', limit)
 }
 
-export async function getSessionTranscript(
-  logID: string
-): Promise<main.SessionTranscript> {
-  return callApp("GetSessionTranscript", logID);
+export async function getSessionTranscript(logID: string): Promise<cmd.SessionTranscript> {
+  return callApp('GetSessionTranscript', logID)
 }
 
 export async function toggleSessionLogFavorite(
@@ -548,14 +533,12 @@ export async function importCredential(
   return callApp("ImportCredential", label, privateKeyPEM, passphrase);
 }
 
-export async function getCredentials(): Promise<main.Credential[]> {
-  return callApp("GetCredentials");
+export async function getCredentials(): Promise<cmd.Credential[]> {
+  return callApp('GetCredentials')
 }
 
-export async function getCredential(
-  credentialID: string
-): Promise<main.Credential> {
-  return callApp("GetCredential", credentialID);
+export async function getCredential(credentialID: string): Promise<cmd.Credential> {
+  return callApp('GetCredential', credentialID)
 }
 
 export async function getCredentialUsage(
@@ -611,10 +594,8 @@ export async function listLocalSSHConfigHosts(): Promise<LocalSSHConfigHost[]> {
   return callApp("ListLocalSSHConfigHosts");
 }
 
-export async function importLocalSSHConfigHosts(
-  ids: string[]
-): Promise<main.Host[]> {
-  return callApp("ImportLocalSSHConfigHosts", ids);
+export async function importLocalSSHConfigHosts(ids: string[]): Promise<cmd.Host[]> {
+  return callApp('ImportLocalSSHConfigHosts', ids)
 }
 
 export interface CredentialUploadResult {

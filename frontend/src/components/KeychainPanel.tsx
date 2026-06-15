@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 import {
   RefreshCw,
 } from 'lucide-react'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 import GenerateKeyDrawer from './keychain/GenerateKeyDrawer'
 import ImportKeyDrawer from './keychain/ImportKeyDrawer'
 import ImportLocalKeyDrawer from './keychain/ImportLocalKeyDrawer'
@@ -16,7 +16,7 @@ import { useKeychainActions } from './keychain/useKeychainActions'
 import { useKeychainData } from './keychain/useKeychainData'
 import { useKeychainDrawers } from './keychain/useKeychainDrawers'
 
-type Host = main.Host
+type Host = cmd.Host
 
 interface KeychainPanelProps {
   vaultUnlocked: boolean

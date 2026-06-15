@@ -7,9 +7,13 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"zenterm/internal/model"
 )
+
+// remoteDeleteWorkers 限制远端并发删除的最大并发度，避免单个连接被 SFTP 请求打满 / caps concurrency for remote recursive deletes so a single SSH channel is not flooded.
+const remoteDeleteWorkers = 8
 
 // CreateLocalDirectory 在本地目录下创建文件夹 / creates a directory inside a local parent directory.
 func (s *Service) CreateLocalDirectory(parentPath, name string) (model.FileEntry, error) {
@@ -306,22 +310,109 @@ func (s *Service) DeleteRemoteEntry(hostID, targetPath string) error {
 	})
 }
 
+type remoteDeleteEntry struct {
+	path  string
+	info  os.FileInfo
+	depth int
+}
+
+// removeRemoteEntry 递归删除远端条目：先串行收集树，避免遍历阶段打爆单个 SFTP 连接；再用固定 worker 删除文件，并按深度从深到浅删除目录 / removes a remote entry by first collecting the tree serially (so traversal cannot flood one SFTP connection), then deleting files with fixed workers and directories deepest-first.
 func removeRemoteEntry(client sftpClient, targetPath string, info os.FileInfo) error {
+	entries, collectErr := collectRemoteDeleteEntries(client, targetPath, info, 0)
+	deleteErr := deleteCollectedRemoteEntries(client, entries)
+	return errors.Join(collectErr, deleteErr)
+}
+
+func collectRemoteDeleteEntries(client sftpClient, targetPath string, info os.FileInfo, depth int) ([]remoteDeleteEntry, error) {
 	if !info.IsDir() {
-		return client.Remove(targetPath)
+		return []remoteDeleteEntry{{path: targetPath, info: info, depth: depth}}, nil
 	}
 
 	children, err := client.ReadDir(targetPath)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("read remote directory %s: %w", targetPath, err)
 	}
 
+	entries := []remoteDeleteEntry{}
+	var errs []error
 	for _, child := range children {
 		childPath := pathpkg.Join(targetPath, child.Name())
-		if err := removeRemoteEntry(client, childPath, child); err != nil {
-			return err
+		childEntries, err := collectRemoteDeleteEntries(client, childPath, child, depth+1)
+		entries = append(entries, childEntries...)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+	entries = append(entries, remoteDeleteEntry{path: targetPath, info: info, depth: depth})
+	return entries, errors.Join(errs...)
+}
 
-	return client.RemoveDirectory(targetPath)
+func deleteCollectedRemoteEntries(client sftpClient, entries []remoteDeleteEntry) error {
+	files := make([]remoteDeleteEntry, 0, len(entries))
+	dirsByDepth := make(map[int][]remoteDeleteEntry)
+	maxDepth := -1
+	for _, entry := range entries {
+		if entry.info.IsDir() {
+			dirsByDepth[entry.depth] = append(dirsByDepth[entry.depth], entry)
+			if entry.depth > maxDepth {
+				maxDepth = entry.depth
+			}
+			continue
+		}
+		files = append(files, entry)
+	}
+
+	var errs []error
+	if err := runRemoteDeleteBatch(files, func(path string) error {
+		return client.Remove(path)
+	}); err != nil {
+		errs = append(errs, err)
+	}
+	for depth := maxDepth; depth >= 0; depth-- {
+		if err := runRemoteDeleteBatch(dirsByDepth[depth], func(path string) error {
+			return client.RemoveDirectory(path)
+		}); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func runRemoteDeleteBatch(entries []remoteDeleteEntry, remove func(path string) error) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	workerCount := remoteDeleteWorkers
+	if len(entries) < workerCount {
+		workerCount = len(entries)
+	}
+
+	jobs := make(chan remoteDeleteEntry)
+	errCh := make(chan error, len(entries))
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for entry := range jobs {
+				if err := remove(entry.path); err != nil {
+					errCh <- err
+				}
+			}
+		}()
+	}
+
+	for _, entry := range entries {
+		jobs <- entry
+	}
+	close(jobs)
+	wg.Wait()
+	close(errCh)
+
+	errs := make([]error, 0, len(errCh))
+	for err := range errCh {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }

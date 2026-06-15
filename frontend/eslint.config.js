@@ -9,6 +9,7 @@ const fastRefreshSafeExports = [
   'createHostFormFromHost',
   'preloadSftpWorkspace',
   'useLanguage',
+  'useAppearance',
   'useTerminalPreferences',
   'useTheme',
 ]
