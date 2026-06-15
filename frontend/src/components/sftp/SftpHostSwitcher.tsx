@@ -1,7 +1,7 @@
 import { Server, X } from 'lucide-react'
-import { main } from '../../wailsjs/wailsjs/go/models'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
 
-type Host = main.Host
+type Host = cmd.Host
 
 interface SftpHostSwitcherProps {
   hosts: Host[]

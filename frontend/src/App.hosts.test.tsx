@@ -68,6 +68,22 @@ describe('App host management', () => {
     expect(titles.slice(0, 2)).toEqual(['Beta', 'Alpha'])
   })
 
+  it('置顶保存失败后会回源刷新主机列表', async () => {
+    const user = userEvent.setup()
+    updateHostPinned.mockRejectedValueOnce(new Error('保存置顶失败'))
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '置顶 Beta' }))
+
+    await waitFor(() => expect(updateHostPinned).toHaveBeenCalledWith('host-2', true))
+    await waitFor(() => expect(listHosts).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('保存置顶失败')).toBeInTheDocument()
+
+    const titles = Array.from(document.querySelectorAll('.host-card-title strong')).map((node) => node.textContent)
+    expect(titles.slice(0, 2)).toEqual(['Alpha', 'Beta'])
+  })
+
   it('主机页支持拖拽排序并保存手动顺序', async () => {
     const user = userEvent.setup()
     renderApp()

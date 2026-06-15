@@ -17,7 +17,7 @@ import SessionLogPanel from './SessionLogPanel'
 import VaultSettingsPanel from './VaultSettingsPanel'
 import { NavigationItem } from '../lib/appShellConfig'
 import { ChangeMasterForm } from '../types'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
 type PageToolbarId = 'keychain' | 'knownHosts' | 'logs'
 
@@ -33,7 +33,7 @@ interface VaultWorkspaceProps {
   isHostsPage: boolean
   hostFilterKey: string
   onHostFilterChange: (filter: string) => void
-  hosts: main.Host[]
+  hosts: cmd.Host[]
   favoriteHostCount: number
   recentHostCount: number
   hostGroups: string[]
@@ -51,17 +51,17 @@ interface VaultWorkspaceProps {
   onHostViewModeChange: (mode: 'grid' | 'list') => void
   onCreateHost: () => void
   newHostLabel: string
-  filteredHosts: main.Host[]
+  filteredHosts: cmd.Host[]
   selectedHostId: string | null
   sessionCountByHost: Record<string, number>
   connectingHostIds: string[]
   onSelectHost: (id: string) => void
   onConnectHost: (id: string) => void
-  onEditHost: (host: main.Host) => void
-  onDeleteHost: (host: main.Host) => void
-  onCopyHostAddress: (host: main.Host) => void
-  onToggleFavorite: (host: main.Host) => void
-  onTogglePinned: (host: main.Host) => void
+  onEditHost: (host: cmd.Host) => void
+  onDeleteHost: (host: cmd.Host) => void
+  onCopyHostAddress: (host: cmd.Host) => void
+  onToggleFavorite: (host: cmd.Host) => void
+  onTogglePinned: (host: cmd.Host) => void
   onReorderHosts: (orderedHostIds: string[]) => void
   onRefreshHosts: () => Promise<void> | void
   vaultUnlocked: boolean
@@ -77,7 +77,7 @@ interface VaultWorkspaceProps {
   isKnownHostsPage: boolean
   isKeychainPage: boolean
   isLogsPage: boolean
-  onOpenLogTab: (log: main.SessionLog) => void
+  onOpenLogTab: (log: cmd.SessionLog) => void
   hostDrawer: ReactNode
 }
 

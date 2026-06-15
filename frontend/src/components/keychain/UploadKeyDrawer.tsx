@@ -1,8 +1,8 @@
 import { X } from 'lucide-react'
-import { main } from '../../wailsjs/wailsjs/go/models'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
 import type { UploadKeyForm } from './keychainConfig'
 
-type Host = main.Host
+type Host = cmd.Host
 
 interface UploadKeyDrawerProps {
   form: UploadKeyForm

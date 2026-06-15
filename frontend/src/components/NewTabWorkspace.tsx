@@ -1,9 +1,9 @@
 import type { RefObject } from 'react'
 import { Clock3, Plus, Search, Server, TerminalSquare } from 'lucide-react'
 import { matchesHost, sortHosts } from '../lib/appHostUtils'
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
-type Host = main.Host
+type Host = cmd.Host
 
 interface NewTabPageProps {
   hosts: Host[]

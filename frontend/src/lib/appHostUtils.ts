@@ -1,4 +1,4 @@
-import { main } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '../wailsjs/wailsjs/go/models'
 
 export interface HostForm {
   id: string
@@ -17,8 +17,8 @@ export interface HostForm {
   credentialId?: string
 }
 
-export function buildHostPayload(form: HostForm): main.Host {
-  const host = new main.Host({
+export function buildHostPayload(form: HostForm): cmd.Host {
+  const host = new cmd.Host({
     id: form.id.trim(),
     name: form.name.trim(),
     address: form.address.trim(),
@@ -72,7 +72,7 @@ export function toUserMessage(error: unknown): string {
   return message
 }
 
-export function matchesHost(host: main.Host, query: string): boolean {
+export function matchesHost(host: cmd.Host, query: string): boolean {
   const keyword = query.trim().toLowerCase()
   if (!keyword) {
     return true
@@ -90,7 +90,7 @@ export function parseHostTags(tags: string | undefined): string[] {
     .filter(Boolean)
 }
 
-let demoHostCache: main.Host[] | null = null
+let demoHostCache: cmd.Host[] | null = null
 
 const demoHostNames = [
   'prod-api-01',
@@ -113,8 +113,8 @@ function shouldFillDemoHosts(): boolean {
   return import.meta.env.DEV && import.meta.env.MODE !== 'test'
 }
 
-function createDemoHosts(existingIDs: Set<string>): main.Host[] {
-  const hosts: main.Host[] = []
+function createDemoHosts(existingIDs: Set<string>): cmd.Host[] {
+  const hosts: cmd.Host[] = []
   let index = 0
 
   while (hosts.length < 10 && index < 40) {
@@ -125,7 +125,7 @@ function createDemoHosts(existingIDs: Set<string>): main.Host[] {
       continue
     }
 
-    hosts.push(new main.Host({
+    hosts.push(new cmd.Host({
       id,
       name: demoHostNames[(number - 1) % demoHostNames.length],
       address: `10.${10 + Math.floor(Math.random() * 30)}.${Math.floor(Math.random() * 240)}.${20 + number}`,
@@ -144,7 +144,7 @@ function createDemoHosts(existingIDs: Set<string>): main.Host[] {
   return hosts
 }
 
-export function withDemoHosts(hosts: main.Host[]): main.Host[] {
+export function withDemoHosts(hosts: cmd.Host[]): cmd.Host[] {
   if (!shouldFillDemoHosts() || hosts.length >= 10) {
     return hosts
   }
@@ -161,7 +161,7 @@ export function withDemoHosts(hosts: main.Host[]): main.Host[] {
   return hosts.concat(fillerHosts)
 }
 
-export function isDemoHost(host?: Pick<main.Host, 'id'> | null): boolean {
+export function isDemoHost(host?: Pick<cmd.Host, 'id'> | null): boolean {
   return Boolean(host?.id?.startsWith('demo-'))
 }
 
@@ -181,7 +181,7 @@ export function getHostFilterLabel(filterKey: string): string {
   return '全部主机'
 }
 
-export function matchesHostFilter(host: main.Host, filterKey: string): boolean {
+export function matchesHostFilter(host: cmd.Host, filterKey: string): boolean {
   if (filterKey === 'favorite') {
     return Boolean(host.favorite)
   }
@@ -197,7 +197,7 @@ export function matchesHostFilter(host: main.Host, filterKey: string): boolean {
   return true
 }
 
-export function sortHosts(hosts: main.Host[]): main.Host[] {
+export function sortHosts(hosts: cmd.Host[]): cmd.Host[] {
   return hosts.slice().sort((left, right) => {
     if (Boolean(left.pinned) !== Boolean(right.pinned)) {
       return left.pinned ? -1 : 1

@@ -15,6 +15,7 @@ type sshDialer interface {
 type sshClient interface {
 	NewSession() (sshSession, error)
 	NewSFTPClient() (sftpClient, error)
+	SendKeepAlive() error
 	Close() error
 }
 
@@ -65,6 +66,12 @@ func (c *realSSHClient) NewSFTPClient() (sftpClient, error) {
 
 func (c *realSSHClient) Close() error {
 	return c.client.Close()
+}
+
+// SendKeepAlive 向远端发送一次 openssh keepalive 请求，用于保持空闲连接活跃 / sends an openssh keepalive request to keep idle connections alive.
+func (c *realSSHClient) SendKeepAlive() error {
+	_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
+	return err
 }
 
 type realSFTPClient struct {

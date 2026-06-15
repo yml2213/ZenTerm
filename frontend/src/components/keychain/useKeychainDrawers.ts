@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { LocalSSHKey } from '../../lib/backend'
-import { main } from '../../wailsjs/wailsjs/go/models'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
 import {
   createGenerateKeyForm,
   createImportKeyForm,
@@ -10,7 +10,7 @@ import {
   type UploadKeyForm,
 } from './keychainConfig'
 
-type Host = main.Host
+type Host = cmd.Host
 type KeychainDrawer = 'generateKey' | 'importKey' | 'uploadKey' | 'importLocalKey' | null
 
 interface UseKeychainDrawersProps {

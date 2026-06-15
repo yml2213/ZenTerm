@@ -101,12 +101,22 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 		return "", "", "", security.ErrInvalidMasterPassword
 	}
 
+	// 导入远端快照会覆盖本地数据，先备份再关闭会话：备份失败时直接返回，避免出现"会话已关闭但同步未导入"的中间态 / back up before closing sessions: on backup failure we bail out untouched, so we never end up with sessions closed but the import not applied.
+	if _, err := s.store.BackupCurrent(); err != nil {
+		return "", "", "", fmt.Errorf("backup before sync import: %w", err)
+	}
 	if err := s.CloseAll(); err != nil {
 		return "", "", "", err
 	}
 	if err := s.store.ImportSyncSnapshot([]byte(payload)); err != nil {
 		return "", "", "", err
 	}
+	// 导入后用快照自带的 KDF 参数派生本地密钥，保证与源端一致 / after import, derive the local key with the snapshot's own KDF params so it matches the source.
+	importedParams, err := s.store.LoadKDFParams()
+	if err != nil {
+		return "", "", "", err
+	}
+	s.vault.SetParams(importedParams)
 	if err := s.vault.Unlock(masterPassword, salt); err != nil {
 		s.vault.Lock()
 		return "", "", "", err

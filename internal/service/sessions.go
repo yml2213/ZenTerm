@@ -105,7 +105,7 @@ func (s *Service) Connect(hostID string) (string, error) {
 	}
 
 	s.sessionMu.Lock()
-	s.sessions[sessionID] = &managedSession{
+	managed := &managedSession{
 		Session: Session{
 			ID:          sessionID,
 			HostID:      hostID,
@@ -117,7 +117,8 @@ func (s *Service) Connect(hostID string) (string, error) {
 		stdin:  stdin,
 		logID:  logID,
 	}
-	managed := s.sessions[sessionID]
+	managed.stopKeepAlive = s.startKeepAliveLoop(client)
+	s.sessions[sessionID] = managed
 	s.sessionMu.Unlock()
 
 	s.markSessionLogActive(logID, sessionID, remoteAddr)
@@ -129,9 +130,21 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = s.store.UpdateCredentialLastUsed(host.CredentialID)
 	}
 	if host.SystemTypeSource != "manual" {
-		if systemType := detectHostSystemType(client); systemType != "" {
-			_ = s.store.UpdateHostSystemType(hostID, systemType, "auto")
-		}
+		// 系统类型探测放到后台执行，避免阻塞 Connect 返回；探测完成后通过事件通知前端刷新 / probe the system type asynchronously so Connect can return immediately; the frontend refreshes via the emitted event.
+		go func(hostID string, client sshClient) {
+			systemType := detectHostSystemType(client)
+			if systemType == "" {
+				return
+			}
+			if err := s.store.UpdateHostSystemType(hostID, systemType, "auto"); err != nil {
+				return
+			}
+			s.emit("host:system-type:"+hostID, map[string]string{
+				"host_id":     hostID,
+				"system_type": systemType,
+				"source":      "auto",
+			})
+		}(hostID, client)
 	}
 
 	return sessionID, nil
@@ -216,13 +229,13 @@ func (s *Service) CloseAll() error {
 	}
 	s.hostKeyMu.Unlock()
 
-	var closeErr error
-	if err := s.closeAllSFTPConnections(); err != nil && closeErr == nil {
-		closeErr = err
+	var errs []error
+	if err := s.closeAllSFTPConnections(); err != nil {
+		errs = append(errs, err)
 	}
 	for sessionID, session := range sessions {
-		if err := session.close(); err != nil && closeErr == nil {
-			closeErr = err
+		if err := session.close(); err != nil {
+			errs = append(errs, err)
 		}
 		s.markSessionLogFinished(session.logID, model.SessionLogStatusClosed, "")
 		s.emit("term:closed:"+sessionID, nil)
@@ -230,17 +243,20 @@ func (s *Service) CloseAll() error {
 	for _, confirmation := range pending {
 		confirmation.respond(false)
 	}
-	if err := s.flushAllSessionTranscripts(); err != nil && closeErr == nil {
-		closeErr = err
+	if err := s.flushAllSessionTranscripts(); err != nil {
+		errs = append(errs, err)
 	}
 
-	return closeErr
+	return errors.Join(errs...)
 }
 
 func (m *managedSession) close() error {
 	var closeErr error
 
 	m.closeOnce.Do(func() {
+		if m.stopKeepAlive != nil {
+			m.stopKeepAlive()
+		}
 		if m.stdin != nil {
 			if err := m.stdin.Close(); err != nil && closeErr == nil {
 				closeErr = fmt.Errorf("close stdin: %w", err)
@@ -273,7 +289,7 @@ func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ss
 	if identity.PrivateKey != "" {
 		signer, err := parsePrivateKeySigner(identity.PrivateKey, identity.Password)
 		if err != nil {
-			return nil, fmt.Errorf("parse private key: %w", err)
+			return nil, ErrInvalidPrivateKey
 		}
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
 	}

@@ -30,11 +30,13 @@ var (
 	ErrCredentialLabelRequired     = errors.New("credential label is required")
 	ErrCredentialInUse             = errors.New("credential is in use by one or more hosts")
 	ErrInvalidAlgorithm            = errors.New("invalid key algorithm")
+	ErrInvalidPrivateKey           = errors.New("private key is invalid or passphrase is wrong")
 	ErrTransferSourceRequired      = errors.New("transfer source path is required")
 	ErrTransferTargetRequired      = errors.New("transfer target path is required")
 	ErrTransferSourceNotFile       = errors.New("transfer source must be a file")
 	ErrTransferTargetNotDirectory  = errors.New("transfer target must be a directory")
 	ErrTransferTargetExists        = errors.New("transfer target already exists")
+	ErrSFTPConnectionClosed        = errors.New("sftp connection was closed")
 	ErrFileActionPathRequired      = errors.New("file action path is required")
 	ErrFileNameRequired            = errors.New("file name is required")
 	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
@@ -124,18 +126,20 @@ type ZenService interface {
 
 type managedSession struct {
 	Session
-	client    sshClient
-	ssh       sshSession
-	stdin     io.WriteCloser
-	logID     string
-	closeOnce sync.Once
+	client        sshClient
+	ssh           sshSession
+	stdin         io.WriteCloser
+	logID         string
+	stopKeepAlive func()
+	closeOnce     sync.Once
 }
 
 type managedSFTPConnection struct {
-	hostID     string
-	remoteAddr string
-	client     sshClient
-	closeOnce  sync.Once
+	hostID        string
+	remoteAddr    string
+	client        sshClient
+	stopKeepAlive func()
+	closeOnce     sync.Once
 }
 
 type pendingHostKeyConfirmation struct {
