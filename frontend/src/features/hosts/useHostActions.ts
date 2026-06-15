@@ -1,5 +1,5 @@
 import { startTransition } from 'react'
-import { createHostFormFromHost, createInitialHostForm } from '../components/HostForm'
+import { createHostFormFromHost, createInitialHostForm } from './hostFormModel'
 import {
   buildHostPayload,
   buildIdentityPayload,
@@ -8,10 +8,10 @@ import {
   sortHosts,
   toUserMessage,
   withDemoHosts,
-} from '../lib/appHostUtils'
-import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '../lib/backend'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '../types'
+} from '../../lib/appHostUtils'
+import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '../../lib/backend'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
+import { HostFormModel, SessionTab } from '../../types'
 
 interface HostActionHandlersProps {
   state: {
@@ -40,7 +40,7 @@ interface HostActionHandlersProps {
   }
 }
 
-export function useHostActionHandlers({
+export function useHostActions({
   state,
   setters,
   helpers,

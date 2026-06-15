@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { useHostState } from './useHostState'
-import { useSessionWorkspaceState } from './useSessionWorkspaceState'
-import { useVaultState } from './useVaultState'
+import { useHostState } from '../features/hosts/useHostState'
+import { useSessionWorkspaceState } from '../features/sessions/useSessionWorkspaceState'
+import { useVaultState } from '../features/vault/useVaultState'
 import type { SSHConfigImportPrompt } from '../types'
 
 export function useAppState() {

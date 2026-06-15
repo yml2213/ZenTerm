@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
-import { createInitialHostForm } from '../components/HostForm'
+import { createInitialHostForm } from './hostFormModel'
 import {
   getHostFilterLabel,
   matchesHost,
   matchesHostFilter,
   parseHostTags,
   sortHosts,
-} from '../lib/appHostUtils'
-import { sidebarPages, SidebarPage } from '../lib/appShellConfig'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '../types'
+} from '../../lib/appHostUtils'
+import { sidebarPages, SidebarPage } from '../../lib/appShellConfig'
+import { cmd } from '../../wailsjs/wailsjs/go/models'
+import { HostFormModel, SessionTab } from '../../types'
 
 export function useHostState(sessionTabs: SessionTab[]) {
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
