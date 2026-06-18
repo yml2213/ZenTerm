@@ -111,10 +111,13 @@
 
 .host-card-badges {
   align-self: flex-start;
-  display: grid;
-  grid-template-columns: repeat(2, 27px);
-  gap: 0.3rem;
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .host-card-identity {
@@ -390,8 +393,6 @@
 }
 
 .host-inline-state {
-  grid-column: 1 / -1;
-  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: 0.22rem;
@@ -524,6 +525,12 @@
   font-weight: 700;
 }
 
+.host-connect-btn svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
 .host-connect-label {
   display: inline-block;
   max-width: 3.5rem;
@@ -572,6 +579,7 @@
 
 .host-grid-list .host-card-badges {
   align-self: center;
+  flex-wrap: wrap;
 }
 
 .host-grid-list .host-card-actions {
