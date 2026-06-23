@@ -15,7 +15,7 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var appVersion = "0.1.4"
+var appVersion = "dev" // 正式版本由 -ldflags 注入
 
 // UpdateInfo 前端使用的更新信息
 type UpdateInfo struct {
