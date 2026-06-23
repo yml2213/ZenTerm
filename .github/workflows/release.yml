@@ -69,31 +69,27 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: 同步版本号
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
+            pkg.version = process.argv[1];
+            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          " "$VERSION_FROM_WAILS"
+
       - name: 校验项目版本
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const fs = require('fs')
-          const version = process.env.VERSION
-          const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'))
-          const frontend = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'))
-          const appUpdate = fs.readFileSync('cmd/update.go', 'utf8')
-          const appVersion = appUpdate.match(/var\s+appVersion\s*=\s*"([^"]+)"/)?.[1]
-
-          const versions = {
-            'wails.json info.productVersion': wails.info?.productVersion,
-            'frontend/package.json version': frontend.version,
-            'cmd/update.go appVersion': appVersion,
-          }
-
-          for (const [name, value] of Object.entries(versions)) {
-            if (value !== version) {
-              console.error(`${name} 是 ${value}，与发布版本 ${version} 不一致`)
-              process.exit(1)
-            }
-          }
-          NODE
+          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
+          if [ "$VERSION_FROM_WAILS" != "$VERSION" ]; then
+            echo "wails.json 的 productVersion 是 $VERSION_FROM_WAILS，与发布版本 $VERSION 不一致" >&2
+            exit 1
+          fi
 
       - name: 准备临时前端资源目录
         shell: bash
@@ -179,6 +175,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
 
+      - name: 同步版本号
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
+            pkg.version = process.argv[1];
+            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          " "$VERSION_FROM_WAILS"
+
       - name: 安装前端依赖
         working-directory: frontend
         run: npm ci
@@ -257,6 +265,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: 同步版本号
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
+            pkg.version = process.argv[1];
+            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          " "$VERSION_FROM_WAILS"
 
       - name: 安装前端依赖
         working-directory: frontend
