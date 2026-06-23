@@ -27,6 +27,7 @@ interface AppOverlaysProps {
   sshConfigImportPrompt: SSHConfigImportPrompt | null
   sshConfigImportBusy: boolean
   onCancelSSHConfigImport: () => void
+  onDismissSSHConfigImportPermanently: () => void
   onConfirmSSHConfigImport: () => void
   errorTitle: string
   error: string | null
@@ -57,6 +58,7 @@ export default function AppOverlays({
   sshConfigImportPrompt,
   sshConfigImportBusy,
   onCancelSSHConfigImport,
+  onDismissSSHConfigImportPermanently,
   onConfirmSSHConfigImport,
   errorTitle,
   error,
@@ -122,6 +124,9 @@ export default function AppOverlays({
               ) : null}
             </div>
             <div className="modal-actions">
+              <button type="button" className="ghost-button" onClick={onDismissSSHConfigImportPermanently} disabled={sshConfigImportBusy}>
+                不再提示
+              </button>
               <button type="button" className="ghost-button" onClick={onCancelSSHConfigImport} disabled={sshConfigImportBusy}>
                 暂不导入
               </button>

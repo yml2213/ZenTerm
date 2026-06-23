@@ -111,6 +111,7 @@ export default function App() {
     handleRejectHostKey,
     handlePickSftpHost,
     dismissSSHConfigImportPrompt,
+    dismissSSHConfigImportPermanently,
     handleConfirmSSHConfigImport,
   } = useAppActionHandlers({
     vaultState,
@@ -273,6 +274,7 @@ export default function App() {
           onCancelDeleteHost: () => hostSetters.setDeleteCandidate(null),
           onDeleteHost: handleDeleteHost,
           onCancelSSHConfigImport: dismissSSHConfigImportPrompt,
+          onDismissSSHConfigImportPermanently: dismissSSHConfigImportPermanently,
           onConfirmSSHConfigImport: handleConfirmSSHConfigImport,
           onClearError: () => appSetters.setError(null),
           onAcceptHostKey: handleAcceptHostKey,

@@ -38,6 +38,7 @@ interface AppOverlayLayerProps {
     onCancelDeleteHost: () => void
     onDeleteHost: () => void
     onCancelSSHConfigImport: () => void
+    onDismissSSHConfigImportPermanently: () => void
     onConfirmSSHConfigImport: () => void
     onClearError: () => void
     onAcceptHostKey: () => void
@@ -73,6 +74,7 @@ export default function AppOverlayLayer({
       sshConfigImportPrompt={app.sshConfigImportPrompt}
       sshConfigImportBusy={app.sshConfigImportBusy}
       onCancelSSHConfigImport={actions.onCancelSSHConfigImport}
+      onDismissSSHConfigImportPermanently={actions.onDismissSSHConfigImportPermanently}
       onConfirmSSHConfigImport={actions.onConfirmSSHConfigImport}
       errorTitle={labels.errorTitle}
       error={app.error}
