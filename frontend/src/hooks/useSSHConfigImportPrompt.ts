@@ -40,6 +40,10 @@ export function useSSHConfigImportPrompt({
         return
       }
 
+      if (window.localStorage.getItem('zenterm:ssh-config-import:never-prompt') === 'true') {
+        return
+      }
+
       const previewLines = importableHosts
         .slice(0, 5)
         .map((host) => `${host.alias} (${host.user || '当前用户'}@${host.host_name}:${host.port || 22})`)

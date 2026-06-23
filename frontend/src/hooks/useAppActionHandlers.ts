@@ -93,6 +93,11 @@ export function useAppActionHandlers({
     setters.app.setSSHConfigImportPrompt(null)
   }
 
+  function dismissSSHConfigImportPermanently() {
+    window.localStorage.setItem('zenterm:ssh-config-import:never-prompt', 'true')
+    setters.app.setSSHConfigImportPrompt(null)
+  }
+
   async function handleConfirmSSHConfigImport() {
     const { sshConfigImportPrompt, sshConfigImportBusy } = sshConfigImportState
     if (!sshConfigImportPrompt || sshConfigImportBusy) {
@@ -125,6 +130,7 @@ export function useAppActionHandlers({
     ...sessionActions,
     handleSidebarPageChange,
     dismissSSHConfigImportPrompt,
+    dismissSSHConfigImportPermanently,
     handleConfirmSSHConfigImport,
   }
 }
