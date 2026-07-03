@@ -34,10 +34,13 @@ var (
 var migrations = []func(*fileData) error{}
 
 // Store 将 ZenTerm 数据持久化到本地 JSON 文件 / persists ZenTerm data in a local JSON file.
+// cache/cacheLoaded 缓存最近一次落盘的 fileData，让只读查询免于反复读盘+反序列化；saveLocked 写盘成功后刷新缓存，loadLocked 命中缓存时返回 clone 防止调用方修改污染缓存 / cache/cacheLoaded hold the most recently persisted fileData so read-only queries skip re-reading and re-decoding the file; saveLocked refreshes the cache after a successful write, and loadLocked returns a clone on cache hits so callers can't mutate the cached copy.
 type Store struct {
-	path     string
-	saltSize int
-	mu       sync.RWMutex
+	path        string
+	saltSize    int
+	mu          sync.RWMutex
+	cache       *fileData
+	cacheLoaded bool
 }
 type fileData struct {
 	Version            int                      `json:"version"`
@@ -101,10 +104,17 @@ func (s *Store) BackupCurrent() (string, error) {
 
 // EnsureSalt 返回已持久化的 Vault 盐值；如果存储尚未初始化则自动创建 / returns the persisted vault salt, creating one if the store does not exist yet.
 func (s *Store) loadLocked() (fileData, error) {
+	if s.cacheLoaded && s.cache != nil {
+		// 命中缓存：返回 clone，避免调用方修改切片元素污染缓存 / cache hit: return a clone so the caller can mutate slice elements without polluting the cached copy.
+		return cloneFileData(*s.cache), nil
+	}
+
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return emptyStoreData(), nil
+			data := emptyStoreData()
+			s.cacheFile(data)
+			return data, nil
 		}
 
 		return fileData{}, fmt.Errorf("read store: %w", err)
@@ -114,20 +124,25 @@ func (s *Store) loadLocked() (fileData, error) {
 	if err := json.Unmarshal(bytes, &data); err != nil {
 		// 存储文件损坏：把坏字节隔离到 backups，返回空数据让应用以全新状态启动，避免一次坏字节永久锁死应用 / a corrupt store is quarantined to backups and the app boots into empty state, so one bad byte can't permanently lock the user out.
 		if qErr := s.quarantineCorruptLocked(bytes); qErr != nil {
+			s.invalidateCache()
 			return fileData{}, fmt.Errorf("decode store: %w (quarantine failed: %v)", err, qErr)
 		}
-		return emptyStoreData(), nil
+		data := emptyStoreData()
+		s.cacheFile(data)
+		return data, nil
 	}
 
 	if data.Version == 0 {
 		data.Version = currentVersion
 	}
 	if data.Version > currentVersion {
+		s.invalidateCache()
 		return fileData{}, fmt.Errorf("%w: store version %d exceeds supported %d", ErrUnsupportedStoreVersion, data.Version, currentVersion)
 	}
 	// 按版本顺序应用迁移链，每步成功后推进版本号 / apply migrations in order, advancing the version after each successful step.
 	for v := data.Version; v < currentVersion; v++ {
 		if err := migrations[v-1](&data); err != nil {
+			s.invalidateCache()
 			return fileData{}, fmt.Errorf("migrate store v%d -> v%d: %w", v, v+1, err)
 		}
 		data.Version = v + 1
@@ -145,7 +160,50 @@ func (s *Store) loadLocked() (fileData, error) {
 		data.SessionTranscripts = []sessionTranscriptEntry{}
 	}
 
+	s.cacheFile(data)
 	return data, nil
+}
+
+// cloneFileData 返回一份切片独立的 fileData 副本：顶层切片与每个 transcript 的 Chunks 切片都重新分配底层数组，元素值复制；元素内的 *Ciphertext 指针共享但不可变，安全 / returns a slice-independent copy of fileData: top-level slices and each transcript's Chunks slice get fresh backing arrays with element values copied; *Ciphertext pointers inside elements are shared but immutable, which is safe.
+func cloneFileData(src fileData) fileData {
+	dst := src
+	if src.Hosts != nil {
+		dst.Hosts = make([]hostEntry, len(src.Hosts))
+		copy(dst.Hosts, src.Hosts)
+	}
+	if src.Credentials != nil {
+		dst.Credentials = make([]credentialEntry, len(src.Credentials))
+		copy(dst.Credentials, src.Credentials)
+	}
+	if src.SessionLogs != nil {
+		dst.SessionLogs = make([]model.SessionLog, len(src.SessionLogs))
+		copy(dst.SessionLogs, src.SessionLogs)
+	}
+	if src.SessionTranscripts != nil {
+		dst.SessionTranscripts = make([]sessionTranscriptEntry, len(src.SessionTranscripts))
+		copy(dst.SessionTranscripts, src.SessionTranscripts)
+		for i := range dst.SessionTranscripts {
+			srcChunks := src.SessionTranscripts[i].Chunks
+			if srcChunks != nil {
+				dst.SessionTranscripts[i].Chunks = make([]sessionTranscriptChunkEntry, len(srcChunks))
+				copy(dst.SessionTranscripts[i].Chunks, srcChunks)
+			}
+		}
+	}
+	return dst
+}
+
+// cacheFile 把 data 的 clone 写入缓存；存 clone 而非 data 本身，防止调用方后续修改影响缓存 / stores a clone of data in the cache; cloning (rather than storing data directly) protects the cache from later caller mutations.
+func (s *Store) cacheFile(data fileData) {
+	cloned := cloneFileData(data)
+	s.cache = &cloned
+	s.cacheLoaded = true
+}
+
+// invalidateCache 清空缓存，用于加载/迁移失败时避免缓存半成品状态 / clears the cache, used when loading or migration fails to avoid caching a half-built state.
+func (s *Store) invalidateCache() {
+	s.cache = nil
+	s.cacheLoaded = false
 }
 
 // emptyStoreData 返回一份带 currentVersion 与空集合的全新 fileData，供新建或损坏自愈后初始化使用 / returns a fresh fileData with currentVersion and empty collections, used on first-run and after corrupt-file quarantine.
@@ -199,6 +257,8 @@ func (s *Store) saveLocked(data fileData) error {
 		return fmt.Errorf("write store: %w", err)
 	}
 
+	// 写盘成功后刷新缓存；写盘失败时保持旧缓存不变 / refresh the cache only after a successful write; on write failure the cache keeps the last persisted state.
+	s.cacheFile(data)
 	return nil
 }
 func writeFileAtomic(path string, payload []byte, perm os.FileMode) error {
