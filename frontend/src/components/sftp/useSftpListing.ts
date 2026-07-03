@@ -126,7 +126,7 @@ export function useSftpListing({
     }
   }, [clearScopeSelection, onError, selectedHost, vaultUnlocked])
 
-  function toggleHiddenFiles(scope: SftpScope) {
+  const toggleHiddenFiles = useCallback((scope: SftpScope) => {
     clearScopeSelection(scope)
     if (scope === 'remote') {
       setShowHiddenRemoteFiles((current) => !current)
@@ -134,20 +134,22 @@ export function useSftpListing({
     }
 
     setShowHiddenLocalFiles((current) => !current)
-  }
+  }, [clearScopeSelection])
 
-  function getShowHiddenState(scope: SftpScope): boolean {
+  const getShowHiddenState = useCallback((scope: SftpScope): boolean => {
     return scope === 'remote' ? showHiddenRemoteFiles : showHiddenLocalFiles
-  }
+  }, [showHiddenRemoteFiles, showHiddenLocalFiles])
 
-  function getVisibleListing(scope: SftpScope): FileListing | null {
+  // 直接内联 showHidden 而非调用 getShowHiddenState，避免函数引用变化连带导致 useMemo 失效 / inline showHidden instead of calling getShowHiddenState so a stable dependency list keeps downstream useMemo valid.
+  const getVisibleListing = useCallback((scope: SftpScope): FileListing | null => {
     const listing = scope === 'remote' ? remoteListing : localListing
+    const showHidden = scope === 'remote' ? showHiddenRemoteFiles : showHiddenLocalFiles
     return listing
-      ? { ...listing, entries: filterVisibleEntries(listing.entries, getShowHiddenState(scope)) }
+      ? { ...listing, entries: filterVisibleEntries(listing.entries, showHidden) }
       : listing
-  }
+  }, [remoteListing, localListing, showHiddenRemoteFiles, showHiddenLocalFiles])
 
-  function updateSort(scope: SftpScope, columnKey: string) {
+  const updateSort = useCallback((scope: SftpScope, columnKey: string) => {
     const setter = scope === 'remote' ? setRemoteSort : setLocalSort
     setter((current) => {
       const key = columnKey as SortConfig['key']
@@ -155,16 +157,16 @@ export function useSftpListing({
         ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
         : { key, direction: key === 'name' ? 'asc' : 'desc' }
     })
-  }
+  }, [])
 
-  async function refreshScope(scope: SftpScope) {
+  const refreshScope = useCallback(async (scope: SftpScope) => {
     if (scope === 'remote') {
       await handleRemoteNavigate(remoteListing?.path || '')
       return
     }
 
     await handleLocalNavigate(localListing?.path || '')
-  }
+  }, [handleRemoteNavigate, handleLocalNavigate, remoteListing, localListing])
 
   return {
     localListing,

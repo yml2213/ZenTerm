@@ -13,7 +13,7 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           icons: ['lucide-react'],
-          xterm: ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-webgl'],
+          xterm: ['@xterm/xterm', '@xterm/addon-fit'],
         },
       },
     },
