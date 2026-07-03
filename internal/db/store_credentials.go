@@ -22,12 +22,12 @@ func (s *Store) AddCredential(cred model.Credential, privateKey, password string
 		return ErrCredentialIDRequired
 	}
 
-	encPrivateKey, err := encryptOptional(privateKey, vault)
+	encPrivateKey, err := encryptOptional(privateKey, vault, credentialAAD(cred.ID, aadFieldPrivateKey))
 	if err != nil {
 		return fmt.Errorf("encrypt private key: %w", err)
 	}
 
-	encPassword, err := encryptOptional(password, vault)
+	encPassword, err := encryptOptional(password, vault, credentialAAD(cred.ID, aadFieldPassword))
 	if err != nil {
 		return fmt.Errorf("encrypt password: %w", err)
 	}
@@ -116,12 +116,12 @@ func (s *Store) GetCredentialSecret(credentialID string, vault *security.Vault) 
 			continue
 		}
 
-		privateKey, err := decryptOptional(entry.Secret.PrivateKey, vault)
+		privateKey, err := decryptOptional(entry.Secret.PrivateKey, vault, credentialAAD(entry.Credential.ID, aadFieldPrivateKey))
 		if err != nil {
 			return "", "", fmt.Errorf("decrypt private key: %w", err)
 		}
 
-		password, err := decryptOptional(entry.Secret.Password, vault)
+		password, err := decryptOptional(entry.Secret.Password, vault, credentialAAD(entry.Credential.ID, aadFieldPassword))
 		if err != nil {
 			return "", "", fmt.Errorf("decrypt password: %w", err)
 		}

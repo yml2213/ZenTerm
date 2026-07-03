@@ -9,12 +9,41 @@ import (
 	"testing"
 )
 
+// newTLSWebDAVTestServer 启动一个 TLS 测试服务器，调用方用 server.URL 构造 config、用 server.Client() 注入信任该服务器证书的 transport / starts a TLS test server; callers build config from server.URL and inject server.Client() so the provider trusts the server's self-signed certificate.
+func newTLSWebDAVTestServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	server := httptest.NewTLSServer(handler)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestNewWebDAVProvider_RejectsInsecureScheme(t *testing.T) {
+	cases := []string{
+		"http://example.com/dav/",
+		"ftp://example.com/dav/",
+		"example.com/dav/", // 无 scheme
+	}
+	for _, rawURL := range cases {
+		_, err := NewWebDAVProvider(WebDAVConfig{URL: rawURL, Username: "user"}, "app-password")
+		if !errors.Is(err, ErrInsecureScheme) {
+			t.Errorf("NewWebDAVProvider(%q) err = %v, want ErrInsecureScheme", rawURL, err)
+		}
+	}
+}
+
+func TestNewWebDAVProvider_AcceptsHTTPS(t *testing.T) {
+	_, err := NewWebDAVProvider(WebDAVConfig{URL: "https://example.com/dav/", Username: "user"}, "app-password")
+	if err != nil {
+		t.Fatalf("NewWebDAVProvider(https) err = %v", err)
+	}
+}
+
 func TestWebDAVProviderPutGetAndConflict(t *testing.T) {
 	var stored []byte
 	etag := `"v0"`
 	dirs := map[string]bool{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTLSWebDAVTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if !ok || username != "user" || password != "app-password" {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -65,15 +94,14 @@ func TestWebDAVProviderPutGetAndConflict(t *testing.T) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
-	defer server.Close()
 
-	provider, err := NewWebDAVProvider(WebDAVConfig{
+	provider, err := newWebDAVProviderWithClient(WebDAVConfig{
 		URL:        server.URL + "/dav/",
 		Username:   "user",
 		RemotePath: "/ZenTerm/zenterm-sync-v1.json",
-	}, "app-password")
+	}, "app-password", server.Client())
 	if err != nil {
-		t.Fatalf("NewWebDAVProvider() error = %v", err)
+		t.Fatalf("newWebDAVProviderWithClient() error = %v", err)
 	}
 
 	meta, err := provider.Stat(context.Background(), "/ZenTerm/zenterm-sync-v1.json")
@@ -110,7 +138,7 @@ func TestWebDAVProviderPutCreatesParentWhenStatReportsConflict(t *testing.T) {
 	var stored []byte
 	dirs := map[string]bool{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTLSWebDAVTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if !ok || username != "user" || password != "app-password" {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -152,14 +180,13 @@ func TestWebDAVProviderPutCreatesParentWhenStatReportsConflict(t *testing.T) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
-	defer server.Close()
 
-	provider, err := NewWebDAVProvider(WebDAVConfig{
+	provider, err := newWebDAVProviderWithClient(WebDAVConfig{
 		URL:      server.URL + "/dav/",
 		Username: "user",
-	}, "app-password")
+	}, "app-password", server.Client())
 	if err != nil {
-		t.Fatalf("NewWebDAVProvider() error = %v", err)
+		t.Fatalf("newWebDAVProviderWithClient() error = %v", err)
 	}
 
 	meta, err := provider.Stat(context.Background(), "/ZenTerm/zenterm-sync-v1.json")

@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 )
+
+// sha256Pattern 校验和必须是 64 位十六进制字符，拒绝任何畸形/截断的 .sha256 内容 / a checksum must be exactly 64 hex chars, rejecting malformed or truncated .sha256 payloads.
+var sha256Pattern = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
 const (
 	githubAPITimeout = 10 * time.Second
@@ -176,11 +180,16 @@ func (c *GitHubClient) GetAssetChecksum(release *GitHubRelease, assetName string
 		return "", fmt.Errorf("读取校验文件失败: %w", err)
 	}
 
-	// 校验文件格式: "<hash>  <filename>"
+	// 校验文件格式: "<hash>  <filename>"。必须严格匹配 64 位 hex，拒绝空/截断/畸形内容，避免下游静默跳过校验 / format is "<hash>  <filename>"; require a strict 64-hex match so a missing or malformed checksum file fails loudly instead of silently disabling verification downstream.
 	parts := strings.Fields(string(checksumData))
 	if len(parts) < 1 {
 		return "", fmt.Errorf("校验文件格式错误")
 	}
 
-	return strings.ToLower(parts[0]), nil
+	checksum := strings.ToLower(parts[0])
+	if !sha256Pattern.MatchString(checksum) {
+		return "", fmt.Errorf("校验和格式无效，期望 64 位十六进制，实际: %q", parts[0])
+	}
+
+	return checksum, nil
 }

@@ -155,14 +155,15 @@ func decryptSessionTranscriptContent(transcript sessionTranscriptEntry, vault *s
 		builder.Grow(int(transcript.SizeBytes))
 	}
 
-	content, err := decryptOptional(transcript.Content, vault)
+	aad := transcriptAAD(transcript.LogID)
+	content, err := decryptOptional(transcript.Content, vault, aad)
 	if err != nil {
 		return "", err
 	}
 	builder.WriteString(content)
 
 	for _, chunk := range transcript.Chunks {
-		plaintext, err := decryptOptional(chunk.Content, vault)
+		plaintext, err := decryptOptional(chunk.Content, vault, aad)
 		if err != nil {
 			return "", err
 		}
@@ -172,7 +173,7 @@ func decryptSessionTranscriptContent(transcript sessionTranscriptEntry, vault *s
 	return builder.String(), nil
 }
 func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, vault *security.Vault) error {
-	encrypted, err := vault.EncryptString(chunk)
+	encrypted, err := vault.EncryptStringWithAAD(chunk, transcriptAAD(logID))
 	if err != nil {
 		return fmt.Errorf("encrypt session transcript chunk: %w", err)
 	}
@@ -262,7 +263,7 @@ func (s *Store) readTranscriptFileLocked(logID string, vault *security.Vault) (m
 				return model.SessionTranscript{}, false, fmt.Errorf("decode session transcript chunk: %w", err)
 			}
 
-			plaintext, err := vault.DecryptString(record.Content)
+			plaintext, err := vault.DecryptStringWithAAD(record.Content, transcriptAAD(logID))
 			if err != nil {
 				_ = file.Close()
 				return model.SessionTranscript{}, false, fmt.Errorf("decrypt session transcript chunk: %w", err)
@@ -290,38 +291,34 @@ func (s *Store) readTranscriptFileLocked(logID string, vault *security.Vault) (m
 	transcript.Content = builder.String()
 	return transcript, found, nil
 }
-func (s *Store) rekeyTranscriptFilesLocked(currentVault, nextVault *security.Vault) error {
-	entries, err := os.ReadDir(s.transcriptDirPath())
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("read session transcript directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), transcriptFileExt) {
-			continue
-		}
-
-		path := filepath.Join(s.transcriptDirPath(), entry.Name())
-		records, err := readTranscriptFileRecords(path)
+// rekeyTranscriptFilesLocked 用 nextVault 重新加密所有给定 logID 的分片文件 / re-encrypts the shard files for the given logIDs with nextVault.
+// logID 列表从 data.SessionLogs 提取，保证 aad 用原 logID 构造（文件名是 base64 编码的 logID，不能直接从文件名反解） / the logID list comes from data.SessionLogs so the aad is built from the original logID; the filename is a base64-encoded logID and can't be decoded back safely.
+func (s *Store) rekeyTranscriptFilesLocked(currentVault, nextVault *security.Vault, logIDs []string) error {
+	for _, logID := range logIDs {
+		shards, err := s.transcriptShardPaths(logID)
 		if err != nil {
-			return err
+			return fmt.Errorf("list session transcript shards: %w", err)
 		}
-		for i := range records {
-			plaintext, err := currentVault.DecryptString(records[i].Content)
+		aad := transcriptAAD(logID)
+		for _, shardPath := range shards {
+			records, err := readTranscriptFileRecords(shardPath)
 			if err != nil {
-				return fmt.Errorf("decrypt session transcript chunk: %w", err)
+				return err
 			}
-			encrypted, err := nextVault.EncryptString(plaintext)
-			if err != nil {
-				return fmt.Errorf("encrypt session transcript chunk: %w", err)
+			for i := range records {
+				plaintext, err := currentVault.DecryptStringWithAAD(records[i].Content, aad)
+				if err != nil {
+					return fmt.Errorf("decrypt session transcript chunk: %w", err)
+				}
+				encrypted, err := nextVault.EncryptStringWithAAD(plaintext, aad)
+				if err != nil {
+					return fmt.Errorf("encrypt session transcript chunk: %w", err)
+				}
+				records[i].Content = encrypted
 			}
-			records[i].Content = encrypted
-		}
-		if err := replaceTranscriptFileRecords(path, records); err != nil {
-			return err
+			if err := replaceTranscriptFileRecords(shardPath, records); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
