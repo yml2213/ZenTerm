@@ -55,6 +55,13 @@ func (s *Store) AppendSessionTranscript(logID, sessionID, chunk string, vault *s
 		return nil
 	}
 
+	// 锁外加密：vault 的 AES-GCM 加密路径移出写锁，避免高频追加时阻塞其它读写 / encrypt outside the write lock so the vault's AES-GCM path doesn't block other readers/writers during high-frequency appends.
+	plainSize := int64(len([]byte(chunk)))
+	encrypted, err := vault.EncryptStringWithAAD(chunk, transcriptAAD(logID))
+	if err != nil {
+		return fmt.Errorf("encrypt session transcript chunk: %w", err)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -74,7 +81,7 @@ func (s *Store) AppendSessionTranscript(logID, sessionID, chunk string, vault *s
 		return ErrSessionLogNotFound
 	}
 
-	return s.appendTranscriptFileChunkLocked(logID, sessionID, chunk, vault)
+	return s.appendTranscriptFileChunkLocked(logID, sessionID, encrypted, plainSize)
 }
 
 // GetSessionTranscript 解密并返回指定日志的终端输出 / decrypts and returns terminal output for a connection log.
@@ -172,12 +179,8 @@ func decryptSessionTranscriptContent(transcript sessionTranscriptEntry, vault *s
 
 	return builder.String(), nil
 }
-func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, vault *security.Vault) error {
-	encrypted, err := vault.EncryptStringWithAAD(chunk, transcriptAAD(logID))
-	if err != nil {
-		return fmt.Errorf("encrypt session transcript chunk: %w", err)
-	}
-
+// appendTranscriptFileChunkLocked 把已加密的 chunk 追加到分片文件；加密在调用方锁外完成，这里只做文件 IO / appends an already-encrypted chunk to the shard file; encryption is done by the caller outside the lock, this only does file IO.
+func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID string, encrypted security.Ciphertext, plainSize int64) error {
 	if err := os.MkdirAll(s.transcriptDirPath(), 0o700); err != nil {
 		return fmt.Errorf("create session transcript directory: %w", err)
 	}
@@ -196,7 +199,7 @@ func (s *Store) appendTranscriptFileChunkLocked(logID, sessionID, chunk string, 
 	record := sessionTranscriptFileChunk{
 		SessionID:  sessionID,
 		Content:    encrypted,
-		SizeBytes:  int64(len([]byte(chunk))),
+		SizeBytes:  plainSize,
 		RecordedAt: time.Now().UTC(),
 	}
 	if err := json.NewEncoder(file).Encode(record); err != nil {
