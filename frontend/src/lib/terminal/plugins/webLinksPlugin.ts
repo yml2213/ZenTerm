@@ -1,4 +1,3 @@
-import type { IDisposable } from '@xterm/xterm'
 import type { TerminalPlugin } from './types'
 
 const urlPattern = /\bhttps?:\/\/[^\s<>"'`]+/gi
@@ -84,7 +83,7 @@ export const webLinksPlugin: TerminalPlugin = {
 
         callback(links.length > 0 ? links : undefined)
       },
-    }) as IDisposable
+    })
 
     return () => linkProvider.dispose()
   },
