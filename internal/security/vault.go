@@ -63,9 +63,11 @@ func (p Argon2Params) Sanitize() Argon2Params {
 }
 
 // Ciphertext 表示自包含的密文载荷，字段使用 base64 编码 / stores a self-contained encrypted payload with base64-encoded fields.
+// AAD 字段记录加密时绑定的上下文标识（如 "zenterm:host:<id>:password"）；GCM 完整性保证该字段不可被篡改，解密时用于区分带上下文的新格式与无 AAD 的旧格式 / the AAD field records the context tag bound at encryption time (e.g. "zenterm:host:<id>:password"); GCM integrity protects it from tampering, and it distinguishes the new context-bound format from legacy no-AAD payloads during decryption.
 type Ciphertext struct {
 	Nonce      string `json:"nonce"`
 	Ciphertext string `json:"ciphertext"`
+	AAD        string `json:"aad,omitempty"`
 }
 
 // Vault 使用主密码派生密钥，并在内存中处理敏感字符串加解密 / derives a key from the master password and encrypts sensitive strings in memory.
@@ -158,7 +160,14 @@ func (v *Vault) IsUnlocked() bool {
 }
 
 // EncryptString 将 UTF-8 字符串加密为 base64 编码载荷 / encrypts a UTF-8 string into a base64-encoded payload.
+// 不绑定上下文 AAD，仅供 vault 校验哨兵与同步 envelope 等不与具体条目绑定的载荷使用 / carries no context AAD; use it only for payloads not bound to a specific entry, such as the vault check sentinel or sync envelopes.
 func (v *Vault) EncryptString(plaintext string) (Ciphertext, error) {
+	return v.EncryptStringWithAAD(plaintext, nil)
+}
+
+// EncryptStringWithAAD 将明文与上下文 aad 绑定加密 / encrypts plaintext bound to a context AAD.
+// aad 标识同时写入返回的 Ciphertext.AAD 字段，供解密方识别格式；跨条目复制密文时 aad 不匹配会被 GCM 拒绝 / the aad tag is also stored in Ciphertext.AAD so decrypters can recognize the format; copying a ciphertext to another entry fails GCM verification because the aad won't match.
+func (v *Vault) EncryptStringWithAAD(plaintext string, aad []byte) (Ciphertext, error) {
 	if v.aead == nil {
 		return Ciphertext{}, ErrVaultLocked
 	}
@@ -168,16 +177,27 @@ func (v *Vault) EncryptString(plaintext string) (Ciphertext, error) {
 		return Ciphertext{}, fmt.Errorf("generate nonce: %w", err)
 	}
 
-	sealed := v.aead.Seal(nil, nonce, []byte(plaintext), nil)
+	sealed := v.aead.Seal(nil, nonce, []byte(plaintext), aad)
 
 	return Ciphertext{
 		Nonce:      base64.StdEncoding.EncodeToString(nonce),
 		Ciphertext: base64.StdEncoding.EncodeToString(sealed),
+		AAD:        string(aad),
 	}, nil
 }
 
-// DecryptString 解密先前生成的密文载荷 / decrypts a previously encrypted payload.
+// DecryptString 解密先前生成的无上下文 AAD 密文载荷 / decrypts a previously encrypted payload that carries no context AAD.
+// 若 payload.AAD 非空则拒绝，强制带上下文的条目密文走 DecryptStringWithAAD，避免误用导致绑定校验被绕过 / refuses payloads with a non-empty AAD so context-bound entry ciphertexts must go through DecryptStringWithAAD, preventing misuse that would bypass the binding check.
 func (v *Vault) DecryptString(payload Ciphertext) (string, error) {
+	if payload.AAD != "" {
+		return "", fmt.Errorf("decrypt ciphertext: payload carries context AAD, use DecryptStringWithAAD")
+	}
+	return v.DecryptStringWithAAD(payload, nil)
+}
+
+// DecryptStringWithAAD 用指定 aad 解密密文 / decrypts a payload with the given aad.
+// 旧格式密文（payload.AAD 为空）回退到 nil aad 解密以兼容已落盘数据；新格式密文必须 aad 匹配，否则 GCM 拒绝 / legacy payloads (empty AAD) fall back to nil-aad decryption for already-persisted data; new-format payloads require an exact aad match or GCM rejects them.
+func (v *Vault) DecryptStringWithAAD(payload Ciphertext, aad []byte) (string, error) {
 	if v.aead == nil {
 		return "", ErrVaultLocked
 	}
@@ -195,7 +215,11 @@ func (v *Vault) DecryptString(payload Ciphertext) (string, error) {
 		return "", fmt.Errorf("decode ciphertext: %w", err)
 	}
 
-	plaintext, err := v.aead.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := v.aead.Open(nil, nonce, ciphertext, aad)
+	if err != nil && payload.AAD == "" {
+		// 旧格式密文（无 AAD 字段）用 nil aad 重试，保持向后兼容 / retry with nil aad for legacy payloads that predate the AAD field.
+		plaintext, err = v.aead.Open(nil, nonce, ciphertext, nil)
+	}
 	if err != nil {
 		return "", fmt.Errorf("decrypt ciphertext: %w", err)
 	}

@@ -141,20 +141,21 @@ func (s *Store) RekeyVault(currentVault, nextVault *security.Vault, nextSalt []b
 	}
 
 	for i := range data.Hosts {
-		password, err := decryptOptional(data.Hosts[i].Identity.Password, currentVault)
+		hostID := data.Hosts[i].Host.ID
+		password, err := decryptOptional(data.Hosts[i].Identity.Password, currentVault, hostAAD(hostID, aadFieldPassword))
 		if err != nil {
 			return fmt.Errorf("decrypt password: %w", err)
 		}
-		privateKey, err := decryptOptional(data.Hosts[i].Identity.PrivateKey, currentVault)
+		privateKey, err := decryptOptional(data.Hosts[i].Identity.PrivateKey, currentVault, hostAAD(hostID, aadFieldPrivateKey))
 		if err != nil {
 			return fmt.Errorf("decrypt private key: %w", err)
 		}
 
-		encryptedPassword, err := encryptOptional(password, nextVault)
+		encryptedPassword, err := encryptOptional(password, nextVault, hostAAD(hostID, aadFieldPassword))
 		if err != nil {
 			return fmt.Errorf("encrypt password: %w", err)
 		}
-		encryptedPrivateKey, err := encryptOptional(privateKey, nextVault)
+		encryptedPrivateKey, err := encryptOptional(privateKey, nextVault, hostAAD(hostID, aadFieldPrivateKey))
 		if err != nil {
 			return fmt.Errorf("encrypt private key: %w", err)
 		}
@@ -163,30 +164,61 @@ func (s *Store) RekeyVault(currentVault, nextVault *security.Vault, nextSalt []b
 		data.Hosts[i].Identity.PrivateKey = encryptedPrivateKey
 	}
 
+	// 凭据同样以 currentVault 加密落盘，必须随 rekey 一起重加密，否则改密码后绑定了 credential 的主机 GetIdentity 会解密失败 / credentials are encrypted with currentVault too and must be re-encrypted alongside hosts, otherwise hosts bound to a credential fail to decrypt their identity after rekey.
+	for i := range data.Credentials {
+		credID := data.Credentials[i].Credential.ID
+		privateKey, err := decryptOptional(data.Credentials[i].Secret.PrivateKey, currentVault, credentialAAD(credID, aadFieldPrivateKey))
+		if err != nil {
+			return fmt.Errorf("decrypt credential private key: %w", err)
+		}
+		password, err := decryptOptional(data.Credentials[i].Secret.Password, currentVault, credentialAAD(credID, aadFieldPassword))
+		if err != nil {
+			return fmt.Errorf("decrypt credential password: %w", err)
+		}
+
+		encryptedPrivateKey, err := encryptOptional(privateKey, nextVault, credentialAAD(credID, aadFieldPrivateKey))
+		if err != nil {
+			return fmt.Errorf("encrypt credential private key: %w", err)
+		}
+		encryptedPassword, err := encryptOptional(password, nextVault, credentialAAD(credID, aadFieldPassword))
+		if err != nil {
+			return fmt.Errorf("encrypt credential password: %w", err)
+		}
+
+		data.Credentials[i].Secret.PrivateKey = encryptedPrivateKey
+		data.Credentials[i].Secret.Password = encryptedPassword
+	}
+
 	for i := range data.SessionTranscripts {
-		content, err := decryptOptional(data.SessionTranscripts[i].Content, currentVault)
+		transcriptAADValue := transcriptAAD(data.SessionTranscripts[i].LogID)
+		content, err := decryptOptional(data.SessionTranscripts[i].Content, currentVault, transcriptAADValue)
 		if err != nil {
 			return fmt.Errorf("decrypt session transcript: %w", err)
 		}
-		encryptedContent, err := encryptOptional(content, nextVault)
+		encryptedContent, err := encryptOptional(content, nextVault, transcriptAADValue)
 		if err != nil {
 			return fmt.Errorf("encrypt session transcript: %w", err)
 		}
 		data.SessionTranscripts[i].Content = encryptedContent
 
 		for j := range data.SessionTranscripts[i].Chunks {
-			chunk, err := decryptOptional(data.SessionTranscripts[i].Chunks[j].Content, currentVault)
+			chunk, err := decryptOptional(data.SessionTranscripts[i].Chunks[j].Content, currentVault, transcriptAADValue)
 			if err != nil {
 				return fmt.Errorf("decrypt session transcript chunk: %w", err)
 			}
-			encryptedChunk, err := encryptOptional(chunk, nextVault)
+			encryptedChunk, err := encryptOptional(chunk, nextVault, transcriptAADValue)
 			if err != nil {
 				return fmt.Errorf("encrypt session transcript chunk: %w", err)
 			}
 			data.SessionTranscripts[i].Chunks[j].Content = encryptedChunk
 		}
 	}
-	if err := s.rekeyTranscriptFilesLocked(currentVault, nextVault); err != nil {
+	// 收集所有会话日志 ID，重新加密对应的分片文件 / collect session log IDs so the shard files are re-encrypted with the correct per-logID aad.
+	logIDs := make([]string, 0, len(data.SessionLogs))
+	for _, log := range data.SessionLogs {
+		logIDs = append(logIDs, log.ID)
+	}
+	if err := s.rekeyTranscriptFilesLocked(currentVault, nextVault, logIDs); err != nil {
 		return err
 	}
 

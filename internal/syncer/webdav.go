@@ -3,6 +3,7 @@ package syncer
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -13,6 +14,9 @@ import (
 	"strconv"
 	"strings"
 )
+
+// ErrInsecureScheme 表示 WebDAV URL 必须使用 https，拒绝 http 明文传输 Basic Auth 凭据 / indicates the WebDAV URL must use https, refusing to send Basic Auth credentials over plaintext http.
+var ErrInsecureScheme = errors.New("webdav url must use https")
 
 // WebDAVProvider 实现通用 WebDAV 文件读写 / implements generic WebDAV file reads and writes.
 type WebDAVProvider struct {
@@ -25,12 +29,24 @@ type WebDAVProvider struct {
 
 // NewWebDAVProvider 创建 WebDAV Provider / creates a WebDAV provider.
 func NewWebDAVProvider(config WebDAVConfig, password string) (*WebDAVProvider, error) {
+	httpClient := &http.Client{
+		Timeout: defaultHTTPTimeout,
+		Transport: &http.Transport{
+			// 强制 TLS 1.2+，拒绝过时协议版本 / require TLS 1.2 or newer, rejecting legacy protocol versions.
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		},
+	}
+	return newWebDAVProviderWithClient(config, password, httpClient)
+}
+
+// newWebDAVProviderWithClient 用指定 httpClient 构造 Provider，仅供测试注入信任测试证书的 transport / builds a provider with a given httpClient, for tests to inject a transport that trusts the test server's certificate.
+func newWebDAVProviderWithClient(config WebDAVConfig, password string, httpClient *http.Client) (*WebDAVProvider, error) {
 	parsed, err := url.Parse(strings.TrimSpace(config.URL))
 	if err != nil {
 		return nil, fmt.Errorf("parse webdav url: %w", err)
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return nil, errors.New("webdav url must use http or https")
+	if parsed.Scheme != "https" {
+		return nil, ErrInsecureScheme
 	}
 	if parsed.Host == "" {
 		return nil, errors.New("webdav url host is required")
@@ -43,13 +59,11 @@ func NewWebDAVProvider(config WebDAVConfig, password string) (*WebDAVProvider, e
 	}
 
 	return &WebDAVProvider{
-		baseURL:  parsed,
-		username: strings.TrimSpace(config.Username),
-		password: password,
-		httpClient: &http.Client{
-			Timeout: defaultHTTPTimeout,
-		},
-		userAgent: defaultUserAgent,
+		baseURL:    parsed,
+		username:   strings.TrimSpace(config.Username),
+		password:   password,
+		httpClient: httpClient,
+		userAgent:   defaultUserAgent,
 	}, nil
 }
 

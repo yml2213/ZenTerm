@@ -3,6 +3,7 @@ package updater
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,9 @@ import (
 	"path/filepath"
 	"time"
 )
+
+// ErrChecksumMissing 表示未提供有效的 SHA256 校验和，下载被拒绝以避免落盘未校验的二进制 / indicates no valid SHA256 checksum was provided; the download is refused rather than writing an unverified binary to disk.
+var ErrChecksumMissing = errors.New("expected sha256 checksum is missing or invalid")
 
 // Downloader 下载管理器
 type Downloader struct {
@@ -31,6 +35,11 @@ func NewDownloader(downloadDir string, progressFunc func(progress DownloadProgre
 
 // Download 下载文件并验证 SHA256
 func (d *Downloader) Download(url, expectedChecksum string) (string, error) {
+	// 校验和必须是非空且 64 位十六进制，否则拒绝下载——避免 .sha256 文件缺失/获取失败时静默落盘未校验的二进制 / require a non-empty 64-hex checksum up front so a missing or malformed .sha256 file fails the download instead of silently skipping verification.
+	if !sha256Pattern.MatchString(expectedChecksum) {
+		return "", fmt.Errorf("%w: %q", ErrChecksumMissing, expectedChecksum)
+	}
+
 	// 确保下载目录存在
 	if err := os.MkdirAll(d.downloadDir, 0755); err != nil {
 		return "", fmt.Errorf("创建下载目录失败: %w", err)
@@ -100,7 +109,7 @@ func (d *Downloader) Download(url, expectedChecksum string) (string, error) {
 
 	// 验证 SHA256
 	actualChecksum := hex.EncodeToString(hash.Sum(nil))
-	if expectedChecksum != "" && actualChecksum != expectedChecksum {
+	if actualChecksum != expectedChecksum {
 		os.Remove(filePath) // 校验失败时清理
 		return "", fmt.Errorf("文件校验失败: 期望 %s，实际 %s", expectedChecksum, actualChecksum)
 	}

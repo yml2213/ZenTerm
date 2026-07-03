@@ -22,12 +22,12 @@ func (s *Store) AddHost(host model.Host, identity model.Identity, vault *securit
 		return ErrHostIDRequired
 	}
 
-	password, err := encryptOptional(identity.Password, vault)
+	password, err := encryptOptional(identity.Password, vault, hostAAD(host.ID, aadFieldPassword))
 	if err != nil {
 		return fmt.Errorf("encrypt password: %w", err)
 	}
 
-	privateKey, err := encryptOptional(identity.PrivateKey, vault)
+	privateKey, err := encryptOptional(identity.PrivateKey, vault, hostAAD(host.ID, aadFieldPrivateKey))
 	if err != nil {
 		return fmt.Errorf("encrypt private key: %w", err)
 	}
@@ -125,12 +125,12 @@ func (s *Store) GetIdentity(hostID string, vault *security.Vault) (model.Identit
 		if entry.Host.CredentialID != "" {
 			for _, credEntry := range data.Credentials {
 				if credEntry.Credential.ID == entry.Host.CredentialID {
-					privateKey, err := decryptOptional(credEntry.Secret.PrivateKey, vault)
+					privateKey, err := decryptOptional(credEntry.Secret.PrivateKey, vault, credentialAAD(credEntry.Credential.ID, aadFieldPrivateKey))
 					if err != nil {
 						return model.Identity{}, fmt.Errorf("decrypt credential private key: %w", err)
 					}
 
-					password, err := decryptOptional(credEntry.Secret.Password, vault)
+					password, err := decryptOptional(credEntry.Secret.Password, vault, credentialAAD(credEntry.Credential.ID, aadFieldPassword))
 					if err != nil {
 						return model.Identity{}, fmt.Errorf("decrypt credential password: %w", err)
 					}
@@ -145,12 +145,12 @@ func (s *Store) GetIdentity(hostID string, vault *security.Vault) (model.Identit
 			return model.Identity{}, fmt.Errorf("credential %s not found", entry.Host.CredentialID)
 		}
 
-		password, err := decryptOptional(entry.Identity.Password, vault)
+		password, err := decryptOptional(entry.Identity.Password, vault, hostAAD(entry.Host.ID, aadFieldPassword))
 		if err != nil {
 			return model.Identity{}, fmt.Errorf("decrypt password: %w", err)
 		}
 
-		privateKey, err := decryptOptional(entry.Identity.PrivateKey, vault)
+		privateKey, err := decryptOptional(entry.Identity.PrivateKey, vault, hostAAD(entry.Host.ID, aadFieldPrivateKey))
 		if err != nil {
 			return model.Identity{}, fmt.Errorf("decrypt private key: %w", err)
 		}
