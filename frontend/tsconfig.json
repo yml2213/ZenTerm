@@ -11,6 +11,9 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

@@ -1,5 +1,5 @@
 import type { FormEvent, RefObject } from 'react'
-import HostForm from './HostForm'
+import HostForm from '@/features/hosts/components/HostForm'
 import LogWorkspace from './LogWorkspace'
 import NewTabWorkspace from './NewTabWorkspace'
 import SftpWorkspacePage from './SftpWorkspacePage'

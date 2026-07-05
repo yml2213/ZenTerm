@@ -10,7 +10,7 @@ import {
   Tags,
 } from 'lucide-react'
 import { useCallback, useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
-import HostList from './HostList'
+import HostList from '@/features/hosts/components/HostList'
 import KeychainPanel from './KeychainPanel'
 import KnownHostsPanel from './KnownHostsPanel'
 import SessionLogPanel from './SessionLogPanel'
