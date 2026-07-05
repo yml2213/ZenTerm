@@ -15,9 +15,9 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { getCredentials } from '../lib/backend'
-import type { HostFormModel } from '../types'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { getCredentials } from '@/lib/backend'
+import type { HostFormModel } from '@/types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Credential = cmd.Credential
 

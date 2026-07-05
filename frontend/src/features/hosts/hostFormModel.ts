@@ -1,5 +1,5 @@
-import type { HostFormModel } from '../../types'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
+import type { HostFormModel } from '@/types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 

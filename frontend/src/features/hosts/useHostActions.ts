@@ -8,10 +8,10 @@ import {
   sortHosts,
   toUserMessage,
   withDemoHosts,
-} from '../../lib/appHostUtils'
-import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '../../lib/backend'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '../../types'
+} from './appHostUtils'
+import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '@/lib/backend'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { HostFormModel, SessionTab } from '@/types'
 
 interface HostActionHandlersProps {
   state: {

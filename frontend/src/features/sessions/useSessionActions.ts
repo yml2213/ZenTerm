@@ -10,7 +10,7 @@ import {
   resizeTerminal,
   sendInput,
 } from '../../lib/backend'
-import { isDemoHost, toUserMessage, withDemoHosts } from '../../lib/appHostUtils'
+import { isDemoHost, toUserMessage, withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '../../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '../../types'
 

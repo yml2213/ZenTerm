@@ -1,6 +1,6 @@
 import { Clock3, FolderOpen, GripVertical, PencilLine, Pin, PlugZap, SearchX, ShieldCheck, ShieldQuestion, Star, Tags, Trash2 } from 'lucide-react'
 import { useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 import { HostContextMenu } from './HostContextMenu'
 import { getHostSystemProfile } from './hostSystemIcons'
 

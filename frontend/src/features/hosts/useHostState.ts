@@ -6,10 +6,10 @@ import {
   matchesHostFilter,
   parseHostTags,
   sortHosts,
-} from '../../lib/appHostUtils'
-import { sidebarPages, SidebarPage } from '../../lib/appShellConfig'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '../../types'
+} from './appHostUtils'
+import { sidebarPages, SidebarPage } from '@/lib/appShellConfig'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { HostFormModel, SessionTab } from '@/types'
 
 export function useHostState(sessionTabs: SessionTab[]) {
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')

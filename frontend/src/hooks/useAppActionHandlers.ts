@@ -2,7 +2,7 @@ import { startTransition } from 'react'
 import { useHostActions } from '../features/hosts/useHostActions'
 import { useSessionActions } from '../features/sessions/useSessionActions'
 import { useVaultActions } from '../features/vault/useVaultActions'
-import { withDemoHosts } from '../lib/appHostUtils'
+import { withDemoHosts } from '@/features/hosts/appHostUtils'
 import { importLocalSSHConfigHosts, listHosts } from '../lib/backend'
 import { cmd } from '../wailsjs/wailsjs/go/models'
 import {

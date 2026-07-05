@@ -7,7 +7,7 @@ import {
   tryAutoUnlock,
 } from '../lib/backend'
 import { buildSessionTabs, normalizeHostKeyPrompt } from '../lib/appSessionUtils'
-import { withDemoHosts } from '../lib/appHostUtils'
+import { withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '../wailsjs/wailsjs/go/models'
 import { HostKeyPrompt, SessionTab, WorkspaceType } from '../types'
 

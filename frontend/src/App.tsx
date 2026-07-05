@@ -15,7 +15,7 @@ import { useResetAppState } from './hooks/useResetAppState'
 import { useSSHConfigImportPrompt } from './hooks/useSSHConfigImportPrompt'
 import { useWindowStatePersistence } from './hooks/useWindowStatePersistence'
 import { useWorkspaceAutoFallback } from './hooks/useWorkspaceAutoFallback'
-import { HostFormModel, WorkspaceTab } from './types'
+import { HostFormModel, WorkspaceTab } from '@/types'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
