@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import AppOverlays from './AppOverlays'
-import type { HostKeyPrompt, SSHConfigImportPrompt, VaultSetupForm } from '../types'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import type { HostKeyPrompt, SSHConfigImportPrompt, VaultSetupForm } from '@/types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 export interface AppOverlayActions {
   onVaultSetupPasswordChange: (value: string) => void

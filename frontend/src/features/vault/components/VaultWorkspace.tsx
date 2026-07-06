@@ -15,7 +15,7 @@ import KeychainPanel from '@/features/keychain/KeychainPanel'
 import KnownHostsPanel from '@/features/hosts/components/KnownHostsPanel'
 import SessionLogPanel from '@/features/sessions/components/SessionLogPanel'
 import VaultSettingsPanel from '@/features/vault/components/VaultSettingsPanel'
-import { NavigationItem } from '@/lib/appShellConfig'
+import { NavigationItem } from '@/features/app/appShellConfig'
 import { ChangeMasterForm } from '@/types'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
 

@@ -6,8 +6,8 @@ import {
   onRuntimeEvent,
   openUpdateFile,
   skipVersion,
-} from '../lib/backend'
-import { UpdateInfo, UpdateProgress } from '../types/update'
+} from '@/lib/backend'
+import { UpdateInfo, UpdateProgress } from '@/types/update'
 import './UpdateNotification.css'
 
 interface UpdateNotificationProps {

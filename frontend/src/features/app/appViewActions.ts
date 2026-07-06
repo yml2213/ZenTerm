@@ -1,5 +1,5 @@
-import type { AppOverlayActions } from '@/components/AppOverlayLayer'
-import type { AppWorkspaceActions } from '@/components/AppWorkspaces'
+import type { AppOverlayActions } from '@/features/app/components/AppOverlayLayer'
+import type { AppWorkspaceActions } from '@/features/app/components/AppWorkspaces'
 import type { WorkspaceActionHandlers } from '@/features/workspace/useWorkspaceActions'
 import type { AppActionHandlers } from './useAppActionHandlers'
 import type { AppStateSetters } from './useAppState'

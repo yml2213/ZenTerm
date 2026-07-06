@@ -5,9 +5,9 @@ import NewTabWorkspace from '@/features/workspace/components/NewTabWorkspace'
 import SftpWorkspacePage from '@/features/sftp/SftpWorkspacePage'
 import SshWorkspace from '@/features/sessions/components/SshWorkspace'
 import VaultWorkspace from '@/features/vault/components/VaultWorkspace'
-import { navigationItems } from '../lib/appShellConfig'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import type { ChangeMasterForm, HostFormModel, SessionTab, WorkspaceTab, WorkspaceType } from '../types'
+import { navigationItems } from '@/features/app/appShellConfig'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import type { ChangeMasterForm, HostFormModel, SessionTab, WorkspaceTab, WorkspaceType } from '@/types'
 
 interface WorkspaceSession {
   sessionId: string
