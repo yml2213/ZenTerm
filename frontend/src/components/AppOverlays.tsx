@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import HostKeyModal from '@/features/hosts/components/HostKeyModal'
-import UnlockModal from './UnlockModal'
+import UnlockModal from '@/features/vault/components/UnlockModal'
 import type { VaultSetupForm, HostKeyPrompt, SSHConfigImportPrompt } from '../types'
 
 interface Host {

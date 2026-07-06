@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { createChangeMasterForm, createVaultSetupForm } from '../../lib/appVaultUtils'
-import { VaultSetupForm, ChangeMasterForm } from '../../types'
+import { createChangeMasterForm, createVaultSetupForm } from './appVaultUtils'
+import type { VaultSetupForm, ChangeMasterForm } from '@/types'
 
 export function useVaultState() {
   const [vaultInitialized, setVaultInitialized] = useState(false)

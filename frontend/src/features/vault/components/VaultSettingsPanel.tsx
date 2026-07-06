@@ -9,14 +9,14 @@ import {
   TerminalSquare,
 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
-import type { ChangeMasterForm } from '../types'
-import SecuritySection from './settings/SecuritySection'
-import SyncSection from './settings/SyncSection'
-import UpdatesSection from './settings/UpdatesSection'
-import TerminalSection from './settings/TerminalSection'
-import DataSection from './settings/DataSection'
-import AppearanceSection from './settings/AppearanceSection'
-import AdvancedSection from './settings/AdvancedSection'
+import type { ChangeMasterForm } from '@/types'
+import SecuritySection from '../settings/SecuritySection'
+import SyncSection from '../settings/SyncSection'
+import UpdatesSection from '../settings/UpdatesSection'
+import TerminalSection from '../settings/TerminalSection'
+import DataSection from '../settings/DataSection'
+import AppearanceSection from '../settings/AppearanceSection'
+import AdvancedSection from '../settings/AdvancedSection'
 
 type SettingsSection = 'security' | 'sync' | 'updates' | 'terminal' | 'data' | 'appearance' | 'advanced'
 

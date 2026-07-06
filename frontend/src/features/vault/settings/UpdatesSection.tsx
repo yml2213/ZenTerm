@@ -8,8 +8,8 @@ import {
   onRuntimeEvent,
   openUpdateFile,
   saveUpdateConfig,
-} from '../../lib/backend'
-import type { UpdateConfig, UpdateInfo, UpdateProgress } from '../../types/update'
+} from '@/lib/backend'
+import type { UpdateConfig, UpdateInfo, UpdateProgress } from '@/types/update'
 
 const defaultUpdateConfig: UpdateConfig = {
   enabled: true,

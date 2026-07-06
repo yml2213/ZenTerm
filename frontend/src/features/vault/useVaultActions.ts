@@ -1,11 +1,11 @@
-import { createChangeMasterForm, createVaultSetupForm } from '../../lib/appVaultUtils'
+import { createChangeMasterForm, createVaultSetupForm } from './appVaultUtils'
 import {
   changeMasterPassword,
   initializeVaultWithPreferences,
   resetVault,
   unlockWithPreferences,
-} from '../../lib/backend'
-import { VaultSetupForm, ChangeMasterForm } from '../../types'
+} from '@/lib/backend'
+import type { VaultSetupForm, ChangeMasterForm } from '@/types'
 
 interface VaultActionHandlersProps {
   state: {
@@ -22,12 +22,13 @@ interface VaultActionHandlersProps {
       setVaultSetupBusy: (busy: boolean) => void
       setVaultInitialized: (initialized: boolean) => void
       setVaultUnlocked: (unlocked: boolean) => void
-      setVaultSetupForm: (form: VaultSetupForm) => void
+      setVaultSetupForm: (form: VaultSetupForm | ((current: VaultSetupForm) => VaultSetupForm)) => void
       setAccessBusy: (busy: boolean) => void
       setAccessPassword: (password: string) => void
       setChangeMasterBusy: (busy: boolean) => void
       setChangeMasterForm: (form: ChangeMasterForm | ((current: ChangeMasterForm) => ChangeMasterForm)) => void
       setResetVaultBusy: (busy: boolean) => void
+      setResetVaultConfirmed: (confirmed: boolean) => void
     }
   }
   helpers: {
@@ -59,8 +60,30 @@ export function useVaultActions({
     setChangeMasterBusy,
     setChangeMasterForm,
     setResetVaultBusy,
+    setResetVaultConfirmed,
   } = setters.vault
   const { resetAppStateAfterVaultReset } = helpers
+
+  function handleVaultSetupPasswordChange(value: string) {
+    setVaultSetupForm((current) => ({
+      ...current,
+      password: value,
+    }))
+  }
+
+  function handleVaultSetupConfirmPasswordChange(value: string) {
+    setVaultSetupForm((current) => ({
+      ...current,
+      confirmPassword: value,
+    }))
+  }
+
+  function handleVaultSetupRiskAcknowledgedChange(value: boolean) {
+    setVaultSetupForm((current) => ({
+      ...current,
+      riskAcknowledged: value,
+    }))
+  }
 
   function handleInitializeVault(event: React.FormEvent) {
     event.preventDefault()
@@ -101,6 +124,10 @@ export function useVaultActions({
       .finally(() => setAccessBusy(false))
   }
 
+  function handleAccessPasswordChange(value: string) {
+    setAccessPassword(value)
+  }
+
   function handleChangeMasterField(field: keyof ChangeMasterForm, value: string) {
     setChangeMasterForm((current) => ({
       ...current,
@@ -131,6 +158,10 @@ export function useVaultActions({
       .finally(() => setChangeMasterBusy(false))
   }
 
+  function handleResetVaultConfirmedChange(value: boolean) {
+    setResetVaultConfirmed(value)
+  }
+
   function handleResetVault() {
     if (!resetVaultConfirmed) {
       setError('请先确认要清空当前 Vault。')
@@ -149,10 +180,15 @@ export function useVaultActions({
   }
 
   return {
+    handleVaultSetupPasswordChange,
+    handleVaultSetupConfirmPasswordChange,
+    handleVaultSetupRiskAcknowledgedChange,
     handleInitializeVault,
+    handleAccessPasswordChange,
     handleAccessPassword,
     handleChangeMasterField,
     handleChangeMasterPassword,
+    handleResetVaultConfirmedChange,
     handleResetVault,
   }
 }

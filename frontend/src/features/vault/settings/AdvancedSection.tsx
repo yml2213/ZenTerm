@@ -6,7 +6,7 @@ import {
   saveAppPreferences,
   browserOpenURL,
   type AppPreferences,
-} from "../../lib/backend";
+} from "@/lib/backend";
 
 const GITHUB_URL = "https://github.com/user/ZenTerm";
 

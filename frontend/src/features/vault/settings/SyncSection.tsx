@@ -7,7 +7,7 @@ import {
   pushWebDAVSync,
   testWebDAVSync,
   type WebDAVSyncStatus,
-} from '../../lib/backend'
+} from '@/lib/backend'
 
 export default function SyncSection() {
   const [status, setStatus] = useState<WebDAVSyncStatus | null>(null)
