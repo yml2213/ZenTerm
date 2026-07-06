@@ -1,5 +1,5 @@
 import { Fingerprint, ShieldAlert } from 'lucide-react'
-import type { HostKeyPrompt } from '@/types'
+import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
 
 interface HostKeyModalProps {
   prompt: HostKeyPrompt | null

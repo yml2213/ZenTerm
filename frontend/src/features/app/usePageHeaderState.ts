@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { SidebarPage } from './appShellConfig'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { WorkspaceTab, WorkspaceType } from '@/types'
+import type { WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface PageHeaderStateProps {
   activeWorkspace: WorkspaceType

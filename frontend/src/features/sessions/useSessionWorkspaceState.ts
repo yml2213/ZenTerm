@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useWorkspaceState } from '../workspace/useWorkspaceState'
-import type { HostKeyPrompt } from '@/types'
+import type { HostKeyPrompt } from './sessionTypes'
 
 export function useSessionWorkspaceState() {
   const workspace = useWorkspaceState()

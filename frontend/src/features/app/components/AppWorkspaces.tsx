@@ -7,7 +7,9 @@ import SshWorkspace from '@/features/sessions/components/SshWorkspace'
 import VaultWorkspace from '@/features/vault/components/VaultWorkspace'
 import { navigationItems } from '@/features/app/appShellConfig'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { ChangeMasterForm, HostFormModel, SessionTab, WorkspaceTab, WorkspaceType } from '@/types'
+import type { HostFormModel } from '@/features/hosts/hostFormModel'
+import type { ChangeMasterForm } from '@/features/vault/vaultTypes'
+import type { SessionTab, WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface WorkspaceSession {
   sessionId: string

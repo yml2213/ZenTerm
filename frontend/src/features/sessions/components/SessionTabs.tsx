@@ -1,5 +1,5 @@
 import { FileText, Plus, X } from 'lucide-react'
-import { WorkspaceTab } from '@/types'
+import type { WorkspaceTab } from '@/features/workspace/workspaceTypes'
 
 interface SessionTabsProps {
   sessions: WorkspaceTab[]

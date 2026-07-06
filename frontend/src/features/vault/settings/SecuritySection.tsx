@@ -1,6 +1,6 @@
 import { AlertTriangle, KeyRound, RotateCcw, ShieldCheck } from 'lucide-react'
 import type { FormEvent } from 'react'
-import type { ChangeMasterForm } from '@/types'
+import type { ChangeMasterForm } from '../vaultTypes'
 
 interface SecuritySectionProps {
   changeForm: ChangeMasterForm

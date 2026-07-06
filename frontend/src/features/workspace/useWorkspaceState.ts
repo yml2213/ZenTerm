@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { WorkspaceType, SessionTab, WorkspaceTab } from '@/types'
+import type { WorkspaceType, SessionTab, WorkspaceTab } from './workspaceTypes'
 
 export function useWorkspaceState() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceType>('vaults')

@@ -1,6 +1,8 @@
 import type { FormEvent } from 'react'
 import AppOverlays from './AppOverlays'
-import type { HostKeyPrompt, SSHConfigImportPrompt, VaultSetupForm } from '@/types'
+import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
+import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { VaultSetupForm } from '@/features/vault/vaultTypes'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 export interface AppOverlayActions {

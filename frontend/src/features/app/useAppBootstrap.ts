@@ -9,7 +9,8 @@ import {
 import { buildSessionTabs, normalizeHostKeyPrompt } from '@/lib/appSessionUtils'
 import { withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { HostKeyPrompt, SessionTab, WorkspaceType } from '@/types'
+import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface AppBootstrapProps {
   setHosts: (hosts: cmd.Host[]) => void

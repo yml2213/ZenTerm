@@ -1,5 +1,6 @@
 import { cmd } from '../wailsjs/wailsjs/go/models'
-import { SessionTab } from '../types'
+import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { SessionTab } from '@/features/workspace/workspaceTypes'
 
 interface SessionSnapshot {
   id?: string
@@ -52,13 +53,6 @@ interface HostKeyPromptInput {
   md5?: string
 }
 
-interface HostKeyPrompt {
-  hostID: string
-  remoteAddr: string
-  key: string
-  sha256: string
-  md5: string
-}
 
 export function buildSessionTabs(
   snapshot: SessionSnapshot[],

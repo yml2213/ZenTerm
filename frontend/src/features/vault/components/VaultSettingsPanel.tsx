@@ -9,7 +9,7 @@ import {
   TerminalSquare,
 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
-import type { ChangeMasterForm } from '@/types'
+import type { ChangeMasterForm } from '../vaultTypes'
 import SecuritySection from '../settings/SecuritySection'
 import SyncSection from '../settings/SyncSection'
 import UpdatesSection from '../settings/UpdatesSection'
