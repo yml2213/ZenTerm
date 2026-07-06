@@ -7,8 +7,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRef, type ChangeEvent, type CSSProperties } from "react";
-import { useTheme } from "../../contexts/ThemeProvider";
-import { useAppearance } from "../../contexts/AppearanceProvider";
+import { useTheme } from "@/contexts/ThemeProvider";
+import { useAppearance } from "@/contexts/AppearanceProvider";
 
 function hslToHex(h: number, s: number, l: number): string {
   const a = (s / 100) * Math.min(l / 100, 1 - l / 100);

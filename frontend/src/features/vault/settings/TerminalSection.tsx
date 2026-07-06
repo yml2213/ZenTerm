@@ -1,5 +1,5 @@
 import { TerminalSquare } from 'lucide-react'
-import { useTerminalPreferences } from '../../contexts/TerminalPreferencesProvider'
+import { useTerminalPreferences } from '@/contexts/TerminalPreferencesProvider'
 
 export default function TerminalSection() {
   const {

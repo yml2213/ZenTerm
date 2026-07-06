@@ -1,5 +1,5 @@
 import { startTransition } from 'react'
-import { createChangeMasterForm, createVaultSetupForm } from '../lib/appVaultUtils'
+import { createChangeMasterForm, createVaultSetupForm } from '@/features/vault/appVaultUtils'
 import type { AppStateRefs, AppStateSetters } from './useAppState'
 
 interface ResetAppStateProps {

@@ -50,7 +50,6 @@ interface AppActionHandlersProps {
   refs: AppStateRefs
   helpers: {
     removeSessionTab: (sessionID: string) => void
-    openCreateHost: () => void
     resetAppStateAfterVaultReset: () => void
   }
 }
@@ -75,7 +74,6 @@ export function useAppActionHandlers({
   const hostActions = useHostActions({
     state: hostState,
     setters,
-    helpers,
   })
 
   const sessionActions = useSessionActions({

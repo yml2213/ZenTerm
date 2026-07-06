@@ -5,7 +5,6 @@ import WorkspaceStrip from './components/WorkspaceStrip'
 import { UpdateNotification } from './components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
-import { createInitialHostForm } from './features/hosts/hostFormModel'
 import { useWorkspaceActions } from './features/workspace/useWorkspaceActions'
 import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useAppActionHandlers } from './hooks/useAppActionHandlers'
@@ -15,7 +14,7 @@ import { useResetAppState } from './hooks/useResetAppState'
 import { useSSHConfigImportPrompt } from './hooks/useSSHConfigImportPrompt'
 import { useWindowStatePersistence } from './hooks/useWindowStatePersistence'
 import { useWorkspaceAutoFallback } from './hooks/useWorkspaceAutoFallback'
-import { HostFormModel, WorkspaceTab } from '@/types'
+import type { WorkspaceTab } from '@/types'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -39,9 +38,7 @@ export default function App() {
     shellClassName,
   } = workspace
   const { hosts } = hostView
-  const {
-    vaultUnlocked,
-  } = vault
+  const { vaultUnlocked } = vault
   const {
     vaultState,
     hostState,
@@ -57,18 +54,6 @@ export default function App() {
     workspace: workspaceSetters,
     sessions: sessionSetters,
   } = setters
-
-  function openCreateHost() {
-    if (!vaultUnlocked) {
-      appSetters.setError('请输入主密码后继续保存主机配置。')
-      return
-    }
-
-    hostSetters.setHostForm(createInitialHostForm() as HostFormModel)
-    workspaceSetters.setActiveWorkspace('vaults')
-    hostSetters.setActiveSidebarPage('hosts')
-    hostSetters.setHostDialogMode('create')
-  }
 
   const {
     removeSessionTab,
@@ -90,11 +75,17 @@ export default function App() {
     closeHostDialog,
     refreshHosts,
     openEditHost,
+    openCreateHost,
+    handleVaultSetupPasswordChange,
+    handleVaultSetupConfirmPasswordChange,
+    handleVaultSetupRiskAcknowledgedChange,
     handleInitializeVault,
+    handleAccessPasswordChange,
     handleAccessPassword,
     handleSidebarPageChange,
     handleChangeMasterField,
     handleChangeMasterPassword,
+    handleResetVaultConfirmedChange,
     handleResetVault,
     handleSaveHost,
     handleDeleteHost,
@@ -122,7 +113,6 @@ export default function App() {
     refs,
     helpers: {
       removeSessionTab,
-      openCreateHost,
       resetAppStateAfterVaultReset,
     },
   })
@@ -244,7 +234,7 @@ export default function App() {
           onRefreshHosts: refreshHosts,
           onChangeMasterField: handleChangeMasterField,
           onChangeMasterPassword: handleChangeMasterPassword,
-          onResetVaultConfirmedChange: vaultSetters.setResetVaultConfirmed,
+          onResetVaultConfirmedChange: handleResetVaultConfirmedChange,
           onResetVault: handleResetVault,
           onOpenLogTab: openLogTab,
           onNewTabSearchQueryChange: hostSetters.setNewTabSearchQuery,
@@ -265,11 +255,11 @@ export default function App() {
           confirmLabel: t('confirm'),
         }}
         actions={{
-          onVaultSetupPasswordChange: (value: string) => vaultSetters.setVaultSetupForm((current) => ({ ...current, password: value })),
-          onVaultSetupConfirmPasswordChange: (value: string) => vaultSetters.setVaultSetupForm((current) => ({ ...current, confirmPassword: value })),
-          onVaultSetupRiskAcknowledgedChange: (value: boolean) => vaultSetters.setVaultSetupForm((current) => ({ ...current, riskAcknowledged: value })),
+          onVaultSetupPasswordChange: handleVaultSetupPasswordChange,
+          onVaultSetupConfirmPasswordChange: handleVaultSetupConfirmPasswordChange,
+          onVaultSetupRiskAcknowledgedChange: handleVaultSetupRiskAcknowledgedChange,
           onInitializeVault: handleInitializeVault,
-          onAccessPasswordChange: vaultSetters.setAccessPassword,
+          onAccessPasswordChange: handleAccessPasswordChange,
           onContinueAccess: handleAccessPassword,
           onCancelDeleteHost: () => hostSetters.setDeleteCandidate(null),
           onDeleteHost: handleDeleteHost,

@@ -11,7 +11,7 @@ import {
 } from './appHostUtils'
 import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '@/lib/backend'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '@/types'
+import type { HostFormModel, SessionTab, WorkspaceType } from '@/types'
 
 interface HostActionHandlersProps {
   state: {
@@ -34,22 +34,20 @@ interface HostActionHandlersProps {
       setHosts: (hosts: cmd.Host[]) => void
       setSelectedHostId: (updater: string | null | ((current: string | null) => string | null)) => void
       setSelectedSftpHostId: (updater: string | null | ((current: string | null) => string | null)) => void
+      setActiveSidebarPage: (page: string) => void
       setDeleteCandidate: (host: cmd.Host | null) => void
       setIsSavingHost: (isSaving: boolean) => void
     }
     workspace: {
+      setActiveWorkspace: (workspace: WorkspaceType) => void
       setSessionTabs: (updater: SessionTab[] | ((current: SessionTab[]) => SessionTab[])) => void
     }
-  }
-  helpers: {
-    openCreateHost: () => void
   }
 }
 
 export function useHostActions({
   state,
   setters,
-  helpers,
 }: HostActionHandlersProps) {
   const {
     hosts,
@@ -70,17 +68,30 @@ export function useHostActions({
     setHosts,
     setSelectedHostId,
     setSelectedSftpHostId,
+    setActiveSidebarPage,
     setDeleteCandidate,
     setIsSavingHost,
   } = setters.hosts
   const {
+    setActiveWorkspace,
     setSessionTabs,
   } = setters.workspace
-  const { openCreateHost } = helpers
 
   function closeHostDialog() {
     setHostDialogMode(null)
     setHostForm(createInitialHostForm() as HostFormModel)
+  }
+
+  function openCreateHost() {
+    if (!vaultUnlocked) {
+      setError('请输入主密码后继续保存主机配置。')
+      return
+    }
+
+    setHostForm(createInitialHostForm() as HostFormModel)
+    setActiveWorkspace('vaults')
+    setActiveSidebarPage('hosts')
+    setHostDialogMode('create')
   }
 
   function refreshHosts() {
@@ -338,6 +349,7 @@ export function useHostActions({
   return {
     closeHostDialog,
     refreshHosts,
+    openCreateHost,
     openEditHost,
     handleSaveHost,
     handleDeleteHost,
