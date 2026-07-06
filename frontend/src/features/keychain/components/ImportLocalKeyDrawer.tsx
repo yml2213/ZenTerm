@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
-import type { LocalSSHKey } from '../../lib/backend'
-import type { ImportLocalKeyForm } from './keychainConfig'
+import type { LocalSSHKey } from '@/lib/backend'
+import type { ImportLocalKeyForm } from '../keychainConfig'
 
 interface ImportLocalKeyDrawerProps {
   form: ImportLocalKeyForm

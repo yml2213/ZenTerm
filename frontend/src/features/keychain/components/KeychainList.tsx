@@ -1,7 +1,7 @@
 import { Copy, FileKey2, KeyRound, Plus, Send, Trash2, Upload } from 'lucide-react'
-import type { LocalSSHKey } from '../../lib/backend'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
-import { formatKeychainDate } from './keychainConfig'
+import type { LocalSSHKey } from '@/lib/backend'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { formatKeychainDate } from '../keychainConfig'
 
 type Credential = cmd.Credential
 

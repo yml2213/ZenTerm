@@ -4,7 +4,7 @@ import {
   keyAlgorithms,
   rsaKeySizes,
   type GenerateKeyForm,
-} from './keychainConfig'
+} from '../keychainConfig'
 
 interface GenerateKeyDrawerProps {
   form: GenerateKeyForm
