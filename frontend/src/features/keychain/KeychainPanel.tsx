@@ -2,19 +2,19 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 import {
   RefreshCw,
 } from 'lucide-react'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import GenerateKeyDrawer from './keychain/GenerateKeyDrawer'
-import ImportKeyDrawer from './keychain/ImportKeyDrawer'
-import ImportLocalKeyDrawer from './keychain/ImportLocalKeyDrawer'
-import KeychainEmptyState from './keychain/KeychainEmptyState'
-import KeychainList from './keychain/KeychainList'
-import UploadKeyDrawer from './keychain/UploadKeyDrawer'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import GenerateKeyDrawer from './components/GenerateKeyDrawer'
+import ImportKeyDrawer from './components/ImportKeyDrawer'
+import ImportLocalKeyDrawer from './components/ImportLocalKeyDrawer'
+import KeychainEmptyState from './components/KeychainEmptyState'
+import KeychainList from './components/KeychainList'
+import UploadKeyDrawer from './components/UploadKeyDrawer'
 import {
   credentialTypes,
-} from './keychain/keychainConfig'
-import { useKeychainActions } from './keychain/useKeychainActions'
-import { useKeychainData } from './keychain/useKeychainData'
-import { useKeychainDrawers } from './keychain/useKeychainDrawers'
+} from './keychainConfig'
+import { useKeychainActions } from './useKeychainActions'
+import { useKeychainData } from './useKeychainData'
+import { useKeychainDrawers } from './useKeychainDrawers'
 
 type Host = cmd.Host
 

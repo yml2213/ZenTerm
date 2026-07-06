@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import HostList from '@/features/hosts/components/HostList'
-import KeychainPanel from './KeychainPanel'
+import KeychainPanel from '@/features/keychain/KeychainPanel'
 import KnownHostsPanel from './KnownHostsPanel'
 import SessionLogPanel from './SessionLogPanel'
 import VaultSettingsPanel from '@/features/vault/components/VaultSettingsPanel'

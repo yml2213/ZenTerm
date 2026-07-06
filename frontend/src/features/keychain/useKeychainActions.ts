@@ -8,7 +8,7 @@ import {
   importLocalSSHKey,
   type LocalSSHKey,
   uploadCredentialToHost,
-} from '../../lib/backend'
+} from '@/lib/backend'
 import type {
   GenerateKeyForm,
   ImportKeyForm,

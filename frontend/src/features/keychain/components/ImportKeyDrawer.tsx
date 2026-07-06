@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import type { ImportKeyForm } from './keychainConfig'
+import type { ImportKeyForm } from '../keychainConfig'
 
 interface ImportKeyDrawerProps {
   form: ImportKeyForm
