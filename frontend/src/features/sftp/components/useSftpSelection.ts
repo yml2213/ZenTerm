@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { uniquePaths, type FileListing } from '../../lib/sftpUtils'
+import { uniquePaths, type FileListing } from '../sftpUtils'
 
 type SftpScope = 'local' | 'remote'
 

@@ -1,5 +1,5 @@
 import SftpWorkspace from './SftpWorkspace'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 

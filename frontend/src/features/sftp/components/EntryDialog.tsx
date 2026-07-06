@@ -1,4 +1,4 @@
-import { getScopeLabel, buildDialogDescription, type DialogState } from '../../lib/sftpUtils'
+import { getScopeLabel, buildDialogDescription, type DialogState } from '../sftpUtils'
 
 interface ExtendedDialogState extends DialogState {
   value?: string

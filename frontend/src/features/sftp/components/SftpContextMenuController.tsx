@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import ContextMenu from './ContextMenu'
-import type { ContextMenuState } from '../../lib/sftpUtils'
+import type { ContextMenuState } from '../sftpUtils'
 
 export interface ExtendedContextMenuState extends ContextMenuState {
   transferLabel?: string
