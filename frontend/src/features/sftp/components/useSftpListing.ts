@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listLocalFiles, listRemoteFiles } from '../../lib/backend'
+import { listLocalFiles, listRemoteFiles } from '@/lib/backend'
 import {
   defaultSort,
   filterVisibleEntries,
   type FileListing,
   type SortConfig,
-} from '../../lib/sftpUtils'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
+} from '../sftpUtils'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 type SftpScope = 'local' | 'remote'

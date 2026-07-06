@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { downloadFile, uploadFile } from '../../lib/backend'
+import { downloadFile, uploadFile } from '@/lib/backend'
 import {
   buildTransferNotice,
   isTransferConflictError,
   pickTransferableEntries,
   uniquePaths,
   type FileListing,
-} from '../../lib/sftpUtils'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
+} from '../sftpUtils'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 type SftpScope = 'local' | 'remote'

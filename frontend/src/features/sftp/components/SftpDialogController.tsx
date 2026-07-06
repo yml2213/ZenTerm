@@ -7,12 +7,12 @@ import {
   deleteRemoteEntry,
   renameLocalEntry,
   renameRemoteEntry,
-} from '../../lib/backend'
+} from '@/lib/backend'
 import {
   buildActionSuccessMessage,
   type FileListing,
-} from '../../lib/sftpUtils'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
+} from '../sftpUtils'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 type SftpScope = 'local' | 'remote'

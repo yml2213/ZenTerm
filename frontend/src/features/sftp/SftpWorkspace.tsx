@@ -6,23 +6,23 @@ import {
   Server,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import FilePane from './sftp/FilePane'
-import PaneEmptyState from './sftp/PaneEmptyState'
-import SftpContextMenuController, { type ExtendedContextMenuState } from './sftp/SftpContextMenuController'
-import SftpDialogController from './sftp/SftpDialogController'
-import SftpHostSwitcher from './sftp/SftpHostSwitcher'
-import { useSftpDialogs } from './sftp/useSftpDialogs'
-import { useSftpListing } from './sftp/useSftpListing'
-import { useSftpSelection } from './sftp/useSftpSelection'
-import { useSftpTransfer } from './sftp/useSftpTransfer'
+import FilePane from './components/FilePane'
+import PaneEmptyState from './components/PaneEmptyState'
+import SftpContextMenuController, { type ExtendedContextMenuState } from './components/SftpContextMenuController'
+import SftpDialogController from './components/SftpDialogController'
+import SftpHostSwitcher from './components/SftpHostSwitcher'
+import { useSftpDialogs } from './components/useSftpDialogs'
+import { useSftpListing } from './components/useSftpListing'
+import { useSftpSelection } from './components/useSftpSelection'
+import { useSftpTransfer } from './components/useSftpTransfer'
 import {
   findSelectedEntries,
   pickTransferableEntries,
   splitLocalPath,
   splitRemotePath,
   type ContextMenuState,
-} from '../lib/sftpUtils'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+} from './sftpUtils'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
 

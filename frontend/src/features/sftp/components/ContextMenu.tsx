@@ -1,4 +1,4 @@
-import { getContextMenuPosition, getContextMenuTitle, getScopeLabel, type ContextMenuState } from '../../lib/sftpUtils'
+import { getContextMenuPosition, getContextMenuTitle, getScopeLabel, type ContextMenuState } from '../sftpUtils'
 
 interface ExtendedContextMenuState extends ContextMenuState {
   transferLabel?: string

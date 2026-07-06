@@ -31,7 +31,7 @@ import {
   type FileListing,
   type PathSegment as BreadcrumbItem,
   type SortConfig,
-} from '../../lib/sftpUtils'
+} from '../sftpUtils'
 import SortButton from './SortButton'
 
 interface FilePaneProps {

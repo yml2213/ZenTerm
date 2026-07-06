@@ -6,7 +6,7 @@ import {
   type DialogState,
   type FileEntry,
   type FileListing,
-} from '../../lib/sftpUtils'
+} from '../sftpUtils'
 
 type SftpScope = 'local' | 'remote'
 type TransferDirection = 'upload' | 'download'
