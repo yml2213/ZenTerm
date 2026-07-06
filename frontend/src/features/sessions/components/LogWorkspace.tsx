@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, FileText, Palette, ShieldCheck, X } from 'lucide-react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { getSessionTranscript } from '../lib/backend'
-import { measureTerminalGeometry } from '../lib/terminalGeometry'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { getSessionTranscript } from '@/lib/backend'
+import { measureTerminalGeometry } from '@/lib/terminalGeometry'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 interface LogTab {
   logId: string
