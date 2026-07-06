@@ -3,6 +3,23 @@ import AppOverlays from './AppOverlays'
 import type { HostKeyPrompt, SSHConfigImportPrompt, VaultSetupForm } from '../types'
 import { cmd } from '../wailsjs/wailsjs/go/models'
 
+export interface AppOverlayActions {
+  onVaultSetupPasswordChange: (value: string) => void
+  onVaultSetupConfirmPasswordChange: (value: string) => void
+  onVaultSetupRiskAcknowledgedChange: (value: boolean) => void
+  onInitializeVault: (event: FormEvent) => void
+  onAccessPasswordChange: (value: string) => void
+  onContinueAccess: (event: FormEvent) => void
+  onCancelDeleteHost: () => void
+  onDeleteHost: () => void
+  onCancelSSHConfigImport: () => void
+  onDismissSSHConfigImportPermanently: () => void
+  onConfirmSSHConfigImport: () => void
+  onClearError: () => void
+  onAcceptHostKey: () => void
+  onRejectHostKey: () => void
+}
+
 interface AppOverlayLayerProps {
   app: {
     error: string | null
@@ -28,22 +45,7 @@ interface AppOverlayLayerProps {
     errorTitle: string
     confirmLabel: string
   }
-  actions: {
-    onVaultSetupPasswordChange: (value: string) => void
-    onVaultSetupConfirmPasswordChange: (value: string) => void
-    onVaultSetupRiskAcknowledgedChange: (value: boolean) => void
-    onInitializeVault: (event: FormEvent) => void
-    onAccessPasswordChange: (value: string) => void
-    onContinueAccess: (event: FormEvent) => void
-    onCancelDeleteHost: () => void
-    onDeleteHost: () => void
-    onCancelSSHConfigImport: () => void
-    onDismissSSHConfigImportPermanently: () => void
-    onConfirmSSHConfigImport: () => void
-    onClearError: () => void
-    onAcceptHostKey: () => void
-    onRejectHostKey: () => void
-  }
+  actions: AppOverlayActions
 }
 
 export default function AppOverlayLayer({

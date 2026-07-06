@@ -97,3 +97,5 @@ export function useAppActionHandlers({
     handleSidebarPageChange,
   }
 }
+
+export type AppActionHandlers = ReturnType<typeof useAppActionHandlers>

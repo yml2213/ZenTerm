@@ -5,6 +5,7 @@ import WorkspaceStrip from './components/WorkspaceStrip'
 import { UpdateNotification } from './components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
 import { useLanguage } from './contexts/LanguageProvider'
+import { createAppViewActions } from '@/features/app/appViewActions'
 import { useAppBootstrap } from '@/features/app/useAppBootstrap'
 import { useAppActionHandlers } from '@/features/app/useAppActionHandlers'
 import { useAppState } from '@/features/app/useAppState'
@@ -55,56 +56,14 @@ export default function App() {
     sessions: sessionSetters,
   } = setters
 
-  const {
-    removeSessionTab,
-    openLogTab,
-    openNewTab,
-    closeNewTab,
-    closeLogTab,
-    handleWorkspaceStripDoubleClick,
-    handleWorkspaceChange,
-    handleWorkspaceTabSelect,
-  } = useWorkspaceActions({
+  const workspaceActions = useWorkspaceActions({
     state: workspaceState,
     setters,
     refs,
   })
   const resetAppStateAfterVaultReset = useResetAppState({ setters, refs })
 
-  const {
-    closeHostDialog,
-    refreshHosts,
-    openEditHost,
-    openCreateHost,
-    handleVaultSetupPasswordChange,
-    handleVaultSetupConfirmPasswordChange,
-    handleVaultSetupRiskAcknowledgedChange,
-    handleInitializeVault,
-    handleAccessPasswordChange,
-    handleAccessPassword,
-    handleSidebarPageChange,
-    handleChangeMasterField,
-    handleChangeMasterPassword,
-    handleResetVaultConfirmedChange,
-    handleResetVault,
-    handleSaveHost,
-    handleDeleteHost,
-    handleConnect,
-    handleCopyHostAddress,
-    handleToggleFavorite,
-    handleTogglePinned,
-    handleReorderHosts,
-    handleCloseTab,
-    handleSessionClosed,
-    handleSendInput,
-    handleResizeTerminal,
-    handleAcceptHostKey,
-    handleRejectHostKey,
-    handlePickSftpHost,
-    dismissSSHConfigImportPrompt,
-    dismissSSHConfigImportPermanently,
-    handleConfirmSSHConfigImport,
-  } = useAppActionHandlers({
+  const appActions = useAppActionHandlers({
     vaultState,
     hostState,
     sessionState,
@@ -112,9 +71,14 @@ export default function App() {
     setters,
     refs,
     helpers: {
-      removeSessionTab,
+      removeSessionTab: workspaceActions.removeSessionTab,
       resetAppStateAfterVaultReset,
     },
+  })
+  const viewActions = createAppViewActions({
+    appActions,
+    setters,
+    workspaceActions,
   })
 
   useAppBootstrap({
@@ -157,17 +121,17 @@ export default function App() {
 
   function handleWorkspaceTabClose(tab: WorkspaceTab) {
     if (tab.type === 'new') {
-      closeNewTab(tab.tabId)
+      workspaceActions.closeNewTab(tab.tabId)
       return
     }
 
     if (tab.type === 'log') {
-      closeLogTab(tab.tabId)
+      workspaceActions.closeLogTab(tab.tabId)
       return
     }
 
     if (tab.sessionId) {
-      handleCloseTab(tab.sessionId)
+      appActions.handleCloseTab(tab.sessionId)
     }
   }
 
@@ -189,11 +153,11 @@ export default function App() {
         activeWorkspace={activeWorkspace}
         workspaceTabs={workspaceTabs}
         activeWorkspaceTabId={activeWorkspaceTabId}
-        onWorkspaceChange={handleWorkspaceChange}
-        onWorkspaceStripDoubleClick={handleWorkspaceStripDoubleClick}
-        onWorkspaceTabSelect={handleWorkspaceTabSelect}
+        onWorkspaceChange={workspaceActions.handleWorkspaceChange}
+        onWorkspaceStripDoubleClick={workspaceActions.handleWorkspaceStripDoubleClick}
+        onWorkspaceTabSelect={workspaceActions.handleWorkspaceTabSelect}
         onWorkspaceTabClose={handleWorkspaceTabClose}
-        onOpenNewTab={openNewTab}
+        onOpenNewTab={workspaceActions.openNewTab}
         onCycleTheme={cycleTheme}
         themeIcon={ThemeIcon}
         vaultsLabel={t('vaults')}
@@ -211,38 +175,7 @@ export default function App() {
           searchPlaceholder: t('searchPlaceholder'),
           newHostLabel: t('newHost'),
         }}
-        actions={{
-          onError: appSetters.setError,
-          onSendInput: handleSendInput,
-          onResizeTerminal: handleResizeTerminal,
-          onSessionClosed: handleSessionClosed,
-          onWorkspaceChange: handleWorkspaceChange,
-          onCloseLogTab: closeLogTab,
-          onSidebarPageChange: handleSidebarPageChange,
-          onHostFilterChange: hostSetters.setHostFilterKey,
-          onSearchQueryChange: hostSetters.setSearchQuery,
-          onHostViewModeChange: hostSetters.setHostViewMode,
-          onCreateHost: openCreateHost,
-          onSelectHost: hostSetters.setSelectedHostId,
-          onConnectHost: handleConnect,
-          onEditHost: openEditHost,
-          onDeleteHost: hostSetters.setDeleteCandidate,
-          onCopyHostAddress: handleCopyHostAddress,
-          onToggleFavorite: handleToggleFavorite,
-          onTogglePinned: handleTogglePinned,
-          onReorderHosts: handleReorderHosts,
-          onRefreshHosts: refreshHosts,
-          onChangeMasterField: handleChangeMasterField,
-          onChangeMasterPassword: handleChangeMasterPassword,
-          onResetVaultConfirmedChange: handleResetVaultConfirmedChange,
-          onResetVault: handleResetVault,
-          onOpenLogTab: openLogTab,
-          onNewTabSearchQueryChange: hostSetters.setNewTabSearchQuery,
-          onPickSftpHost: handlePickSftpHost,
-          onHostFormChange: hostSetters.setHostForm,
-          onSaveHost: handleSaveHost,
-          onCloseHostDialog: closeHostDialog,
-        }}
+        actions={viewActions.workspace}
       />
 
       <AppOverlayLayer
@@ -254,22 +187,7 @@ export default function App() {
           errorTitle: t('errorTitle'),
           confirmLabel: t('confirm'),
         }}
-        actions={{
-          onVaultSetupPasswordChange: handleVaultSetupPasswordChange,
-          onVaultSetupConfirmPasswordChange: handleVaultSetupConfirmPasswordChange,
-          onVaultSetupRiskAcknowledgedChange: handleVaultSetupRiskAcknowledgedChange,
-          onInitializeVault: handleInitializeVault,
-          onAccessPasswordChange: handleAccessPasswordChange,
-          onContinueAccess: handleAccessPassword,
-          onCancelDeleteHost: () => hostSetters.setDeleteCandidate(null),
-          onDeleteHost: handleDeleteHost,
-          onCancelSSHConfigImport: dismissSSHConfigImportPrompt,
-          onDismissSSHConfigImportPermanently: dismissSSHConfigImportPermanently,
-          onConfirmSSHConfigImport: handleConfirmSSHConfigImport,
-          onClearError: () => appSetters.setError(null),
-          onAcceptHostKey: handleAcceptHostKey,
-          onRejectHostKey: handleRejectHostKey,
-        }}
+        actions={viewActions.overlay}
       />
 
       <UpdateNotification />

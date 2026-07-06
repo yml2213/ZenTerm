@@ -193,3 +193,5 @@ export function useWorkspaceActions({
     handleWorkspaceTabSelect,
   }
 }
+
+export type WorkspaceActionHandlers = ReturnType<typeof useWorkspaceActions>
