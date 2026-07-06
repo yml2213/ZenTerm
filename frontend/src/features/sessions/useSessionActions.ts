@@ -12,7 +12,8 @@ import {
 } from '@/lib/backend'
 import { isDemoHost, toUserMessage, withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '@/types'
+import type { HostKeyPrompt } from './sessionTypes'
+import type { SessionTab, WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface SessionActionHandlersProps {
   state: {

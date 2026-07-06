@@ -3,15 +3,11 @@ import { useSessionActions } from '@/features/sessions/useSessionActions'
 import { useSSHConfigImportActions } from '@/features/hosts/useSSHConfigImportActions'
 import { useVaultActions } from '@/features/vault/useVaultActions'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type {
-  ChangeMasterForm,
-  HostFormModel,
-  HostKeyPrompt,
-  SessionTab,
-  SSHConfigImportPrompt,
-  VaultSetupForm,
-  WorkspaceType,
-} from '@/types'
+import type { HostFormModel } from '@/features/hosts/hostFormModel'
+import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
+import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { ChangeMasterForm, VaultSetupForm } from '@/features/vault/vaultTypes'
+import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 import type { AppStateRefs, AppStateSetters } from './useAppState'
 
 interface AppActionHandlersProps {

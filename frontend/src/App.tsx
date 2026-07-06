@@ -15,7 +15,7 @@ import { useWorkspaceActions } from '@/features/workspace/useWorkspaceActions'
 import { useSSHConfigImportPrompt } from '@/features/hosts/useSSHConfigImportPrompt'
 import { useWindowStatePersistence } from '@/features/workspace/useWindowStatePersistence'
 import { useWorkspaceAutoFallback } from '@/features/workspace/useWorkspaceAutoFallback'
-import type { WorkspaceTab } from '@/types'
+import type { WorkspaceTab } from '@/features/workspace/workspaceTypes'
 
 export default function App() {
   const { theme, setTheme } = useTheme()

@@ -5,7 +5,7 @@ import {
   resetVault,
   unlockWithPreferences,
 } from '@/lib/backend'
-import type { VaultSetupForm, ChangeMasterForm } from '@/types'
+import type { VaultSetupForm, ChangeMasterForm } from './vaultTypes'
 
 interface VaultActionHandlersProps {
   state: {

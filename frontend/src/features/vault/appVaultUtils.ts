@@ -1,4 +1,4 @@
-import type { VaultSetupForm, ChangeMasterForm } from '@/types'
+import type { VaultSetupForm, ChangeMasterForm } from './vaultTypes'
 
 export function createVaultSetupForm(): VaultSetupForm {
   return {

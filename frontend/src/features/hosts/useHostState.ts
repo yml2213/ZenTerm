@@ -7,9 +7,10 @@ import {
   parseHostTags,
   sortHosts,
 } from './appHostUtils'
-import { sidebarPages, SidebarPage } from '@/features/app/appShellConfig'
+import { sidebarPages, type SidebarPage } from '@/features/app/appShellConfig'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import { HostFormModel, SessionTab } from '@/types'
+import type { HostFormModel } from './hostFormModel'
+import type { SessionTab } from '@/features/workspace/workspaceTypes'
 
 export function useHostState(sessionTabs: SessionTab[]) {
   const [activeSidebarPage, setActiveSidebarPage] = useState('hosts')
@@ -21,7 +22,7 @@ export function useHostState(sessionTabs: SessionTab[]) {
   const [hostViewMode, setHostViewMode] = useState<'grid' | 'list'>('grid')
   const [hostFilterKey, setHostFilterKey] = useState('all')
   const [hostDialogMode, setHostDialogMode] = useState<'create' | 'edit' | null>(null)
-  const [hostForm, setHostForm] = useState<HostFormModel>(() => createInitialHostForm() as HostFormModel)
+  const [hostForm, setHostForm] = useState<HostFormModel>(() => createInitialHostForm())
   const [isSavingHost, setIsSavingHost] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<cmd.Host | null>(null)
 

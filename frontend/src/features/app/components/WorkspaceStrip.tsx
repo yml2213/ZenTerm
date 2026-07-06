@@ -1,7 +1,7 @@
 import { FolderLock, FolderOpen, Plus, type LucideIcon } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import SessionTabs from '@/features/sessions/components/SessionTabs'
-import { WorkspaceTab, WorkspaceType } from '@/types'
+import type { WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface WorkspaceStripProps {
   activeWorkspace: WorkspaceType

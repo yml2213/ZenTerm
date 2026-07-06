@@ -1,7 +1,23 @@
-import type { HostFormModel } from '@/types'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type Host = cmd.Host
+
+export interface HostFormModel {
+  id: string
+  name: string
+  address: string
+  port: string
+  username: string
+  group: string
+  tags: string
+  favorite: boolean
+  systemType: string
+  systemTypeSource: 'auto' | 'manual'
+  authType: 'password' | 'key' | 'credential'
+  password?: string
+  privateKey?: string
+  credentialId?: string
+}
 
 const initialState: HostFormModel = {
   id: '',

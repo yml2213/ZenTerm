@@ -11,7 +11,8 @@ import {
 } from './appHostUtils'
 import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '@/lib/backend'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { HostFormModel, SessionTab, WorkspaceType } from '@/types'
+import type { HostFormModel } from './hostFormModel'
+import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface HostActionHandlersProps {
   state: {
@@ -79,7 +80,7 @@ export function useHostActions({
 
   function closeHostDialog() {
     setHostDialogMode(null)
-    setHostForm(createInitialHostForm() as HostFormModel)
+    setHostForm(createInitialHostForm())
   }
 
   function openCreateHost() {
@@ -88,7 +89,7 @@ export function useHostActions({
       return
     }
 
-    setHostForm(createInitialHostForm() as HostFormModel)
+    setHostForm(createInitialHostForm())
     setActiveWorkspace('vaults')
     setActiveSidebarPage('hosts')
     setHostDialogMode('create')
@@ -139,7 +140,7 @@ export function useHostActions({
       return
     }
 
-    setHostForm(createHostFormFromHost(host) as HostFormModel)
+    setHostForm(createHostFormFromHost(host))
     setHostDialogMode('edit')
   }
 

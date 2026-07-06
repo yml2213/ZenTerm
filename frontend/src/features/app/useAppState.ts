@@ -3,7 +3,7 @@ import { useHostState } from '@/features/hosts/useHostState'
 import { useSessionWorkspaceState } from '@/features/sessions/useSessionWorkspaceState'
 import { useVaultState } from '@/features/vault/useVaultState'
 import { usePageHeaderState } from './usePageHeaderState'
-import type { SSHConfigImportPrompt } from '@/types'
+import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)

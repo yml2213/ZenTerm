@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { WorkspaceType } from '@/types'
+import type { WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface GlobalHostSearchHotkeyProps {
   activeWorkspace: WorkspaceType

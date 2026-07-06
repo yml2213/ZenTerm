@@ -2,7 +2,7 @@ import { startTransition } from 'react'
 import { withDemoHosts } from './appHostUtils'
 import { importLocalSSHConfigHosts, listHosts } from '@/lib/backend'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
-import type { SSHConfigImportPrompt } from '@/types'
+import type { SSHConfigImportPrompt } from './sshConfigImportTypes'
 
 interface SSHConfigImportActionProps {
   state: {
