@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { WorkspaceTab, WorkspaceType } from '../types'
+import type { WorkspaceTab, WorkspaceType } from '@/types'
 
 interface WorkspaceAutoFallbackProps {
   activeWorkspace: WorkspaceType

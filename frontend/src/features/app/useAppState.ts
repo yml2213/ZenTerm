@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
-import { useHostState } from '../features/hosts/useHostState'
-import { useSessionWorkspaceState } from '../features/sessions/useSessionWorkspaceState'
-import { useVaultState } from '../features/vault/useVaultState'
+import { useHostState } from '@/features/hosts/useHostState'
+import { useSessionWorkspaceState } from '@/features/sessions/useSessionWorkspaceState'
+import { useVaultState } from '@/features/vault/useVaultState'
 import { usePageHeaderState } from './usePageHeaderState'
-import type { SSHConfigImportPrompt } from '../types'
+import type { SSHConfigImportPrompt } from '@/types'
 
 export function useAppState() {
   const newTabCounterRef = useRef(0)

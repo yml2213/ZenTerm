@@ -1,5 +1,5 @@
 import { startTransition } from 'react'
-import { buildOptimisticSessionTab, buildSessionTabs } from '../../lib/appSessionUtils'
+import { buildOptimisticSessionTab, buildSessionTabs } from '@/lib/appSessionUtils'
 import {
   acceptHostKey,
   connect,
@@ -9,10 +9,10 @@ import {
   rejectHostKey,
   resizeTerminal,
   sendInput,
-} from '../../lib/backend'
+} from '@/lib/backend'
 import { isDemoHost, toUserMessage, withDemoHosts } from '@/features/hosts/appHostUtils'
-import { cmd } from '../../wailsjs/wailsjs/go/models'
-import { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '../../types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import type { HostKeyPrompt, SessionTab, WorkspaceTab, WorkspaceType } from '@/types'
 
 interface SessionActionHandlersProps {
   state: {
