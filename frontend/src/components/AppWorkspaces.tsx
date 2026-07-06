@@ -17,6 +17,39 @@ interface WorkspaceSession {
   connectedAt?: string
 }
 
+export interface AppWorkspaceActions {
+  onError: (message: string) => void
+  onSendInput: (sessionId: string, data: string) => Promise<void>
+  onResizeTerminal: (sessionId: string, cols: number, rows: number) => Promise<void>
+  onSessionClosed: (sessionId: string) => void
+  onWorkspaceChange: (workspace: WorkspaceType) => void
+  onCloseLogTab: (tabId: string) => void
+  onSidebarPageChange: (page: string) => void
+  onHostFilterChange: (filter: string) => void
+  onSearchQueryChange: (query: string) => void
+  onHostViewModeChange: (mode: 'grid' | 'list') => void
+  onCreateHost: () => void
+  onSelectHost: (id: string) => void
+  onConnectHost: (id: string) => void
+  onEditHost: (host: cmd.Host) => void
+  onDeleteHost: (host: cmd.Host) => void
+  onCopyHostAddress: (host: cmd.Host) => void
+  onToggleFavorite: (host: cmd.Host) => void
+  onTogglePinned: (host: cmd.Host) => void
+  onReorderHosts: (orderedHostIds: string[]) => void
+  onRefreshHosts: () => Promise<void> | void
+  onChangeMasterField: (field: keyof ChangeMasterForm, value: string) => void
+  onChangeMasterPassword: (event: FormEvent) => void
+  onResetVaultConfirmedChange: (confirmed: boolean) => void
+  onResetVault: () => void
+  onOpenLogTab: (log: cmd.SessionLog) => void
+  onNewTabSearchQueryChange: (query: string) => void
+  onPickSftpHost: (hostId?: string | null) => void
+  onHostFormChange: (form: HostFormModel) => void
+  onSaveHost: (event: FormEvent) => void
+  onCloseHostDialog: () => void
+}
+
 interface AppWorkspacesProps {
   workspace: {
     activeWorkspace: WorkspaceType
@@ -75,38 +108,7 @@ interface AppWorkspacesProps {
     searchPlaceholder: string
     newHostLabel: string
   }
-  actions: {
-    onError: (message: string) => void
-    onSendInput: (sessionId: string, data: string) => Promise<void>
-    onResizeTerminal: (sessionId: string, cols: number, rows: number) => Promise<void>
-    onSessionClosed: (sessionId: string) => void
-    onWorkspaceChange: (workspace: WorkspaceType) => void
-    onCloseLogTab: (tabId: string) => void
-    onSidebarPageChange: (page: string) => void
-    onHostFilterChange: (filter: string) => void
-    onSearchQueryChange: (query: string) => void
-    onHostViewModeChange: (mode: 'grid' | 'list') => void
-    onCreateHost: () => void
-    onSelectHost: (id: string) => void
-    onConnectHost: (id: string) => void
-    onEditHost: (host: cmd.Host) => void
-    onDeleteHost: (host: cmd.Host) => void
-    onCopyHostAddress: (host: cmd.Host) => void
-    onToggleFavorite: (host: cmd.Host) => void
-    onTogglePinned: (host: cmd.Host) => void
-    onReorderHosts: (orderedHostIds: string[]) => void
-    onRefreshHosts: () => Promise<void> | void
-    onChangeMasterField: (field: keyof ChangeMasterForm, value: string) => void
-    onChangeMasterPassword: (event: FormEvent) => void
-    onResetVaultConfirmedChange: (confirmed: boolean) => void
-    onResetVault: () => void
-    onOpenLogTab: (log: cmd.SessionLog) => void
-    onNewTabSearchQueryChange: (query: string) => void
-    onPickSftpHost: (hostId?: string | null) => void
-    onHostFormChange: (form: HostFormModel) => void
-    onSaveHost: (event: FormEvent) => void
-    onCloseHostDialog: () => void
-  }
+  actions: AppWorkspaceActions
 }
 
 function normalizeError(error: unknown): string {
