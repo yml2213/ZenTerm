@@ -1,4 +1,4 @@
 @import './styles/theme.css';
-@import './styles/app.css';
-@import './styles/sftp.css';
+@import './features/app/styles/app.css';
+@import './features/sftp/styles/sftp.css';
 @import './styles/responsive.css';
