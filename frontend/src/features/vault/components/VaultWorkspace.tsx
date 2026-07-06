@@ -12,12 +12,12 @@ import {
 import { useCallback, useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import HostList from '@/features/hosts/components/HostList'
 import KeychainPanel from '@/features/keychain/KeychainPanel'
-import KnownHostsPanel from './KnownHostsPanel'
+import KnownHostsPanel from '@/features/hosts/components/KnownHostsPanel'
 import SessionLogPanel from '@/features/sessions/components/SessionLogPanel'
 import VaultSettingsPanel from '@/features/vault/components/VaultSettingsPanel'
-import { NavigationItem } from '../lib/appShellConfig'
-import { ChangeMasterForm } from '../types'
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { NavigationItem } from '@/lib/appShellConfig'
+import { ChangeMasterForm } from '@/types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
 
 type PageToolbarId = 'keychain' | 'knownHosts' | 'logs'
 
