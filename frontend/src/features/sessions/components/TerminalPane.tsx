@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useRef, type MouseEvent } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { browserOpenURL, onRuntimeEvent, readClipboardText, writeClipboardText } from '../lib/backend'
-import { measureTerminalGeometry } from '../lib/terminalGeometry'
-import { useTerminalPreferences, type TerminalPreferences } from '../contexts/TerminalPreferencesProvider'
-import { builtinTerminalPlugins, type TerminalPluginContext, type TerminalSessionMeta } from '../lib/terminal/plugins/builtin'
-import { createTerminalPluginRuntime, type TerminalPluginRuntime } from '../lib/terminal/pluginRuntime'
+import { browserOpenURL, onRuntimeEvent, readClipboardText, writeClipboardText } from '@/lib/backend'
+import { measureTerminalGeometry } from '@/lib/terminalGeometry'
+import { useTerminalPreferences, type TerminalPreferences } from '@/contexts/TerminalPreferencesProvider'
+import { builtinTerminalPlugins, type TerminalPluginContext, type TerminalSessionMeta } from '@/lib/terminal/plugins/builtin'
+import { createTerminalPluginRuntime, type TerminalPluginRuntime } from '@/lib/terminal/pluginRuntime'
 
 const MAX_SESSION_BUFFER_CHARS = 1_000_000
 const TRUNCATED_BUFFER_NOTICE = '\x1b[33m[earlier output truncated]\x1b[0m\r\n'

@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState, type FormEvent, type ReactNode, type Re
 import HostList from '@/features/hosts/components/HostList'
 import KeychainPanel from '@/features/keychain/KeychainPanel'
 import KnownHostsPanel from './KnownHostsPanel'
-import SessionLogPanel from './SessionLogPanel'
+import SessionLogPanel from '@/features/sessions/components/SessionLogPanel'
 import VaultSettingsPanel from '@/features/vault/components/VaultSettingsPanel'
 import { NavigationItem } from '../lib/appShellConfig'
 import { ChangeMasterForm } from '../types'

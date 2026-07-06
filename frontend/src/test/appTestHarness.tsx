@@ -131,7 +131,7 @@ vi.mock('../lib/backend', () => ({
   windowToggleMaximise: vi.fn(),
 }))
 
-vi.mock('../components/TerminalPane', () => ({
+vi.mock('../features/sessions/components/TerminalPane', () => ({
   default: function MockTerminalPane({
     sessions,
     activeSessionId,
@@ -161,7 +161,7 @@ vi.mock('../components/TerminalPane', () => ({
   },
 }))
 
-vi.mock('../components/LogWorkspace', () => ({
+vi.mock('../features/sessions/components/LogWorkspace', () => ({
   default: function MockLogWorkspace({
     activeLogTab,
     onCloseLog,
