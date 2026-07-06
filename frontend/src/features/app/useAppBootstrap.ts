@@ -5,11 +5,11 @@ import {
   listSessions,
   onRuntimeEvent,
   tryAutoUnlock,
-} from '../lib/backend'
-import { buildSessionTabs, normalizeHostKeyPrompt } from '../lib/appSessionUtils'
+} from '@/lib/backend'
+import { buildSessionTabs, normalizeHostKeyPrompt } from '@/lib/appSessionUtils'
 import { withDemoHosts } from '@/features/hosts/appHostUtils'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import { HostKeyPrompt, SessionTab, WorkspaceType } from '../types'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import type { HostKeyPrompt, SessionTab, WorkspaceType } from '@/types'
 
 interface AppBootstrapProps {
   setHosts: (hosts: cmd.Host[]) => void

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { listLocalSSHConfigHosts } from '../lib/backend'
-import { cmd } from '../wailsjs/wailsjs/go/models'
-import { SSHConfigImportPrompt } from '../types'
+import { listLocalSSHConfigHosts } from '@/lib/backend'
+import { cmd } from '@/wailsjs/wailsjs/go/models'
+import type { SSHConfigImportPrompt } from '@/types'
 
 interface SSHConfigImportPromptProps {
   vaultUnlocked: boolean

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { persistWindowState } from '../lib/backend'
+import { persistWindowState } from '@/lib/backend'
 
 export function useWindowStatePersistence(setError: (error: string | null) => void) {
   useEffect(() => {
