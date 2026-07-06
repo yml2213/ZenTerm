@@ -7,7 +7,7 @@ import {
   parseHostTags,
   sortHosts,
 } from './appHostUtils'
-import { sidebarPages, SidebarPage } from '@/lib/appShellConfig'
+import { sidebarPages, SidebarPage } from '@/features/app/appShellConfig'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
 import { HostFormModel, SessionTab } from '@/types'
 

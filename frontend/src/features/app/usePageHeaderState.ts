@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { SidebarPage } from '@/lib/appShellConfig'
+import type { SidebarPage } from './appShellConfig'
 import { cmd } from '@/wailsjs/wailsjs/go/models'
 import type { WorkspaceTab, WorkspaceType } from '@/types'
 
