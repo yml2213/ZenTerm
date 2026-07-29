@@ -114,6 +114,11 @@ type stubSFTPClient struct {
 	dirs      map[string][]os.FileInfo
 	stats     map[string]os.FileInfo
 	files     map[string][]byte
+	createErr error
+	writeErr  error
+	closeErr  error
+	readErr   error
+	renameErr error
 	closed    bool
 }
 
@@ -167,12 +172,23 @@ func (c *stubSFTPClient) Open(path string) (io.ReadCloser, error) {
 	if !ok {
 		return nil, os.ErrNotExist
 	}
+	if c.readErr != nil {
+		return &stubSFTPReadCloser{
+			reader: bytes.NewReader(payload),
+			err:    c.readErr,
+		}, nil
+	}
 
 	return io.NopCloser(bytes.NewReader(payload)), nil
 }
 
 func (c *stubSFTPClient) Create(path string) (io.WriteCloser, error) {
+	if c.createErr != nil {
+		return nil, c.createErr
+	}
 	return &stubSFTPWriteCloser{
+		writeErr: c.writeErr,
+		closeErr: c.closeErr,
 		onClose: func(data []byte) {
 			c.mu.Lock()
 			defer c.mu.Unlock()
@@ -215,6 +231,9 @@ func (c *stubSFTPClient) Mkdir(path string) error {
 func (c *stubSFTPClient) Rename(oldPath, newPath string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.renameErr != nil {
+		return c.renameErr
+	}
 	if info, ok := c.stats[oldPath]; ok {
 		c.stats[newPath] = stubFileInfo{
 			name:    pathpkg.Base(newPath),
@@ -234,6 +253,10 @@ func (c *stubSFTPClient) Rename(oldPath, newPath string) error {
 		delete(c.dirs, oldPath)
 	}
 	return nil
+}
+
+func (c *stubSFTPClient) PosixRename(oldPath, newPath string) error {
+	return c.Rename(oldPath, newPath)
 }
 
 func (c *stubSFTPClient) Remove(path string) error {
@@ -260,11 +283,16 @@ func (c *stubSFTPClient) Close() error {
 }
 
 type stubSFTPWriteCloser struct {
-	buffer  bytes.Buffer
-	onClose func(data []byte)
+	buffer   bytes.Buffer
+	writeErr error
+	closeErr error
+	onClose  func(data []byte)
 }
 
 func (w *stubSFTPWriteCloser) Write(p []byte) (int, error) {
+	if w.writeErr != nil {
+		return 0, w.writeErr
+	}
 	return w.buffer.Write(p)
 }
 
@@ -272,6 +300,37 @@ func (w *stubSFTPWriteCloser) Close() error {
 	if w.onClose != nil {
 		w.onClose(w.buffer.Bytes())
 	}
+	if w.closeErr != nil {
+		return w.closeErr
+	}
+	return nil
+}
+
+type stubSFTPReadCloser struct {
+	reader      *bytes.Reader
+	err         error
+	sentPartial bool
+	sentErr     bool
+}
+
+func (r *stubSFTPReadCloser) Read(p []byte) (int, error) {
+	if !r.sentPartial {
+		r.sentPartial = true
+		if len(p) > 1 {
+			p = p[:len(p)/2]
+		}
+		if n, _ := r.reader.Read(p); n > 0 {
+			return n, nil
+		}
+	}
+	if r.err != nil && !r.sentErr {
+		r.sentErr = true
+		return 0, r.err
+	}
+	return r.reader.Read(p)
+}
+
+func (r *stubSFTPReadCloser) Close() error {
 	return nil
 }
 

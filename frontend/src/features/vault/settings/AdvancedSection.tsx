@@ -1,4 +1,4 @@
-import { Settings2, Info } from "lucide-react";
+import { History, Info, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getAppPreferences,
@@ -34,8 +34,23 @@ export default function AdvancedSettings() {
     loadData();
   }, []);
 
-  const handleToggle = async (key: keyof AppPreferences, value: boolean) => {
+  const handleToggle = async (
+    key: "open_inspector_on_startup" | "record_session_transcripts",
+    value: boolean
+  ) => {
     const newPrefs = { ...prefs, [key]: value };
+    setPrefs(newPrefs);
+    try {
+      await saveAppPreferences(newPrefs);
+    } catch (e) {
+      console.error("Failed to save preferences:", e);
+      setPrefs(prefs);
+    }
+  };
+
+  const handleRetentionLimitChange = async (value: number) => {
+    const nextValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    const newPrefs = { ...prefs, session_log_retention_limit: nextValue };
     setPrefs(newPrefs);
     try {
       await saveAppPreferences(newPrefs);
@@ -51,6 +66,44 @@ export default function AdvancedSettings() {
 
   return (
     <div className="settings-section-stack">
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <History size={18} />
+          <div>
+            <h3>连接日志</h3>
+            <p>控制终端输出录制与历史记录留存。</p>
+          </div>
+        </div>
+
+        <label className="settings-toggle-row">
+          <input
+            type="checkbox"
+            checked={prefs.record_session_transcripts || false}
+            onChange={(e) =>
+              handleToggle("record_session_transcripts", e.target.checked)
+            }
+          />
+          <span>
+            <strong>记录终端输出</strong>
+            <small>关闭时只保存连接元数据，不保存可见终端内容。</small>
+          </span>
+        </label>
+
+        <label>
+          <span>最多保留连接日志</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={prefs.session_log_retention_limit ?? 200}
+            onChange={(e) =>
+              handleRetentionLimitChange(Number(e.target.value))
+            }
+          />
+          <small>默认 200 条；填 0 时不自动清理历史。</small>
+        </label>
+      </section>
+
       {/* 开发者工具 */}
       <section className="settings-section-panel">
         <div className="settings-section-title">

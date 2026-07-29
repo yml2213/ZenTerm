@@ -51,16 +51,24 @@ const (
 	hostKeyConfirmTimeout = 2 * time.Minute
 )
 
+const (
+	hostKeyPromptReasonFirstSeen = "first_seen"
+	hostKeyPromptReasonChanged   = "changed"
+)
+
 // EventEmitter 用于将会话事件转发给应用层 / forwards session events to the application layer.
 type EventEmitter func(event string, payload any)
 
 // HostKeyPrompt 表示发送给前端的主机指纹确认请求 / represents a host fingerprint confirmation request emitted to the frontend.
 type HostKeyPrompt struct {
-	HostID     string `json:"hostID"`
-	RemoteAddr string `json:"remoteAddr"`
-	Key        string `json:"key"`
-	SHA256     string `json:"sha256"`
-	MD5        string `json:"md5"`
+	HostID         string `json:"hostID"`
+	RemoteAddr     string `json:"remoteAddr"`
+	Key            string `json:"key"`
+	SHA256         string `json:"sha256"`
+	MD5            string `json:"md5"`
+	Reason         string `json:"reason"`
+	PreviousSHA256 string `json:"previousSHA256,omitempty"`
+	PreviousMD5    string `json:"previousMD5,omitempty"`
 }
 
 // Session 表示一个活跃的 SSH 连接会话 / represents an active SSH connection session.
@@ -145,6 +153,7 @@ type managedSFTPConnection struct {
 type pendingHostKeyConfirmation struct {
 	hostID string
 	key    string
+	reason string
 	result chan bool
 	once   sync.Once
 }
@@ -158,6 +167,7 @@ type sftpClient interface {
 	Create(path string) (io.WriteCloser, error)
 	Mkdir(path string) error
 	Rename(oldPath, newPath string) error
+	PosixRename(oldPath, newPath string) error
 	Remove(path string) error
 	RemoveDirectory(path string) error
 	Close() error

@@ -7,6 +7,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -56,15 +57,28 @@ func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool
 		}
 		defer func() { _ = sourceFile.Close() }()
 
-		targetFile, err := client.Create(targetPath)
+		tempPath, err := remoteTransferTempPath(targetPath)
 		if err != nil {
-			return fmt.Errorf("create remote file: %w", err)
+			return err
 		}
-		defer func() { _ = targetFile.Close() }()
-
-		written, err := io.Copy(targetFile, sourceFile)
+		tempFile, err := client.Create(tempPath)
 		if err != nil {
-			return fmt.Errorf("upload file content: %w", err)
+			return fmt.Errorf("create remote temp file: %w", err)
+		}
+
+		written, copyErr := io.Copy(tempFile, sourceFile)
+		closeErr := tempFile.Close()
+		if copyErr != nil {
+			_ = client.Remove(tempPath)
+			return fmt.Errorf("upload file content: %w", copyErr)
+		}
+		if closeErr != nil {
+			_ = client.Remove(tempPath)
+			return fmt.Errorf("close remote temp file: %w", closeErr)
+		}
+		if err := commitRemoteTransferTemp(client, tempPath, targetPath, overwrite); err != nil {
+			_ = client.Remove(tempPath)
+			return err
 		}
 
 		result = model.FileTransferResult{
@@ -117,22 +131,28 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bo
 			mode = 0o644
 		}
 
-		targetFlags := os.O_CREATE | os.O_WRONLY
-		if overwrite {
-			targetFlags |= os.O_TRUNC
-		} else {
-			targetFlags |= os.O_EXCL
+		tempPath, err := localTransferTempPath(targetPath)
+		if err != nil {
+			return err
+		}
+		tempFile, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, mode)
+		if err != nil {
+			return fmt.Errorf("create local temp file: %w", err)
 		}
 
-		targetFile, err := os.OpenFile(targetPath, targetFlags, mode)
-		if err != nil {
-			return fmt.Errorf("create local file: %w", err)
+		written, copyErr := io.Copy(tempFile, sourceFile)
+		closeErr := tempFile.Close()
+		if copyErr != nil {
+			_ = os.Remove(tempPath)
+			return fmt.Errorf("download file content: %w", copyErr)
 		}
-		defer func() { _ = targetFile.Close() }()
-
-		written, err := io.Copy(targetFile, sourceFile)
-		if err != nil {
-			return fmt.Errorf("download file content: %w", err)
+		if closeErr != nil {
+			_ = os.Remove(tempPath)
+			return fmt.Errorf("close local temp file: %w", closeErr)
+		}
+		if err := commitLocalTransferTemp(tempPath, targetPath, overwrite); err != nil {
+			_ = os.Remove(tempPath)
+			return err
 		}
 
 		result = model.FileTransferResult{
@@ -148,6 +168,65 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bo
 	}
 
 	return result, nil
+}
+
+func remoteTransferTempPath(targetPath string) (string, error) {
+	id, err := newSessionID()
+	if err != nil {
+		return "", fmt.Errorf("create remote temp name: %w", err)
+	}
+	return pathpkg.Join(pathpkg.Dir(targetPath), "."+pathpkg.Base(targetPath)+".zenterm-"+id+".tmp"), nil
+}
+
+func commitRemoteTransferTemp(client sftpClient, tempPath, targetPath string, overwrite bool) error {
+	if !overwrite {
+		if err := client.Rename(tempPath, targetPath); err != nil {
+			return fmt.Errorf("commit remote file: %w", err)
+		}
+		return nil
+	}
+
+	if err := client.PosixRename(tempPath, targetPath); err == nil {
+		return nil
+	} else {
+		posixErr := err
+		if err := client.Rename(tempPath, targetPath); err == nil {
+			return nil
+		} else {
+			renameErr := err
+			if removeErr := client.Remove(targetPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				return fmt.Errorf("replace remote target: %w", errors.Join(posixErr, renameErr, removeErr))
+			}
+			if retryErr := client.Rename(tempPath, targetPath); retryErr != nil {
+				return fmt.Errorf("commit remote file after replace: %w", errors.Join(posixErr, renameErr, retryErr))
+			}
+			return nil
+		}
+	}
+}
+
+func localTransferTempPath(targetPath string) (string, error) {
+	id, err := newSessionID()
+	if err != nil {
+		return "", fmt.Errorf("create local temp name: %w", err)
+	}
+	return filepath.Join(filepath.Dir(targetPath), "."+filepath.Base(targetPath)+".zenterm-"+id+".tmp"), nil
+}
+
+func commitLocalTransferTemp(tempPath, targetPath string, overwrite bool) error {
+	if err := os.Rename(tempPath, targetPath); err != nil {
+		if !overwrite || runtime.GOOS != "windows" {
+			return fmt.Errorf("commit local file: %w", err)
+		}
+		// Windows 的 os.Rename 不能覆盖已存在文件；临时文件已完整写入后再退化为 remove+rename / on Windows os.Rename cannot replace an existing file; after the temp file is complete, fall back to remove+rename.
+		if removeErr := os.Remove(targetPath); removeErr != nil {
+			return fmt.Errorf("replace local target: %w", removeErr)
+		}
+		if retryErr := os.Rename(tempPath, targetPath); retryErr != nil {
+			return fmt.Errorf("commit local file after replace: %w", retryErr)
+		}
+	}
+	return nil
 }
 
 func (s *Service) withReusableSFTPClient(hostID string, run func(client sftpClient, remoteAddr string) error) error {

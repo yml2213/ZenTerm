@@ -51,6 +51,9 @@ interface HostKeyPromptInput {
   key?: string
   sha256?: string
   md5?: string
+  reason?: string
+  previousSHA256?: string
+  previousMD5?: string
 }
 
 
@@ -151,6 +154,7 @@ export function normalizeHostKeyPrompt(prompt: unknown): HostKeyPrompt | null {
   }
 
   const value = prompt as HostKeyPromptInput
+  const reason = value.reason === 'changed' ? 'changed' : 'first_seen'
 
   return {
     hostID: String(value.hostID || ''),
@@ -158,5 +162,8 @@ export function normalizeHostKeyPrompt(prompt: unknown): HostKeyPrompt | null {
     key: String(value.key || ''),
     sha256: String(value.sha256 || ''),
     md5: String(value.md5 || ''),
+    reason,
+    previousSHA256: value.previousSHA256 ? String(value.previousSHA256) : undefined,
+    previousMD5: value.previousMD5 ? String(value.previousMD5) : undefined,
   }
 }

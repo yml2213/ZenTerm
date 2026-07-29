@@ -179,7 +179,9 @@ type FileTransferResult struct {
 
 // AppPreferences 全局应用偏好 / global application preferences.
 type AppPreferences struct {
-	OpenInspectorOnStartup bool `json:"open_inspector_on_startup,omitempty"`
+	OpenInspectorOnStartup   bool `json:"open_inspector_on_startup,omitempty"`
+	RecordSessionTranscripts bool `json:"record_session_transcripts,omitempty"`
+	SessionLogRetentionLimit *int `json:"session_log_retention_limit,omitempty"`
 }
 
 // UpdateConfig 更新配置 / update configuration.
