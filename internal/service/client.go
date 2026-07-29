@@ -110,6 +110,10 @@ func (c *realSFTPClient) Rename(oldPath, newPath string) error {
 	return c.client.Rename(oldPath, newPath)
 }
 
+func (c *realSFTPClient) PosixRename(oldPath, newPath string) error {
+	return c.client.PosixRename(oldPath, newPath)
+}
+
 func (c *realSFTPClient) Remove(path string) error {
 	return c.client.Remove(path)
 }

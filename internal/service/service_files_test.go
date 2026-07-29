@@ -487,6 +487,128 @@ func TestDownloadFileOverwritesLocalFileWhenRequested(t *testing.T) {
 	}
 }
 
+func TestUploadFileRemovesRemoteTempFileWhenCopyFails(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-upload-fail", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	localPath := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(localPath, []byte("content that will fail"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/project": "/srv/project"},
+			dirs:      map[string][]os.FileInfo{"/srv/project": {}},
+			stats: map[string]os.FileInfo{
+				"/srv/project": stubFileInfo{name: "project", mode: os.ModeDir | 0o755, dir: true},
+			},
+			files:    map[string][]byte{},
+			writeErr: errors.New("remote write failed"),
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	if _, err := svc.UploadFile(host.ID, localPath, "/srv/project", false); err == nil {
+		t.Fatal("UploadFile() error = nil, want write failure")
+	}
+	if len(client.sftp.files) != 0 {
+		t.Fatalf("remote files after failed upload = %#v, want empty", client.sftp.files)
+	}
+}
+
+func TestDownloadFileKeepsExistingLocalFileWhenCopyFails(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-download-fail", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	content := []byte("replacement content")
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/app.log": "/srv/app.log"},
+			dirs:      map[string][]os.FileInfo{},
+			stats: map[string]os.FileInfo{
+				"/srv/app.log": stubFileInfo{name: "app.log", size: int64(len(content)), mode: 0o644},
+			},
+			files: map[string][]byte{
+				"/srv/app.log": content,
+			},
+			readErr: errors.New("remote read failed"),
+		},
+	}
+
+	downloadDir := filepath.Join(dir, "downloads")
+	if err := os.Mkdir(downloadDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	targetPath := filepath.Join(downloadDir, "app.log")
+	if err := os.WriteFile(targetPath, []byte("original"), 0o644); err != nil {
+		t.Fatalf("WriteFile() seed error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	if _, err := svc.DownloadFile(host.ID, "/srv/app.log", downloadDir, true); err == nil {
+		t.Fatal("DownloadFile() error = nil, want read failure")
+	}
+	downloaded, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(downloaded) != "original" {
+		t.Fatalf("local target after failed download = %q, want original", string(downloaded))
+	}
+	entries, err := os.ReadDir(downloadDir)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "app.log" {
+		t.Fatalf("download directory entries = %#v, want only app.log", entries)
+	}
+}
+
 // TestDeleteRemoteEntryDoesNotDeadlockOnWideTree 回归测试：根目录有 10 个子目录（超过 remoteDeleteWorkers=8），每个子目录含文件。
 // 旧实现里 goroutine 在派发前就占用一个令牌并跨整个子树持有，10 个 goroutine 立刻占满 8 个令牌，
 // 孙子文件的 client.Remove 也要获取令牌 → 与父层 wg.Wait() 互相死锁。新实现令牌只包具体 SFTP 操作，必须能在超时内完成。

@@ -26,6 +26,7 @@ var (
 	ErrSessionLogNotFound         = errors.New("session log not found")
 	ErrSessionTranscriptNotFound  = errors.New("session transcript not found")
 	ErrSessionTranscriptEncrypted = errors.New("session transcript content is encrypted")
+	ErrStoreCorrupt               = errors.New("store file is corrupt")
 	// ErrUnsupportedStoreVersion 表示存储文件版本高于当前代码支持的最高版本，拒绝降级解释以避免误读未来格式 / indicates the store file version exceeds what this build supports; we refuse to interpret it rather than silently misreading a future format.
 	ErrUnsupportedStoreVersion = errors.New("unsupported store version")
 )
@@ -122,14 +123,13 @@ func (s *Store) loadLocked() (fileData, error) {
 
 	var data fileData
 	if err := json.Unmarshal(bytes, &data); err != nil {
-		// 存储文件损坏：把坏字节隔离到 backups，返回空数据让应用以全新状态启动，避免一次坏字节永久锁死应用 / a corrupt store is quarantined to backups and the app boots into empty state, so one bad byte can't permanently lock the user out.
-		if qErr := s.quarantineCorruptLocked(bytes); qErr != nil {
-			s.invalidateCache()
-			return fileData{}, fmt.Errorf("decode store: %w (quarantine failed: %v)", err, qErr)
+		// 存储文件损坏：隔离坏字节并显式报错，避免 UI 静默进入“空数据”状态 / a corrupt store is quarantined and reported explicitly so the UI does not silently look like all data disappeared.
+		quarantinePath, qErr := s.quarantineCorruptLocked(bytes)
+		s.invalidateCache()
+		if qErr != nil {
+			return fileData{}, fmt.Errorf("%w: decode store: %v (quarantine failed: %v)", ErrStoreCorrupt, err, qErr)
 		}
-		data := emptyStoreData()
-		s.cacheFile(data)
-		return data, nil
+		return fileData{}, fmt.Errorf("%w: corrupt store moved to %s: %v", ErrStoreCorrupt, quarantinePath, err)
 	}
 
 	if data.Version == 0 {
@@ -167,6 +167,7 @@ func (s *Store) loadLocked() (fileData, error) {
 // cloneFileData 返回一份切片独立的 fileData 副本：顶层切片与每个 transcript 的 Chunks 切片都重新分配底层数组，元素值复制；元素内的 *Ciphertext 指针共享但不可变，安全 / returns a slice-independent copy of fileData: top-level slices and each transcript's Chunks slice get fresh backing arrays with element values copied; *Ciphertext pointers inside elements are shared but immutable, which is safe.
 func cloneFileData(src fileData) fileData {
 	dst := src
+	dst.AppPreferences = cloneAppPreferences(src.AppPreferences)
 	if src.Hosts != nil {
 		dst.Hosts = make([]hostEntry, len(src.Hosts))
 		copy(dst.Hosts, src.Hosts)
@@ -189,6 +190,15 @@ func cloneFileData(src fileData) fileData {
 				copy(dst.SessionTranscripts[i].Chunks, srcChunks)
 			}
 		}
+	}
+	return dst
+}
+
+func cloneAppPreferences(src model.AppPreferences) model.AppPreferences {
+	dst := src
+	if src.SessionLogRetentionLimit != nil {
+		limit := *src.SessionLogRetentionLimit
+		dst.SessionLogRetentionLimit = &limit
 	}
 	return dst
 }
@@ -218,26 +228,26 @@ func emptyStoreData() fileData {
 }
 
 // quarantineCorruptLocked 把损坏的存储内容隔离到 backups/config-corrupt-{ts}-{rand}.zen 并删除原文件，使下次 saveLocked 能正常写入新数据 / quarantines a corrupt store payload to backups/config-corrupt-{ts}-{rand}.zen and removes the original so the next saveLocked can write cleanly. 调用方必须已持有 s.mu。
-func (s *Store) quarantineCorruptLocked(corruptBytes []byte) error {
+func (s *Store) quarantineCorruptLocked(corruptBytes []byte) (string, error) {
 	backupDir := filepath.Join(filepath.Dir(s.path), "backups")
 	if err := os.MkdirAll(backupDir, 0o700); err != nil {
-		return fmt.Errorf("create quarantine directory: %w", err)
+		return "", fmt.Errorf("create quarantine directory: %w", err)
 	}
 
 	now := time.Now().UTC()
 	suffix := make([]byte, 4)
 	if _, err := cryptoRand.Read(suffix); err != nil {
-		return fmt.Errorf("generate quarantine suffix: %w", err)
+		return "", fmt.Errorf("generate quarantine suffix: %w", err)
 	}
 	quarantinePath := filepath.Join(backupDir, fmt.Sprintf("config-corrupt-%s-%s.zen", now.Format("20060102-150405.000000000"), hex.EncodeToString(suffix)))
 	if err := writeFileAtomic(quarantinePath, corruptBytes, 0o600); err != nil {
-		return fmt.Errorf("write quarantined store: %w", err)
+		return "", fmt.Errorf("write quarantined store: %w", err)
 	}
 
 	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove corrupt store: %w", err)
+		return "", fmt.Errorf("remove corrupt store: %w", err)
 	}
-	return nil
+	return quarantinePath, nil
 }
 func (s *Store) saveLocked(data fileData) error {
 	if data.Version == 0 {

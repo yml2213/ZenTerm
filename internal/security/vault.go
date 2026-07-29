@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -72,6 +73,9 @@ type Ciphertext struct {
 
 // Vault 使用主密码派生密钥，并在内存中处理敏感字符串加解密 / derives a key from the master password and encrypts sensitive strings in memory.
 type Vault struct {
+	mu       sync.RWMutex
+	readerMu sync.Mutex
+
 	params Argon2Params
 	reader io.Reader
 
@@ -89,11 +93,17 @@ func NewVault() *Vault {
 
 // Params 返回当前 Vault 使用的 KDF 参数，供持久化或诊断使用 / returns the KDF parameters currently configured on the vault, for persistence or diagnostics.
 func (v *Vault) Params() Argon2Params {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
 	return v.params
 }
 
 // SetParams 覆盖 KDF 参数；必须在 Unlock 之前调用，且参数会被 Sanitize 归一化以避免异常 KeyLen / overrides the KDF parameters; must be called before Unlock, and the params are sanitized to guard against an odd KeyLen.
 func (v *Vault) SetParams(params Argon2Params) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	v.params = params.Sanitize()
 }
 
@@ -120,7 +130,11 @@ func (v *Vault) Unlock(masterPassword string, salt []byte) error {
 		return ErrInvalidSalt
 	}
 
-	key := argon2.IDKey([]byte(masterPassword), salt, v.params.Time, v.params.Memory, v.params.Threads, v.params.KeyLen)
+	v.mu.RLock()
+	params := v.params
+	v.mu.RUnlock()
+
+	key := argon2.IDKey([]byte(masterPassword), salt, params.Time, params.Memory, params.Threads, params.KeyLen)
 	if len(key) != aesKeySize {
 		zeroBytes(key)
 		return ErrInvalidKeyLength
@@ -138,7 +152,12 @@ func (v *Vault) Unlock(masterPassword string, salt []byte) error {
 		return fmt.Errorf("create GCM cipher: %w", err)
 	}
 
-	v.Lock()
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if len(v.key) > 0 {
+		zeroBytes(v.key)
+	}
 	v.key = key
 	v.aead = aead
 
@@ -147,6 +166,9 @@ func (v *Vault) Unlock(masterPassword string, salt []byte) error {
 
 // Lock 清除 Vault 当前持有的派生密钥材料 / clears any derived key material held by the vault.
 func (v *Vault) Lock() {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	if len(v.key) > 0 {
 		zeroBytes(v.key)
 	}
@@ -156,6 +178,9 @@ func (v *Vault) Lock() {
 
 // IsUnlocked 返回当前 Vault 是否已经持有可用密钥 / reports whether the vault currently holds a usable derived key.
 func (v *Vault) IsUnlocked() bool {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
 	return v.aead != nil
 }
 
@@ -168,14 +193,20 @@ func (v *Vault) EncryptString(plaintext string) (Ciphertext, error) {
 // EncryptStringWithAAD 将明文与上下文 aad 绑定加密 / encrypts plaintext bound to a context AAD.
 // aad 标识同时写入返回的 Ciphertext.AAD 字段，供解密方识别格式；跨条目复制密文时 aad 不匹配会被 GCM 拒绝 / the aad tag is also stored in Ciphertext.AAD so decrypters can recognize the format; copying a ciphertext to another entry fails GCM verification because the aad won't match.
 func (v *Vault) EncryptStringWithAAD(plaintext string, aad []byte) (Ciphertext, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
 	if v.aead == nil {
 		return Ciphertext{}, ErrVaultLocked
 	}
 
 	nonce := make([]byte, gcmNonceLen)
+	v.readerMu.Lock()
 	if _, err := io.ReadFull(v.reader, nonce); err != nil {
+		v.readerMu.Unlock()
 		return Ciphertext{}, fmt.Errorf("generate nonce: %w", err)
 	}
+	v.readerMu.Unlock()
 
 	sealed := v.aead.Seal(nil, nonce, []byte(plaintext), aad)
 
@@ -198,6 +229,9 @@ func (v *Vault) DecryptString(payload Ciphertext) (string, error) {
 // DecryptStringWithAAD 用指定 aad 解密密文 / decrypts a payload with the given aad.
 // 旧格式密文（payload.AAD 为空）回退到 nil aad 解密以兼容已落盘数据；新格式密文必须 aad 匹配，否则 GCM 拒绝 / legacy payloads (empty AAD) fall back to nil-aad decryption for already-persisted data; new-format payloads require an exact aad match or GCM rejects them.
 func (v *Vault) DecryptStringWithAAD(payload Ciphertext, aad []byte) (string, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
 	if v.aead == nil {
 		return "", ErrVaultLocked
 	}

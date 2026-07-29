@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"path/filepath"
@@ -12,7 +13,21 @@ import (
 	"zenterm/internal/db"
 	"zenterm/internal/model"
 	"zenterm/internal/security"
+
+	"golang.org/x/crypto/ssh"
 )
+
+func enableSessionTranscriptRecording(t *testing.T, store *db.Store) {
+	t.Helper()
+	prefs, err := store.GetAppPreferences()
+	if err != nil {
+		t.Fatalf("GetAppPreferences() error = %v", err)
+	}
+	prefs.RecordSessionTranscripts = true
+	if err := store.SaveAppPreferences(prefs); err != nil {
+		t.Fatalf("SaveAppPreferences() error = %v", err)
+	}
+}
 
 func TestConnectCreatesManagedSession(t *testing.T) {
 	dir := t.TempDir()
@@ -170,6 +185,7 @@ func TestConnectRecordsEncryptedTerminalTranscript(t *testing.T) {
 	if err := vault.Unlock("master-password", salt); err != nil {
 		t.Fatalf("Unlock() error = %v", err)
 	}
+	enableSessionTranscriptRecording(t, store)
 
 	host := model.Host{ID: "host-transcript", Address: "example.com", Port: 22, Username: "zen"}
 	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
@@ -216,6 +232,55 @@ func TestConnectRecordsEncryptedTerminalTranscript(t *testing.T) {
 	}
 }
 
+func TestConnectDoesNotRecordTerminalTranscriptByDefault(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-transcript-off", Address: "example.com", Port: 22, Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		session: &stubSSHSession{
+			stdout: io.NopCloser(strings.NewReader("private terminal output\n")),
+		},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	sessionID, err := svc.Connect(host.ID)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer func() { _ = svc.Disconnect(sessionID) }()
+
+	logs, err := store.ListSessionLogs(10)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want 1", len(logs))
+	}
+	if _, err := svc.GetSessionTranscript(logs[0].ID); !errors.Is(err, db.ErrSessionTranscriptNotFound) {
+		t.Fatalf("GetSessionTranscript() error = %v, want %v", err, db.ErrSessionTranscriptNotFound)
+	}
+}
+
 func TestGetSessionTranscriptFlushesBufferedOutput(t *testing.T) {
 	dir := t.TempDir()
 	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
@@ -231,6 +296,7 @@ func TestGetSessionTranscriptFlushesBufferedOutput(t *testing.T) {
 	if err := vault.Unlock("master-password", salt); err != nil {
 		t.Fatalf("Unlock() error = %v", err)
 	}
+	enableSessionTranscriptRecording(t, store)
 
 	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
 	if err != nil {
@@ -283,6 +349,7 @@ func TestAppendSessionTranscriptFlushesImmediatelyWhenBufferLimitReached(t *test
 	if err := vault.Unlock("master-password", salt); err != nil {
 		t.Fatalf("Unlock() error = %v", err)
 	}
+	enableSessionTranscriptRecording(t, store)
 
 	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
 	if err != nil {
@@ -313,6 +380,61 @@ func TestAppendSessionTranscriptFlushesImmediatelyWhenBufferLimitReached(t *test
 	}
 	if transcript.Content != largeChunk {
 		t.Fatalf("SessionTranscript.Content length = %d, want %d", len(transcript.Content), len(largeChunk))
+	}
+}
+
+func TestFlushSessionTranscriptRetainsBufferOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	enableSessionTranscriptRecording(t, store)
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+	svc.transcriptDelay = time.Hour
+
+	log := model.SessionLog{
+		ID:          "log-flush-retry",
+		HostID:      "host-buffered",
+		HostAddress: "example.com",
+		HostPort:    22,
+		SSHUsername: "zen",
+		Protocol:    sessionLogProtocolSSH,
+		Status:      model.SessionLogStatusActive,
+		StartedAt:   time.Now().UTC(),
+	}
+	if err := store.CreateSessionLog(log); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+
+	svc.appendSessionTranscript(log.ID, "session-buffered", "kept after failure")
+	vault.Lock()
+	if err := svc.flushSessionTranscript(log.ID); !errors.Is(err, security.ErrVaultLocked) {
+		t.Fatalf("flushSessionTranscript() error = %v, want %v", err, security.ErrVaultLocked)
+	}
+
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() retry error = %v", err)
+	}
+	transcript, err := svc.GetSessionTranscript(log.ID)
+	if err != nil {
+		t.Fatalf("GetSessionTranscript() error = %v", err)
+	}
+	if transcript.Content != "kept after failure" {
+		t.Fatalf("SessionTranscript.Content = %q, want preserved buffer", transcript.Content)
 	}
 }
 
@@ -361,6 +483,91 @@ func TestListSessionLogsClosesStaleActiveLog(t *testing.T) {
 	}
 	if logs[0].DurationMillis <= 0 {
 		t.Fatalf("SessionLog.DurationMillis = %d, want positive", logs[0].DurationMillis)
+	}
+}
+
+func TestListSessionLogsPrunesDefaultRetentionLimit(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, security.NewVault(), &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	startedAt := time.Now().UTC().Add(-time.Hour)
+	for i := 0; i < defaultSessionLogRetentionLimit+1; i++ {
+		log := model.SessionLog{
+			ID:          fmt.Sprintf("log-%03d", i),
+			HostID:      "host-retention",
+			HostAddress: "example.com",
+			HostPort:    22,
+			SSHUsername: "zen",
+			Protocol:    sessionLogProtocolSSH,
+			Status:      model.SessionLogStatusClosed,
+			StartedAt:   startedAt.Add(time.Duration(i) * time.Second),
+			EndedAt:     startedAt.Add(time.Duration(i+1) * time.Second),
+		}
+		if err := store.CreateSessionLog(log); err != nil {
+			t.Fatalf("CreateSessionLog(%d) error = %v", i, err)
+		}
+	}
+
+	logs, err := svc.ListSessionLogs(0)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != defaultSessionLogRetentionLimit {
+		t.Fatalf("len(ListSessionLogs()) = %d, want %d", len(logs), defaultSessionLogRetentionLimit)
+	}
+	if _, err := store.GetSessionLog("log-000"); !errors.Is(err, db.ErrSessionLogNotFound) {
+		t.Fatalf("GetSessionLog(oldest) error = %v, want %v", err, db.ErrSessionLogNotFound)
+	}
+}
+
+func TestListSessionLogsKeepsAllWhenRetentionLimitIsZero(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	limit := 0
+	if err := store.SaveAppPreferences(model.AppPreferences{SessionLogRetentionLimit: &limit}); err != nil {
+		t.Fatalf("SaveAppPreferences() error = %v", err)
+	}
+	svc, err := newWithDialer(store, security.NewVault(), &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	startedAt := time.Now().UTC().Add(-time.Hour)
+	for i := 0; i < defaultSessionLogRetentionLimit+1; i++ {
+		log := model.SessionLog{
+			ID:          fmt.Sprintf("log-keep-%03d", i),
+			HostID:      "host-retention",
+			HostAddress: "example.com",
+			HostPort:    22,
+			SSHUsername: "zen",
+			Protocol:    sessionLogProtocolSSH,
+			Status:      model.SessionLogStatusClosed,
+			StartedAt:   startedAt.Add(time.Duration(i) * time.Second),
+			EndedAt:     startedAt.Add(time.Duration(i+1) * time.Second),
+		}
+		if err := store.CreateSessionLog(log); err != nil {
+			t.Fatalf("CreateSessionLog(%d) error = %v", i, err)
+		}
+	}
+
+	logs, err := svc.ListSessionLogs(0)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != defaultSessionLogRetentionLimit+1 {
+		t.Fatalf("len(ListSessionLogs()) = %d, want %d", len(logs), defaultSessionLogRetentionLimit+1)
 	}
 }
 
@@ -1063,6 +1270,88 @@ func TestHostKeyCallbackAcceptPersistsKnownHost(t *testing.T) {
 	trustedCallback := svc.hostKeyCallback(updatedHost)
 	if err := trustedCallback(host.Address, nil, remoteKey); err != nil {
 		t.Fatalf("hostKeyCallback() with trusted key error = %v", err)
+	}
+}
+
+func TestHostKeyCallbackAcceptReplacesChangedKnownHost(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	oldKey := newTestPublicKey(t)
+	oldKnownHost := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(oldKey)))
+	host := model.Host{ID: "host-key-changed", Address: "example.com", Username: "zen", KnownHosts: oldKnownHost}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	newKey := newTestPublicKey(t)
+	callback := svc.hostKeyCallback(host)
+
+	promptCh := make(chan HostKeyPrompt, 1)
+	svc.SetEventEmitter(func(event string, payload any) {
+		if event == "ssh:host-key:confirm" {
+			promptCh <- payload.(HostKeyPrompt)
+		}
+	})
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- callback(host.Address, nil, newKey)
+	}()
+
+	var prompt HostKeyPrompt
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive host key prompt")
+	}
+
+	if prompt.Reason != hostKeyPromptReasonChanged {
+		t.Fatalf("prompt.Reason = %q, want %q", prompt.Reason, hostKeyPromptReasonChanged)
+	}
+	if prompt.PreviousSHA256 != ssh.FingerprintSHA256(oldKey) || prompt.PreviousMD5 != md5Fingerprint(oldKey) {
+		t.Fatalf("prompt previous fingerprints = %q/%q, want old key fingerprints", prompt.PreviousSHA256, prompt.PreviousMD5)
+	}
+
+	if err := svc.AcceptHostKey(host.ID, prompt.Key); err != nil {
+		t.Fatalf("AcceptHostKey() error = %v", err)
+	}
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("hostKeyCallback() error = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("hostKeyCallback() did not resume after accept")
+	}
+
+	updatedHost, err := store.GetHost(host.ID)
+	if err != nil {
+		t.Fatalf("GetHost() error = %v", err)
+	}
+	if strings.Contains(updatedHost.KnownHosts, oldKnownHost) {
+		t.Fatalf("GetHost().KnownHosts still contains old key %q", updatedHost.KnownHosts)
+	}
+	if !strings.Contains(updatedHost.KnownHosts, prompt.Key) {
+		t.Fatalf("GetHost().KnownHosts = %q, want new key %q", updatedHost.KnownHosts, prompt.Key)
 	}
 }
 

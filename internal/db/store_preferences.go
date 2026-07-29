@@ -19,7 +19,7 @@ func (s *Store) GetAppPreferences() (model.AppPreferences, error) {
 		return model.AppPreferences{}, fmt.Errorf("load store: %w", err)
 	}
 
-	return data.AppPreferences, nil
+	return cloneAppPreferences(data.AppPreferences), nil
 }
 
 // SaveAppPreferences 保存全局应用偏好 / saves global application preferences.
@@ -32,7 +32,7 @@ func (s *Store) SaveAppPreferences(prefs model.AppPreferences) error {
 		return fmt.Errorf("load store: %w", err)
 	}
 
-	data.AppPreferences = prefs
+	data.AppPreferences = cloneAppPreferences(prefs)
 
 	if err := s.saveLocked(data); err != nil {
 		return fmt.Errorf("save store: %w", err)

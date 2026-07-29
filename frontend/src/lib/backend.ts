@@ -695,6 +695,8 @@ export async function openStoreDirectory(): Promise<void> {
 
 export interface AppPreferences {
   open_inspector_on_startup?: boolean;
+  record_session_transcripts?: boolean;
+  session_log_retention_limit?: number;
 }
 
 export async function getAppPreferences(): Promise<AppPreferences> {

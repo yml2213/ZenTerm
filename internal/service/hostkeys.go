@@ -35,7 +35,11 @@ func (s *Service) AcceptHostKey(hostID, key string) error {
 		return err
 	}
 
-	if err := s.store.UpdateKnownHosts(hostID, mergeKnownHosts(host.KnownHosts, pending.key)); err != nil {
+	knownHosts := mergeKnownHosts(host.KnownHosts, pending.key)
+	if pending.reason == hostKeyPromptReasonChanged {
+		knownHosts = replaceKnownHosts(pending.key)
+	}
+	if err := s.store.UpdateKnownHosts(hostID, knownHosts); err != nil {
 		pending.respond(false)
 		return err
 	}
@@ -67,12 +71,16 @@ func (s *Service) hostKeyCallback(host model.Host) ssh.HostKeyCallback {
 			return nil
 		}
 
+		reason, previous := hostKeyPromptState(host.KnownHosts)
 		prompt := HostKeyPrompt{
-			HostID:     host.ID,
-			RemoteAddr: remoteAddressString(remote, hostname),
-			Key:        strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))),
-			SHA256:     ssh.FingerprintSHA256(key),
-			MD5:        md5Fingerprint(key),
+			HostID:         host.ID,
+			RemoteAddr:     remoteAddressString(remote, hostname),
+			Key:            strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))),
+			SHA256:         ssh.FingerprintSHA256(key),
+			MD5:            md5Fingerprint(key),
+			Reason:         reason,
+			PreviousSHA256: previous.sha256,
+			PreviousMD5:    previous.md5,
 		}
 
 		pending, err := s.registerHostKeyConfirmation(prompt)
@@ -106,6 +114,7 @@ func (s *Service) registerHostKeyConfirmation(prompt HostKeyPrompt) (*pendingHos
 	pending := &pendingHostKeyConfirmation{
 		hostID: prompt.HostID,
 		key:    prompt.Key,
+		reason: prompt.Reason,
 		result: make(chan bool, 1),
 	}
 	s.pendingHostKeys[prompt.HostID] = pending
@@ -162,6 +171,35 @@ func mergeKnownHosts(knownHosts, key string) string {
 	}
 
 	return strings.TrimSpace(knownHosts) + "\n" + key
+}
+
+func replaceKnownHosts(key string) string {
+	return strings.TrimSpace(key)
+}
+
+type knownHostFingerprint struct {
+	sha256 string
+	md5    string
+}
+
+func hostKeyPromptState(knownHosts string) (string, knownHostFingerprint) {
+	for _, line := range strings.Split(knownHosts, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parsed, _, _, _, err := ssh.ParseAuthorizedKey([]byte(line))
+		if err != nil {
+			continue
+		}
+		return hostKeyPromptReasonChanged, knownHostFingerprint{
+			sha256: ssh.FingerprintSHA256(parsed),
+			md5:    md5Fingerprint(parsed),
+		}
+	}
+
+	return hostKeyPromptReasonFirstSeen, knownHostFingerprint{}
 }
 
 func remoteAddressString(remote net.Addr, fallback string) string {

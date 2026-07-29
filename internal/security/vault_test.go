@@ -1,6 +1,10 @@
 package security
 
-import "testing"
+import (
+	"errors"
+	"sync"
+	"testing"
+)
 
 func TestVaultEncryptDecryptRoundTrip(t *testing.T) {
 	vault := NewVault()
@@ -168,5 +172,62 @@ func TestVaultSetParamsPersistsAcrossUnlock(t *testing.T) {
 	}
 	if got != "secret" {
 		t.Fatalf("DecryptString() = %q, want %q", got, "secret")
+	}
+}
+
+func TestVaultConcurrentAccessIsRaceSafe(t *testing.T) {
+	salt, err := NewSalt(16)
+	if err != nil {
+		t.Fatalf("NewSalt() error = %v", err)
+	}
+
+	vault := NewVault()
+	vault.SetParams(Argon2Params{Time: 1, Memory: 1024, Threads: 1, KeyLen: aesKeySize})
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	payload, err := vault.EncryptStringWithAAD("secret", []byte("ctx"))
+	if err != nil {
+		t.Fatalf("EncryptStringWithAAD() error = %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 32)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				_ = vault.Params()
+				_ = vault.IsUnlocked()
+				if _, err := vault.EncryptStringWithAAD("value", []byte("ctx")); err != nil && !errors.Is(err, ErrVaultLocked) {
+					errCh <- err
+					return
+				}
+				if _, err := vault.DecryptStringWithAAD(payload, []byte("ctx")); err != nil && !errors.Is(err, ErrVaultLocked) {
+					errCh <- err
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			vault.Lock()
+			if err := vault.Unlock("master-password", salt); err != nil {
+				errCh <- err
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Fatalf("concurrent vault operation error = %v", err)
 	}
 }

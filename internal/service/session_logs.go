@@ -6,14 +6,20 @@ import (
 	"strings"
 	"time"
 
+	"zenterm/internal/db"
 	"zenterm/internal/model"
 )
 
 const sessionLogProtocolSSH = "ssh"
 
+const defaultSessionLogRetentionLimit = 200
+
 // ListSessionLogs 返回连接历史记录 / returns connection history records.
 func (s *Service) ListSessionLogs(limit int) ([]model.SessionLog, error) {
 	if err := s.reconcileActiveSessionLogs(); err != nil {
+		return nil, err
+	}
+	if err := s.pruneSessionLogsByPreferences(); err != nil {
 		return nil, err
 	}
 
@@ -88,6 +94,9 @@ func (s *Service) appendSessionTranscript(logID, sessionID, chunk string) {
 	if logID == "" || chunk == "" {
 		return
 	}
+	if !s.shouldRecordSessionTranscripts() {
+		return
+	}
 
 	s.enqueueSessionTranscript(logID, sessionID, chunk)
 }
@@ -148,7 +157,9 @@ func (s *Service) flushSessionTranscript(logID string) error {
 	}
 
 	sessionID := pending.sessionID
-	chunk := strings.Join(pending.chunks, "")
+	chunks := append([]string(nil), pending.chunks...)
+	sizeBytes := pending.sizeBytes
+	chunk := strings.Join(chunks, "")
 	if pending.timer != nil {
 		pending.timer.Stop()
 		pending.timer = nil
@@ -156,7 +167,39 @@ func (s *Service) flushSessionTranscript(logID string) error {
 	delete(s.transcripts, logID)
 	s.transcriptMu.Unlock()
 
-	return s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault)
+	if err := s.store.AppendSessionTranscript(logID, sessionID, chunk, s.vault); err != nil {
+		if errors.Is(err, db.ErrSessionLogNotFound) {
+			return err
+		}
+		s.restoreSessionTranscript(logID, sessionID, chunks, sizeBytes)
+		return err
+	}
+	return nil
+}
+
+func (s *Service) restoreSessionTranscript(logID, sessionID string, chunks []string, sizeBytes int) {
+	if logID == "" || len(chunks) == 0 {
+		return
+	}
+
+	s.transcriptMu.Lock()
+	defer s.transcriptMu.Unlock()
+
+	pending := s.transcripts[logID]
+	if pending == nil {
+		pending = &pendingTranscript{}
+		s.transcripts[logID] = pending
+	}
+	if sessionID != "" {
+		pending.sessionID = sessionID
+	}
+	pending.chunks = append(append([]string(nil), chunks...), pending.chunks...)
+	pending.sizeBytes += sizeBytes
+	if pending.timer == nil {
+		pending.timer = time.AfterFunc(s.transcriptDelay, func() {
+			_ = s.flushSessionTranscript(logID)
+		})
+	}
 }
 
 func (s *Service) flushAllSessionTranscripts() error {
@@ -221,7 +264,34 @@ func (s *Service) finishSessionLog(log model.SessionLog, status, errorMessage st
 	log.EndedAt = endedAt
 	log.DurationMillis = durationMillis(log.StartedAt, endedAt)
 	log.ErrorMessage = sanitizeSessionLogError(errorMessage)
-	return s.store.UpdateSessionLog(log)
+	if err := s.store.UpdateSessionLog(log); err != nil {
+		return err
+	}
+	return s.pruneSessionLogsByPreferences()
+}
+
+func (s *Service) shouldRecordSessionTranscripts() bool {
+	prefs, err := s.store.GetAppPreferences()
+	if err != nil {
+		return false
+	}
+	return prefs.RecordSessionTranscripts
+}
+
+func (s *Service) pruneSessionLogsByPreferences() error {
+	prefs, err := s.store.GetAppPreferences()
+	if err != nil {
+		return err
+	}
+	limit := prefs.SessionLogRetentionLimit
+	if limit == nil {
+		defaultLimit := defaultSessionLogRetentionLimit
+		limit = &defaultLimit
+	}
+	if *limit <= 0 {
+		return nil
+	}
+	return s.store.PruneSessionLogs(*limit)
 }
 
 func statusForConnectError(err error) string {

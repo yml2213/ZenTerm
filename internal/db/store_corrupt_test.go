@@ -9,7 +9,7 @@ import (
 	"zenterm/internal/model"
 )
 
-// TestStoreLoadLockedQuarantinesCorruptFile 验证：存储文件 JSON 损坏时，loadLocked 将坏字节隔离到 backups 并返回空数据，应用可正常启动而非永久锁死 / verifies that a corrupt store payload is quarantined to backups and loadLocked returns empty data so the app can boot instead of being permanently locked out.
+// TestStoreLoadLockedQuarantinesCorruptFile 验证：存储文件 JSON 损坏时，loadLocked 将坏字节隔离到 backups 并显式报错，避免 UI 静默显示空数据 / verifies that a corrupt store payload is quarantined to backups and loadLocked returns an explicit error instead of silently showing empty data.
 func TestStoreLoadLockedQuarantinesCorruptFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.zen")
@@ -25,13 +25,10 @@ func TestStoreLoadLockedQuarantinesCorruptFile(t *testing.T) {
 		t.Fatalf("NewStore() error = %v", err)
 	}
 
-	// 通过 GetHosts 触发 loadLocked；应返回空数据而非错误
-	hosts, err := store.GetHosts()
-	if err != nil {
-		t.Fatalf("GetHosts() on corrupt store err = %v, want nil (self-heal)", err)
-	}
-	if len(hosts) != 0 {
-		t.Fatalf("len(hosts) = %d, want 0 after self-heal", len(hosts))
+	// 通过 GetHosts 触发 loadLocked；应显式提示损坏，而不是静默返回空数据
+	_, err = store.GetHosts()
+	if !errors.Is(err, ErrStoreCorrupt) {
+		t.Fatalf("GetHosts() on corrupt store err = %v, want %v", err, ErrStoreCorrupt)
 	}
 
 	// 原损坏文件应已被移除
@@ -56,7 +53,7 @@ func TestStoreLoadLockedQuarantinesCorruptFile(t *testing.T) {
 		t.Fatalf("quarantined content = %q, want %q", got, corrupt)
 	}
 
-	// 后续应能正常写入新数据
+	// 后续应能正常写入新数据：坏文件已移走，但第一次调用已经明确报错
 	if err := store.CreateSessionLog(model.SessionLog{
 		ID: "log-after-heal", HostID: "h", HostAddress: "10.0.0.1", HostPort: 22,
 		SSHUsername: "root", Protocol: "ssh", Status: model.SessionLogStatusClosed,
