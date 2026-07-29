@@ -669,11 +669,14 @@
   position: fixed;
   z-index: 50;
   min-width: 156px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   padding: 0.35rem;
   border: 1px solid var(--border-default);
   border-radius: 13px;
   background: var(--panel-bg-strong);
   box-shadow: 0 18px 42px rgba(21, 31, 44, 0.16);
+  overflow: auto;
 }
 
 .host-context-menu button {

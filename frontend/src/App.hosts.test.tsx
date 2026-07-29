@@ -33,6 +33,62 @@ describe('App host management', () => {
     expect(writeText).toHaveBeenCalledWith('root@10.0.0.1:22')
   })
 
+  it('主机右键菜单靠近窗口边缘时保持在视口内', async () => {
+    const user = userEvent.setup()
+    const originalInnerWidth = window.innerWidth
+    const originalInnerHeight = window.innerHeight
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if (this instanceof HTMLElement && this.classList.contains('host-context-menu')) {
+        return {
+          x: 0,
+          y: 0,
+          left: 0,
+          top: 0,
+          width: 176,
+          height: 220,
+          right: 176,
+          bottom: 220,
+          toJSON: () => ({}),
+        }
+      }
+
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        right: 0,
+        bottom: 0,
+        toJSON: () => ({}),
+      }
+    })
+
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 240 })
+
+    try {
+      renderApp()
+
+      await continueWithMasterPassword(user)
+
+      fireEvent.contextMenu(screen.getByRole('button', { name: /Alpha.*root@10\.0\.0\.1:22/ }), {
+        clientX: 350,
+        clientY: 230,
+      })
+
+      const menu = await screen.findByRole('menu')
+      await waitFor(() => {
+        expect(menu).toHaveStyle({ left: '168px', top: '12px', visibility: 'visible' })
+      })
+    } finally {
+      rectSpy.mockRestore()
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth })
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInnerHeight })
+    }
+  })
+
   it('主机页支持按收藏、分组和标签筛选', async () => {
     const user = userEvent.setup()
     renderApp()
