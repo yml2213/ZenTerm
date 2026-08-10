@@ -4,6 +4,7 @@ import {
   MonitorSmartphone,
   Plus,
   Server,
+  X,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import FilePane from './components/FilePane'
@@ -22,7 +23,7 @@ import {
   splitRemotePath,
   type ContextMenuState,
 } from './sftpUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
 
@@ -106,6 +107,7 @@ export default function SftpWorkspace({
     executeTransfer,
     handleUpload,
     handleDownload,
+	  handleCancelTransfer,
   } = useSftpTransfer({
     selectedHost,
     localListing,
@@ -215,9 +217,18 @@ export default function SftpWorkspace({
 
   return (
     <section className="sftp-shell" aria-label="SFTP 工作区">
-      {notice?.message ? (
+      {transferBusy || notice?.message ? (
         <div className="sftp-transfer-banner">
-          <span className={`pill ${notice.tone || 'success'}`} aria-live="polite">{notice.message}</span>
+          {transferBusy ? (
+            <>
+              <span className="pill subtle" aria-live="polite">正在{transferBusy === 'upload' ? '上传文件' : '下载文件'}...</span>
+              <button type="button" className="sftp-transfer-cancel" onClick={handleCancelTransfer} aria-label="取消文件传输" title="取消文件传输">
+                <X size={15} />
+              </button>
+            </>
+          ) : (
+            <span className={`pill ${notice?.tone || 'success'}`} aria-live="polite">{notice?.message}</span>
+          )}
         </div>
       ) : null}
 

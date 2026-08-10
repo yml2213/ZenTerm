@@ -8,7 +8,7 @@ import {
 } from '@/lib/backend'
 import { buildSessionTabs, normalizeHostKeyPrompt } from '@/lib/appSessionUtils'
 import { withDemoHosts } from '@/features/hosts/appHostUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
 import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 

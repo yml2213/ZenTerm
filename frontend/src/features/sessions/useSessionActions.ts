@@ -2,6 +2,7 @@ import { startTransition } from 'react'
 import { buildOptimisticSessionTab, buildSessionTabs } from '@/lib/appSessionUtils'
 import {
   acceptHostKey,
+  cancelConnect,
   connect,
   disconnect,
   listHosts,
@@ -11,7 +12,7 @@ import {
   sendInput,
 } from '@/lib/backend'
 import { isDemoHost, toUserMessage, withDemoHosts } from '@/features/hosts/appHostUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { HostKeyPrompt } from './sessionTypes'
 import type { SessionTab, WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
@@ -154,6 +155,10 @@ export function useSessionActions({
       })
   }
 
+  function handleCancelConnect(hostID: string) {
+    cancelConnect(hostID).catch((err) => setError(toUserMessage(err)))
+  }
+
   function handleCloseTab(sessionID: string) {
     disconnect(sessionID)
       .then(() => {
@@ -204,6 +209,7 @@ export function useSessionActions({
   return {
     syncHostsSessions,
     handleConnect,
+    handleCancelConnect,
     handleCloseTab,
     handleSessionClosed,
     handleSendInput,

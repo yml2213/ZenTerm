@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	cryptorand "crypto/rand"
 	"io"
@@ -14,6 +15,18 @@ import (
 
 	"golang.org/x/crypto/ssh"
 )
+
+func TestCancelConnectionCancelsRegisteredHost(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	svc := &Service{connectCancels: map[string]context.CancelFunc{"host-1": cancel}}
+
+	svc.CancelConnection("host-1")
+	select {
+	case <-ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("CancelConnection() did not cancel the registered host")
+	}
+}
 
 func newTestPublicKey(t *testing.T) ssh.PublicKey {
 	t.Helper()

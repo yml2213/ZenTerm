@@ -16,6 +16,10 @@ import (
 const (
 	aesKeySize  = 32
 	gcmNonceLen = 12
+	// Argon2 参数按 KiB 计；上限防止损坏或恶意配置耗尽本机资源。
+	maxArgon2Time    = 10
+	maxArgon2Memory  = 256 * 1024
+	maxArgon2Threads = 16
 )
 
 var (
@@ -24,6 +28,7 @@ var (
 	ErrInvalidMasterPassword = errors.New("invalid master password")
 	ErrInvalidSalt           = errors.New("salt must be at least 16 bytes")
 	ErrInvalidKeyLength      = errors.New("derived key must be 32 bytes")
+	ErrInvalidArgon2Params   = errors.New("argon2 parameters are outside supported limits")
 )
 
 // Argon2Params 控制如何将主密码拉伸为 AES 密钥 / controls how the master password is stretched into an AES key.
@@ -63,6 +68,15 @@ func (p Argon2Params) Sanitize() Argon2Params {
 	return p
 }
 
+// ValidateArgon2Params 归一化历史零值后拒绝超过应用资源边界的 KDF 参数。
+func ValidateArgon2Params(params Argon2Params) (Argon2Params, error) {
+	sanitized := params.Sanitize()
+	if sanitized.Time > maxArgon2Time || sanitized.Memory > maxArgon2Memory || sanitized.Threads > maxArgon2Threads {
+		return Argon2Params{}, ErrInvalidArgon2Params
+	}
+	return sanitized, nil
+}
+
 // Ciphertext 表示自包含的密文载荷，字段使用 base64 编码 / stores a self-contained encrypted payload with base64-encoded fields.
 // AAD 字段记录加密时绑定的上下文标识（如 "zenterm:host:<id>:password"）；GCM 完整性保证该字段不可被篡改，解密时用于区分带上下文的新格式与无 AAD 的旧格式 / the AAD field records the context tag bound at encryption time (e.g. "zenterm:host:<id>:password"); GCM integrity protects it from tampering, and it distinguishes the new context-bound format from legacy no-AAD payloads during decryption.
 type Ciphertext struct {
@@ -99,12 +113,18 @@ func (v *Vault) Params() Argon2Params {
 	return v.params
 }
 
-// SetParams 覆盖 KDF 参数；必须在 Unlock 之前调用，且参数会被 Sanitize 归一化以避免异常 KeyLen / overrides the KDF parameters; must be called before Unlock, and the params are sanitized to guard against an odd KeyLen.
-func (v *Vault) SetParams(params Argon2Params) {
+// SetParams 覆盖 KDF 参数；必须在 Unlock 前调用，零值会归一化，超出资源边界的参数会被拒绝。
+func (v *Vault) SetParams(params Argon2Params) error {
+	sanitized, err := ValidateArgon2Params(params)
+	if err != nil {
+		return err
+	}
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.params = params.Sanitize()
+	v.params = sanitized
+	return nil
 }
 
 // NewSalt 生成用于 Argon2id 的随机盐值 / creates a random salt for Argon2id.

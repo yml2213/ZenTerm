@@ -6,7 +6,7 @@ import SftpWorkspacePage from '@/features/sftp/SftpWorkspacePage'
 import SshWorkspace from '@/features/sessions/components/SshWorkspace'
 import VaultWorkspace from '@/features/vault/components/VaultWorkspace'
 import { navigationItems } from '@/features/app/appShellConfig'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { HostFormModel } from '@/features/hosts/hostFormModel'
 import type { ChangeMasterForm } from '@/features/vault/vaultTypes'
 import type { SessionTab, WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
@@ -33,6 +33,7 @@ export interface AppWorkspaceActions {
   onCreateHost: () => void
   onSelectHost: (id: string) => void
   onConnectHost: (id: string) => void
+  onCancelConnectHost: (id: string) => void
   onEditHost: (host: cmd.Host) => void
   onDeleteHost: (host: cmd.Host) => void
   onCopyHostAddress: (host: cmd.Host) => void
@@ -246,6 +247,7 @@ export default function AppWorkspaces({
           connectingHostIds={connectingHostIds}
           onSelectHost={actions.onSelectHost}
           onConnectHost={actions.onConnectHost}
+          onCancelConnectHost={actions.onCancelConnectHost}
           onEditHost={actions.onEditHost}
           onDeleteHost={actions.onDeleteHost}
           onCopyHostAddress={actions.onCopyHostAddress}

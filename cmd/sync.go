@@ -18,6 +18,8 @@ const (
 	syncOperationTimeout  = 45 * time.Second
 )
 
+var ErrWebDAVSyncInProgress = errors.New("webdav sync operation is already in progress")
+
 type WebDAVSyncConfig struct {
 	URL        string `json:"url"`
 	Username   string `json:"username"`
@@ -56,6 +58,12 @@ func (a *App) GetWebDAVSyncStatus() (syncer.Status, error) {
 
 // TestWebDAVSync 测试当前 WebDAV 配置与远端路径 / tests current WebDAV settings and remote path.
 func (a *App) TestWebDAVSync(config WebDAVSyncConfig) (syncer.TestResult, error) {
+	ctx, finish, err := a.beginWebDAVSyncOperation()
+	if err != nil {
+		return syncer.TestResult{}, normalizeFrontendError(err)
+	}
+	defer finish()
+
 	password := strings.TrimSpace(config.Password)
 	if password == "" {
 		savedPassword, err := loadWebDAVSyncPassword()
@@ -64,9 +72,6 @@ func (a *App) TestWebDAVSync(config WebDAVSyncConfig) (syncer.TestResult, error)
 		}
 		password = savedPassword
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), syncOperationTimeout)
-	defer cancel()
 
 	provider, err := syncer.NewWebDAVProvider(syncer.WebDAVConfig{
 		URL:        config.URL,
@@ -87,6 +92,12 @@ func (a *App) TestWebDAVSync(config WebDAVSyncConfig) (syncer.TestResult, error)
 // PushWebDAVSync 将本机同步快照上传到 WebDAV；overwrite 为 false 时会做 ETag 冲突保护。
 // PushWebDAVSync uploads the local sync snapshot to WebDAV with ETag conflict protection unless overwrite is true.
 func (a *App) PushWebDAVSync(overwrite bool) (syncer.Result, error) {
+	ctx, finish, err := a.beginWebDAVSyncOperation()
+	if err != nil {
+		return syncer.Result{}, normalizeFrontendError(err)
+	}
+	defer finish()
+
 	manager := a.syncManager()
 	state, err := manager.Load()
 	if err != nil {
@@ -100,9 +111,6 @@ func (a *App) PushWebDAVSync(overwrite bool) (syncer.Result, error) {
 	if err != nil {
 		return syncer.Result{}, normalizeFrontendError(err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), syncOperationTimeout)
-	defer cancel()
 
 	provider, err := syncer.NewWebDAVProvider(state.WebDAV, password)
 	if err != nil {
@@ -154,6 +162,12 @@ func (a *App) PushWebDAVSync(overwrite bool) (syncer.Result, error) {
 // PullWebDAVSync 从 WebDAV 拉取并导入同步快照；需要主密码解密远端包。
 // PullWebDAVSync downloads and imports a WebDAV snapshot; masterPassword decrypts the remote envelope.
 func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Result, error) {
+	ctx, finish, err := a.beginWebDAVSyncOperation()
+	if err != nil {
+		return syncer.Result{}, normalizeFrontendError(err)
+	}
+	defer finish()
+
 	manager := a.syncManager()
 	state, err := manager.Load()
 	if err != nil {
@@ -167,9 +181,6 @@ func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Resu
 	if err != nil {
 		return syncer.Result{}, normalizeFrontendError(err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), syncOperationTimeout)
-	defer cancel()
 
 	provider, err := syncer.NewWebDAVProvider(state.WebDAV, password)
 	if err != nil {
@@ -208,6 +219,35 @@ func (a *App) PullWebDAVSync(masterPassword string, overwrite bool) (syncer.Resu
 		Bytes:      len(payload),
 		Message:    fmt.Sprintf("已拉取来自设备 %s 的同步快照。", syncDeviceLabel(remoteDeviceID, remoteDeviceName)),
 		SyncedAt:   now.Format(time.RFC3339),
+	}, nil
+}
+
+// CancelWebDAVSync 请求取消当前 WebDAV 测试、推送或拉取操作。
+func (a *App) CancelWebDAVSync() {
+	a.syncMu.Lock()
+	cancel := a.syncCancel
+	a.syncMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (a *App) beginWebDAVSyncOperation() (context.Context, func(), error) {
+	a.syncMu.Lock()
+	defer a.syncMu.Unlock()
+
+	if a.syncCancel != nil {
+		return nil, nil, ErrWebDAVSyncInProgress
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), syncOperationTimeout)
+	a.syncCancel = cancel
+	return ctx, func() {
+		cancel()
+		a.syncMu.Lock()
+		if a.syncCancel != nil {
+			a.syncCancel = nil
+		}
+		a.syncMu.Unlock()
 	}, nil
 }
 

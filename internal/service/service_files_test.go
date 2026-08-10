@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -50,6 +51,31 @@ func TestListLocalFilesReturnsSortedEntries(t *testing.T) {
 	}
 	if listing.Entries[1].Name != "alpha.txt" || listing.Entries[1].IsDir {
 		t.Fatalf("listing.Entries[1] = %#v, want alpha.txt file second", listing.Entries[1])
+	}
+}
+
+func TestCancelFileTransferClosesCachedSFTPConnection(t *testing.T) {
+	client := &stubSSHClient{}
+	svc := &Service{
+		sftpConnections: map[string]*managedSFTPConnection{
+			"host-1": {
+				hostID: "host-1",
+				client: client,
+			},
+		},
+	}
+
+	if err := svc.CancelFileTransfer("host-1"); err != nil {
+		t.Fatalf("CancelFileTransfer() error = %v", err)
+	}
+	if !client.closed {
+		t.Fatal("CancelFileTransfer() did not close the cached SSH client")
+	}
+	if len(svc.sftpConnections) != 0 {
+		t.Fatalf("cached SFTP connections = %d, want 0", len(svc.sftpConnections))
+	}
+	if err := svc.CancelFileTransfer(""); !errors.Is(err, ErrHostIDRequired) {
+		t.Fatalf("CancelFileTransfer(empty) error = %v, want ErrHostIDRequired", err)
 	}
 }
 
@@ -731,11 +757,64 @@ func TestCloseAllClosesInFlightSFTPConnection(t *testing.T) {
 	}
 }
 
+func TestCancelFileTransferCancelsInFlightSFTPDial(t *testing.T) {
+	store, vault := setupDeleteTestStore(t)
+	host := model.Host{ID: "host-cancel-sftp-dial", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	dialer := &contextBlockingDialer{started: make(chan struct{})}
+	svc, err := newWithDialer(store, vault, dialer)
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	opDone := make(chan error, 1)
+	go func() {
+		_, err := svc.ListRemoteFiles(host.ID, "/srv")
+		opDone <- err
+	}()
+
+	select {
+	case <-dialer.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("SFTP dial did not start")
+	}
+	if err := svc.CancelFileTransfer(host.ID); err != nil {
+		t.Fatalf("CancelFileTransfer() error = %v", err)
+	}
+
+	select {
+	case err := <-opDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("ListRemoteFiles() error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ListRemoteFiles() did not stop after cancelling the in-flight dial")
+	}
+}
+
 type blockingDialer struct {
 	client  sshClient
 	started chan struct{}
 	release chan struct{}
 	once    sync.Once
+}
+
+type contextBlockingDialer struct {
+	started chan struct{}
+	once    sync.Once
+}
+
+func (d *contextBlockingDialer) Dial(_ string, _ string, _ *ssh.ClientConfig) (sshClient, error) {
+	return nil, errors.New("context-aware dialer requires DialContext")
+}
+
+func (d *contextBlockingDialer) DialContext(ctx context.Context, _ string, _ string, _ *ssh.ClientConfig) (sshClient, error) {
+	d.once.Do(func() { close(d.started) })
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 func (d *blockingDialer) Dial(_ string, _ string, _ *ssh.ClientConfig) (sshClient, error) {

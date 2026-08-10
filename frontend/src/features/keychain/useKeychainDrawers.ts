@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { LocalSSHKey } from '@/lib/backend'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import {
   createGenerateKeyForm,
   createImportKeyForm,

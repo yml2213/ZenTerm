@@ -1,6 +1,6 @@
 import { persistWindowState, windowToggleMaximise } from '@/lib/backend'
 import { createLogWorkspaceTab, createNewWorkspaceTab } from '@/lib/appSessionUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { SessionTab, WorkspaceTab, WorkspaceType } from './workspaceTypes'
 
 interface WorkspaceActionHandlersProps {

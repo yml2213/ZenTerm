@@ -17,7 +17,7 @@ import SessionLogPanel from '@/features/sessions/components/SessionLogPanel'
 import VaultSettingsPanel from '@/features/vault/components/VaultSettingsPanel'
 import type { NavigationItem } from '@/features/app/appShellConfig'
 import type { ChangeMasterForm } from '../vaultTypes'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type PageToolbarId = 'keychain' | 'knownHosts' | 'logs'
 
@@ -57,6 +57,7 @@ interface VaultWorkspaceProps {
   connectingHostIds: string[]
   onSelectHost: (id: string) => void
   onConnectHost: (id: string) => void
+  onCancelConnectHost: (id: string) => void
   onEditHost: (host: cmd.Host) => void
   onDeleteHost: (host: cmd.Host) => void
   onCopyHostAddress: (host: cmd.Host) => void
@@ -108,6 +109,7 @@ export default function VaultWorkspace({
   connectingHostIds,
   onSelectHost,
   onConnectHost,
+  onCancelConnectHost,
   onEditHost,
   onDeleteHost,
   onCopyHostAddress,
@@ -381,6 +383,7 @@ export default function VaultWorkspace({
                 connectingHostIds={connectingHostIds}
                 onSelect={onSelectHost}
                 onConnect={onConnectHost}
+                onCancelConnect={onCancelConnectHost}
                 onEdit={onEditHost}
                 onDelete={onDeleteHost}
                 onCopyAddress={onCopyHostAddress}

@@ -24,6 +24,7 @@ func (a *App) BeforeClose(ctx context.Context) bool {
 
 func (a *App) Shutdown(ctx context.Context) {
 	a.persistWindowState()
+	a.CancelWebDAVSync()
 	_ = a.service.CloseAll()
 }
 

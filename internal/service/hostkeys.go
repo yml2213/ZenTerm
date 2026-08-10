@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"crypto/subtle"
 	"fmt"
@@ -66,6 +67,10 @@ func (s *Service) RejectHostKey(hostID string) error {
 }
 
 func (s *Service) hostKeyCallback(host model.Host) ssh.HostKeyCallback {
+	return s.hostKeyCallbackContext(context.Background(), host)
+}
+
+func (s *Service) hostKeyCallbackContext(ctx context.Context, host model.Host) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		if isKnownHostTrusted(host.KnownHosts, key) {
 			return nil
@@ -99,6 +104,9 @@ func (s *Service) hostKeyCallback(host model.Host) ssh.HostKeyCallback {
 		case <-time.After(hostKeyConfirmTimeout):
 			s.clearHostKeyConfirmation(host.ID)
 			return ErrHostKeyConfirmationTimeout
+		case <-ctx.Done():
+			s.clearHostKeyConfirmation(host.ID)
+			return ctx.Err()
 		}
 	}
 }

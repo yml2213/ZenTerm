@@ -1077,3 +1077,21 @@ func TestStoreSaveKDFParamsSanitizesBadKeyLen(t *testing.T) {
 		t.Fatalf("LoadKDFParams().KeyLen = %d, want 32 (sanitized)", got.KeyLen)
 	}
 }
+
+func TestStoreLoadKDFParamsRejectsValuesOutsideResourceLimits(t *testing.T) {
+	dir := t.TempDir()
+	storePath := filepath.Join(dir, "config.zen")
+	payload := `{"version":1,"vault":{"kdf":{"time":1,"memory":999999999,"threads":4,"key_len":32}},"hosts":[],"credentials":[]}`
+	if err := os.WriteFile(storePath, []byte(payload), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := NewStore(storePath)
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	_, err = store.LoadKDFParams()
+	if !errors.Is(err, security.ErrInvalidArgon2Params) {
+		t.Fatalf("LoadKDFParams() error = %v, want ErrInvalidArgon2Params", err)
+	}
+}

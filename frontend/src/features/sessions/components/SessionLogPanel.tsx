@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
 import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '@/lib/backend'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type SessionLog = cmd.SessionLog
 type SessionTranscript = cmd.SessionTranscript

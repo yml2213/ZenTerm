@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,24 @@ import (
 
 // Connect 解密指定主机的身份信息并建立 SSH 连接，返回用于后续会话管理的 sessionID / decrypts the identity for a host, establishes an SSH connection, and returns a sessionID for later session management.
 func (s *Service) Connect(hostID string) (string, error) {
+	return s.ConnectContext(context.Background(), hostID)
+}
+
+// ConnectContext 建立 SSH 会话，并允许调用方在握手期间取消连接。
+func (s *Service) ConnectContext(parent context.Context, hostID string) (string, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	if !s.registerConnectingHost(hostID, cancel) {
+		cancel()
+		return "", ErrConnectionInProgress
+	}
+	defer func() {
+		cancel()
+		s.clearConnectingHost(hostID)
+	}()
+
 	host, err := s.store.GetHost(hostID)
 	if err != nil {
 		return "", err
@@ -30,13 +49,13 @@ func (s *Service) Connect(hostID string) (string, error) {
 		return "", err
 	}
 
-	config, err := s.newClientConfig(host, identity)
+	config, err := s.newClientConfigContext(ctx, host, identity)
 	if err != nil {
 		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", err
 	}
 
-	client, remoteAddr, err := s.openSSHClient(host, config)
+	client, remoteAddr, err := s.openSSHClientContext(ctx, host, config)
 	if err != nil {
 		s.markSessionLogFinished(logID, statusForConnectError(err), err.Error())
 		return "", err
@@ -102,6 +121,13 @@ func (s *Service) Connect(hostID string) (string, error) {
 		_ = client.Close()
 		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", fmt.Errorf("generate session id: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = stdin.Close()
+		_ = sshSession.Close()
+		_ = client.Close()
+		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
+		return "", err
 	}
 
 	s.sessionMu.Lock()
@@ -213,6 +239,7 @@ func (s *Service) ResizeTerminal(sessionID string, cols, rows int) error {
 
 // CloseAll 强制关闭所有活跃会话，避免应用退出时泄露连接 / force closes all active sessions to prevent leaked connections when the app exits.
 func (s *Service) CloseAll() error {
+	s.cancelAllConnectingHosts()
 	s.sessionMu.Lock()
 	sessions := make(map[string]*managedSession, len(s.sessions))
 	for sessionID, session := range s.sessions {
@@ -278,6 +305,10 @@ func (m *managedSession) close() error {
 }
 
 func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
+	return s.newClientConfigContext(context.Background(), host, identity)
+}
+
+func (s *Service) newClientConfigContext(ctx context.Context, host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
 	if host.Address == "" {
 		return nil, ErrHostAddressRequired
 	}
@@ -303,12 +334,16 @@ func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ss
 	return &ssh.ClientConfig{
 		User:            host.Username,
 		Auth:            authMethods,
-		HostKeyCallback: s.hostKeyCallback(host),
+		HostKeyCallback: s.hostKeyCallbackContext(ctx, host),
 		Timeout:         10 * time.Second,
 	}, nil
 }
 
 func (s *Service) openSSHClient(host model.Host, config *ssh.ClientConfig) (sshClient, string, error) {
+	return s.openSSHClientContext(context.Background(), host, config)
+}
+
+func (s *Service) openSSHClientContext(ctx context.Context, host model.Host, config *ssh.ClientConfig) (sshClient, string, error) {
 	remoteAddr := host.Address
 	port := host.Port
 	if port == 0 {
@@ -316,12 +351,64 @@ func (s *Service) openSSHClient(host model.Host, config *ssh.ClientConfig) (sshC
 	}
 
 	fullAddr := net.JoinHostPort(remoteAddr, strconv.Itoa(port))
+	if dialer, ok := s.dialer.(sshContextDialer); ok {
+		client, err := dialer.DialContext(ctx, "tcp", fullAddr, config)
+		if err != nil {
+			return nil, fullAddr, fmt.Errorf("dial ssh: %w", err)
+		}
+		return client, fullAddr, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, fullAddr, err
+	}
 	client, err := s.dialer.Dial("tcp", fullAddr, config)
 	if err != nil {
 		return nil, fullAddr, fmt.Errorf("dial ssh: %w", err)
 	}
 
 	return client, fullAddr, nil
+}
+
+// CancelConnection 取消指定主机正在进行的 SSH 握手；没有活动握手时为无操作。
+func (s *Service) CancelConnection(hostID string) {
+	s.connectMu.Lock()
+	cancel := s.connectCancels[hostID]
+	s.connectMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (s *Service) registerConnectingHost(hostID string, cancel context.CancelFunc) bool {
+	s.connectMu.Lock()
+	defer s.connectMu.Unlock()
+	if _, exists := s.connectCancels[hostID]; exists {
+		return false
+	}
+	if s.connectCancels == nil {
+		s.connectCancels = make(map[string]context.CancelFunc)
+	}
+	s.connectCancels[hostID] = cancel
+	return true
+}
+
+func (s *Service) clearConnectingHost(hostID string) {
+	s.connectMu.Lock()
+	delete(s.connectCancels, hostID)
+	s.connectMu.Unlock()
+}
+
+func (s *Service) cancelAllConnectingHosts() {
+	s.connectMu.Lock()
+	cancels := make([]context.CancelFunc, 0, len(s.connectCancels))
+	for hostID, cancel := range s.connectCancels {
+		delete(s.connectCancels, hostID)
+		cancels = append(cancels, cancel)
+	}
+	s.connectMu.Unlock()
+	for _, cancel := range cancels {
+		cancel()
+	}
 }
 
 func newSessionID() (string, error) {

@@ -1,6 +1,7 @@
-import { Cloud, Database } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { Cloud, Database, X } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
+  cancelWebDAVSync,
   configureWebDAVSync,
   getWebDAVSyncStatus,
   pullWebDAVSync,
@@ -20,6 +21,7 @@ export default function SyncSection() {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const cancelRequestedRef = useRef(false)
   const syncMetaText = [
     status?.device_name ? `设备 ${status.device_name}` : '',
     status?.last_sync_at ? `上次同步 ${status.last_sync_at}` : '尚未完成同步',
@@ -82,6 +84,7 @@ export default function SyncSection() {
   }
 
   function handleTest() {
+    cancelRequestedRef.current = false
     setBusy('test')
     setError(null)
     setNotice(null)
@@ -96,11 +99,18 @@ export default function SyncSection() {
       .then((result) => {
         setNotice(result.message || (result.exists ? 'WebDAV 连接正常，远端同步文件已存在。' : 'WebDAV 连接正常。'))
       })
-      .catch((err) => setError(err.message || String(err)))
+      .catch((err) => {
+        if (cancelRequestedRef.current) {
+          setNotice('WebDAV 操作已取消。')
+          return
+        }
+        setError(err.message || String(err))
+      })
       .finally(() => setBusy(null))
   }
 
   function handlePush(overwrite = false) {
+    cancelRequestedRef.current = false
     setBusy(overwrite ? 'push-overwrite' : 'push')
     setError(null)
     setNotice(null)
@@ -111,7 +121,13 @@ export default function SyncSection() {
         return getWebDAVSyncStatus()
       })
       .then(setStatus)
-      .catch((err) => setError(err.message || String(err)))
+      .catch((err) => {
+        if (cancelRequestedRef.current) {
+          setNotice('WebDAV 操作已取消。')
+          return
+        }
+        setError(err.message || String(err))
+      })
       .finally(() => setBusy(null))
   }
 
@@ -121,6 +137,7 @@ export default function SyncSection() {
       return
     }
 
+    cancelRequestedRef.current = false
     setBusy(overwrite ? 'pull-overwrite' : 'pull')
     setError(null)
     setNotice(null)
@@ -132,8 +149,22 @@ export default function SyncSection() {
         return getWebDAVSyncStatus()
       })
       .then(setStatus)
-      .catch((err) => setError(err.message || String(err)))
+      .catch((err) => {
+        if (cancelRequestedRef.current) {
+          setNotice('WebDAV 操作已取消。')
+          return
+        }
+        setError(err.message || String(err))
+      })
       .finally(() => setBusy(null))
+  }
+
+  function handleCancel() {
+    cancelRequestedRef.current = true
+    cancelWebDAVSync().catch((err) => {
+      cancelRequestedRef.current = false
+      setError(err.message || String(err))
+    })
   }
 
   return (
@@ -249,6 +280,14 @@ export default function SyncSection() {
             覆盖本机
           </button>
         </div>
+
+        {busy && busy !== 'config' ? (
+          <div className="settings-actions">
+            <button type="button" className="icon-button danger-outline" onClick={handleCancel} aria-label="取消 WebDAV 操作" title="取消 WebDAV 操作">
+              <X size={15} />
+            </button>
+          </div>
+        ) : null}
 
         {notice ? <div className="settings-inline-message success">{notice}</div> : null}
         {error ? <div className="settings-inline-message error">{error}</div> : null}

@@ -1,7 +1,7 @@
 import type { RefObject } from 'react'
 import { Clock3, Plus, Search, Server, TerminalSquare } from 'lucide-react'
 import { matchesHost, sortHosts } from '@/features/hosts/appHostUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"zenterm/internal/db"
 	"zenterm/internal/model"
@@ -18,6 +19,8 @@ type App struct {
 	store       *db.Store
 	service     *service.Service
 	credentials vaultCredentialStore
+	syncMu      sync.Mutex
+	syncCancel  context.CancelFunc
 }
 
 // NewApp 使用默认依赖构建一个可绑定到 Wails 的 App / constructs an App with default dependencies that can be bound to the frontend.

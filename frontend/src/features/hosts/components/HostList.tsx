@@ -1,6 +1,6 @@
-import { Clock3, FolderOpen, GripVertical, PencilLine, Pin, PlugZap, SearchX, ShieldCheck, ShieldQuestion, Star, Tags, Trash2 } from 'lucide-react'
+import { Clock3, FolderOpen, GripVertical, PencilLine, Pin, PlugZap, SearchX, ShieldCheck, ShieldQuestion, Star, Tags, Trash2, X } from 'lucide-react'
 import { useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import { HostContextMenu } from './HostContextMenu'
 import { getHostSystemProfile } from './hostSystemIcons'
 
@@ -39,6 +39,7 @@ interface HostListProps {
   connectingHostIds: string[]
   onSelect: (id: string) => void
   onConnect: (id: string) => void
+  onCancelConnect?: (id: string) => void
   onEdit: (host: cmd.Host) => void
   onDelete: (host: cmd.Host) => void
   onCopyAddress?: (host: cmd.Host) => void
@@ -58,6 +59,7 @@ export default function HostList({
   connectingHostIds,
   onSelect,
   onConnect,
+  onCancelConnect,
   onEdit,
   onDelete,
   onCopyAddress,
@@ -158,6 +160,7 @@ export default function HostList({
         const active = host.id === selectedHostId
         const sessionCount = sessionCountByHost[host.id] || 0
         const connecting = connectingHostIds.includes(host.id)
+        const canCancelConnect = connecting && Boolean(onCancelConnect)
         const trusted = Boolean(host.known_hosts)
         const canConnect = !disabled && !connecting
         const tags = parseTags(host.tags)
@@ -314,15 +317,19 @@ export default function HostList({
                 <button
                   type="button"
                   className="primary-button compact host-connect-btn"
-                  title={connecting ? '连接中' : '连接'}
+                  title={canCancelConnect ? '取消连接' : connecting ? '连接中' : '连接'}
                   onClick={(event) => {
                     event.stopPropagation()
+                    if (canCancelConnect) {
+                      onCancelConnect?.(host.id)
+                      return
+                    }
                     onConnect(host.id)
                   }}
-                  disabled={disabled || connecting}
+                  disabled={disabled || (connecting && !canCancelConnect)}
                 >
-                  <PlugZap size={14} />
-                  <span className="host-connect-label">{connecting ? '连接中' : '连接'}</span>
+                  {canCancelConnect ? <X size={14} /> : <PlugZap size={14} />}
+                  <span className="host-connect-label">{canCancelConnect ? '取消' : connecting ? '连接中' : '连接'}</span>
                 </button>
               </div>
             </div>

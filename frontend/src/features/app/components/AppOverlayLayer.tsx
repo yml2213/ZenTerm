@@ -3,7 +3,7 @@ import AppOverlays from './AppOverlays'
 import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
 import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
 import type { VaultSetupForm } from '@/features/vault/vaultTypes'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 export interface AppOverlayActions {
   onVaultSetupPasswordChange: (value: string) => void

@@ -8,7 +8,7 @@ import {
   sortHosts,
 } from './appHostUtils'
 import { sidebarPages, type SidebarPage } from '@/features/app/appShellConfig'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { HostFormModel } from './hostFormModel'
 import type { SessionTab } from '@/features/workspace/workspaceTypes'
 

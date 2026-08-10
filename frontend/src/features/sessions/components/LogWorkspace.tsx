@@ -4,7 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { getSessionTranscript } from '@/lib/backend'
 import { measureTerminalGeometry } from '@/lib/terminalGeometry'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 interface LogTab {
   logId: string

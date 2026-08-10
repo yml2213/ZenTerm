@@ -1,4 +1,4 @@
-import { cmd } from '../wailsjs/wailsjs/go/models'
+import { cmd } from './backendModels'
 import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
 import type { SessionTab } from '@/features/workspace/workspaceTypes'
 

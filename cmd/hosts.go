@@ -59,6 +59,11 @@ func (a *App) Connect(hostID string) (string, error) {
 	return sessionID, nil
 }
 
+// CancelConnect 取消指定主机正在进行的 SSH 握手。
+func (a *App) CancelConnect(hostID string) {
+	a.service.CancelConnection(hostID)
+}
+
 // AcceptHostKey 接受待确认的主机指纹并继续连接 / accepts a pending host fingerprint and resumes the SSH connection.
 func (a *App) AcceptHostKey(hostID, key string) error {
 	if err := a.service.AcceptHostKey(hostID, key); err != nil {

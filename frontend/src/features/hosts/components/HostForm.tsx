@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { getCredentials } from '@/lib/backend'
 import type { HostFormModel } from '../hostFormModel'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Credential = cmd.Credential
 

@@ -1,4 +1,4 @@
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 export interface HostForm {
   id: string
