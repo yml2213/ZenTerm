@@ -21,6 +21,8 @@ type sftpDialCall struct {
 	once       sync.Once
 	generation uint64
 	cancel     context.CancelFunc
+	cancelErr  error
+	cancelled  bool
 
 	conn *managedSFTPConnection
 	err  error
@@ -182,6 +184,10 @@ func (s *Service) CancelFileTransfer(hostID string) error {
 	s.sftpMu.Lock()
 	call := s.sftpInFlight[hostID]
 	conn := s.sftpConnections[hostID]
+	if call != nil {
+		call.cancelled = true
+		call.cancelErr = context.Canceled
+	}
 	if conn != nil {
 		delete(s.sftpConnections, hostID)
 	}
@@ -293,18 +299,23 @@ func (s *Service) getOrCreateSFTPConnection(hostID string) (*managedSFTPConnecti
 	s.sftpInFlight[hostID] = call
 	s.sftpMu.Unlock()
 
-	conn, err := s.dialSFTPConnection(dialCtx, hostID, generation)
+	conn, err := s.dialSFTPConnection(dialCtx, hostID)
 	dialCancel()
 	if err != nil {
 		s.finishSFTPDial(hostID, call, nil, err)
-		return nil, err
+		<-call.done
+		return nil, call.err
 	}
 	s.finishSFTPDial(hostID, call, conn, nil)
-	return conn, nil
+	<-call.done
+	if call.err != nil {
+		return nil, call.err
+	}
+	return call.conn, nil
 }
 
 // dialSFTPConnection 执行实际的 SFTP 拨号；调用方负责去重 / performs the actual SFTP dial; the caller handles dedup.
-func (s *Service) dialSFTPConnection(ctx context.Context, hostID string, generation uint64) (*managedSFTPConnection, error) {
+func (s *Service) dialSFTPConnection(ctx context.Context, hostID string) (*managedSFTPConnection, error) {
 	host, err := s.store.GetHost(hostID)
 	if err != nil {
 		return nil, err
@@ -315,7 +326,7 @@ func (s *Service) dialSFTPConnection(ctx context.Context, hostID string, generat
 		return nil, err
 	}
 
-	config, err := s.newClientConfig(host, identity)
+	config, err := s.newClientConfigContext(ctx, host, identity)
 	if err != nil {
 		return nil, err
 	}
@@ -331,37 +342,49 @@ func (s *Service) dialSFTPConnection(ctx context.Context, hostID string, generat
 		client:     client,
 	}
 
-	s.sftpMu.Lock()
-	if generation != s.sftpGeneration || ctx.Err() != nil {
-		s.sftpMu.Unlock()
-		_ = conn.close()
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		return nil, ErrSFTPConnectionClosed
-	}
-	// 二次检查：若在此期间有别的拨号已经成功写入缓存，丢弃自己新建的连接 / double-check: if another dial won the race while we held no lock, discard our fresh connection.
-	if existing, ok := s.sftpConnections[hostID]; ok {
-		s.sftpMu.Unlock()
-		_ = conn.close()
-		return existing, nil
-	}
-	conn.stopKeepAlive = s.startKeepAliveLoop(client)
-	s.sftpConnections[hostID] = conn
-	s.sftpMu.Unlock()
-
 	return conn, nil
 }
 
 // finishSFTPDial 写入共享结果并广播完成信号，让所有等待者同时释放 / stores the shared result and closes the done signal so all waiters release at once.
 func (s *Service) finishSFTPDial(hostID string, call *sftpDialCall, conn *managedSFTPConnection, err error) {
+	var toClose []*managedSFTPConnection
+	s.sftpMu.Lock()
+	if call.cancelled {
+		if err == nil {
+			err = call.cancelErr
+			if err == nil {
+				err = context.Canceled
+			}
+		}
+	} else if generation := call.generation; generation != s.sftpGeneration {
+		if err == nil {
+			err = ErrSFTPConnectionClosed
+		}
+	}
+	if err == nil && conn != nil {
+		if existing, ok := s.sftpConnections[hostID]; ok {
+			toClose = append(toClose, conn)
+			conn = existing
+		} else {
+			conn.stopKeepAlive = s.startKeepAliveLoop(conn.client)
+			s.sftpConnections[hostID] = conn
+		}
+	}
+	if err != nil && conn != nil {
+		toClose = append(toClose, conn)
+		conn = nil
+	}
+	if current, ok := s.sftpInFlight[hostID]; ok && current == call {
+		delete(s.sftpInFlight, hostID)
+	}
+	for _, stale := range toClose {
+		_ = stale.close()
+	}
 	call.once.Do(func() {
 		call.conn = conn
 		call.err = err
 		close(call.done)
 	})
-	s.sftpMu.Lock()
-	delete(s.sftpInFlight, hostID)
 	s.sftpMu.Unlock()
 }
 
@@ -399,6 +422,17 @@ func (s *Service) closeAllSFTPConnections() error {
 	for _, conn := range connections {
 		if err := conn.close(); err != nil {
 			errs = append(errs, err)
+		}
+	}
+	for _, call := range inFlight {
+		s.sftpMu.Lock()
+		if !call.cancelled {
+			call.cancelled = true
+			call.cancelErr = ErrSFTPConnectionClosed
+		}
+		s.sftpMu.Unlock()
+		if call.cancel != nil {
+			call.cancel()
 		}
 	}
 	for hostID, call := range inFlight {

@@ -126,9 +126,16 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	if err := db.ValidateSyncSnapshotSecrets([]byte(payload), remoteVault); err != nil {
 		return "", "", "", fmt.Errorf("validate sync snapshot secrets: %w", err)
 	}
+	oldParams := s.vault.Params()
+	oldVaultUnlocked := s.vault.IsUnlocked()
+	oldSalt, err := s.store.EnsureSalt()
+	if err != nil {
+		return "", "", "", fmt.Errorf("read local vault salt: %w", err)
+	}
 
 	// 导入远端快照会覆盖本地数据，先备份再关闭会话：备份失败时直接返回，避免出现"会话已关闭但同步未导入"的中间态 / back up before closing sessions: on backup failure we bail out untouched, so we never end up with sessions closed but the import not applied.
-	if _, err := s.store.BackupCurrent(); err != nil {
+	backupPath, err := s.store.BackupCurrent()
+	if err != nil {
 		return "", "", "", fmt.Errorf("backup before sync import: %w", err)
 	}
 	if err := s.CloseAll(); err != nil {
@@ -137,21 +144,43 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	if err := s.store.ImportSyncSnapshot([]byte(payload)); err != nil {
 		return "", "", "", err
 	}
+	imported := true
+	rollback := func(cause error) error {
+		if !imported {
+			return cause
+		}
+		if restoreErr := s.store.RestoreBackup(backupPath); restoreErr != nil {
+			return errors.Join(cause, fmt.Errorf("rollback sync import: %w", restoreErr))
+		}
+		if oldVaultUnlocked {
+			s.vault.Lock()
+			restoreErr := s.vault.SetParams(oldParams)
+			if restoreErr == nil {
+				restoreErr = s.vault.Unlock(masterPassword, oldSalt)
+			}
+			if restoreErr != nil {
+				return errors.Join(cause, fmt.Errorf("restore local vault: %w", restoreErr))
+			}
+		} else {
+			s.vault.Lock()
+		}
+		return cause
+	}
 	// 导入后用快照自带的 KDF 参数派生本地密钥，保证与源端一致 / after import, derive the local key with the snapshot's own KDF params so it matches the source.
 	importedParams, err := s.store.LoadKDFParams()
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", rollback(err)
 	}
 	if err := s.vault.SetParams(importedParams); err != nil {
-		return "", "", "", err
+		return "", "", "", rollback(err)
 	}
 	if err := s.vault.Unlock(masterPassword, salt); err != nil {
 		s.vault.Lock()
-		return "", "", "", err
+		return "", "", "", rollback(err)
 	}
 	if err := s.store.VerifyOrInitVaultCheck(s.vault); err != nil {
 		s.vault.Lock()
-		return "", "", "", err
+		return "", "", "", rollback(err)
 	}
 
 	return envelope.DeviceID, envelope.DeviceName, hashBytes([]byte(payload)), nil

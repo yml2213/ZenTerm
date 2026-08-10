@@ -71,23 +71,7 @@ jobs:
 
       - name: 同步版本号
         shell: bash
-        run: |
-          set -euo pipefail
-          node -e "
-            const fs = require('fs');
-            const version = process.argv[1];
-            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
-            wails.info.productVersion = version;
-            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
-            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
-              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-              pkg.version = version;
-              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
-                pkg.packages[''].version = version;
-              }
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
-            }
-          " "$VERSION"
+        run: node scripts/sync-version.mjs "$VERSION"
 
       - name: 校验项目版本
         shell: bash
@@ -195,23 +179,7 @@ jobs:
 
       - name: 同步版本号
         shell: bash
-        run: |
-          set -euo pipefail
-          node -e "
-            const fs = require('fs');
-            const version = process.argv[1];
-            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
-            wails.info.productVersion = version;
-            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
-            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
-              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-              pkg.version = version;
-              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
-                pkg.packages[''].version = version;
-              }
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
-            }
-          " "$VERSION"
+        run: node scripts/sync-version.mjs "$VERSION"
 
       - name: 安装前端依赖
         working-directory: frontend
@@ -294,23 +262,7 @@ jobs:
 
       - name: 同步版本号
         shell: bash
-        run: |
-          set -euo pipefail
-          node -e "
-            const fs = require('fs');
-            const version = process.argv[1];
-            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
-            wails.info.productVersion = version;
-            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
-            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
-              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-              pkg.version = version;
-              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
-                pkg.packages[''].version = version;
-              }
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
-            }
-          " "$VERSION"
+        run: node scripts/sync-version.mjs "$VERSION"
 
       - name: 安装前端依赖
         working-directory: frontend

@@ -103,6 +103,34 @@ func (s *Store) BackupCurrent() (string, error) {
 	return backupPath, nil
 }
 
+// RestoreBackup 用原子替换恢复指定备份，并使内存缓存失效；仅供同步失败回滚使用。
+// RestoreBackup atomically restores a backup and invalidates the in-memory cache; used for sync rollback.
+func (s *Store) RestoreBackup(backupPath string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if backupPath == "" {
+		if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove store during rollback: %w", err)
+		}
+		s.invalidateCache()
+		return nil
+	}
+	bytes, err := os.ReadFile(backupPath)
+	if err != nil {
+		return fmt.Errorf("read backup during rollback: %w", err)
+	}
+	var data fileData
+	if err := json.Unmarshal(bytes, &data); err != nil {
+		return fmt.Errorf("decode backup during rollback: %w", err)
+	}
+	if err := writeFileAtomic(s.path, bytes, 0o600); err != nil {
+		return fmt.Errorf("restore store backup: %w", err)
+	}
+	s.invalidateCache()
+	return nil
+}
+
 // EnsureSalt 返回已持久化的 Vault 盐值；如果存储尚未初始化则自动创建 / returns the persisted vault salt, creating one if the store does not exist yet.
 func (s *Store) loadLocked() (fileData, error) {
 	if s.cacheLoaded && s.cache != nil {

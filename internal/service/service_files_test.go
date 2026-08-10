@@ -795,6 +795,45 @@ func TestCancelFileTransferCancelsInFlightSFTPDial(t *testing.T) {
 	}
 }
 
+// TestCancelFileTransferDoesNotPublishConnectionAfterDial 验证取消与拨号发布之间的窗口不会泄露已关闭连接。
+func TestCancelFileTransferDoesNotPublishConnectionAfterDial(t *testing.T) {
+	client := &stubSSHClient{}
+	ctx, cancel := context.WithCancel(context.Background())
+	call := &sftpDialCall{
+		done:       make(chan struct{}),
+		generation: 0,
+		cancel:     cancel,
+	}
+	svc := &Service{
+		sftpConnections: make(map[string]*managedSFTPConnection),
+		sftpInFlight:    map[string]*sftpDialCall{"host-race": call},
+	}
+	conn := &managedSFTPConnection{hostID: "host-race", client: client}
+
+	if err := svc.CancelFileTransfer("host-race"); err != nil {
+		t.Fatalf("CancelFileTransfer() error = %v", err)
+	}
+	svc.finishSFTPDial("host-race", call, conn, nil)
+
+	if call.conn != nil {
+		t.Fatal("cancelled dial published a connection")
+	}
+	if !errors.Is(call.err, context.Canceled) {
+		t.Fatalf("dial error = %v, want context.Canceled", call.err)
+	}
+	if !client.closed {
+		t.Fatal("cancelled dial client was not closed")
+	}
+	select {
+	case <-call.done:
+	default:
+		t.Fatal("dial completion was not signaled")
+	}
+	if err := ctx.Err(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("dial context error = %v, want context.Canceled", err)
+	}
+}
+
 type blockingDialer struct {
 	client  sshClient
 	started chan struct{}
