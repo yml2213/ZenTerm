@@ -1,13 +1,19 @@
-.PHONY: test test-go test-frontend typecheck lint sync-version generate-bindings coverage-go
+.PHONY: test test-go test-frontend typecheck lint sync-version generate-bindings coverage-go prepare-frontend-assets
 
 test: test-go test-frontend
 
-test-go:
+test-go: prepare-frontend-assets
 	go test . ./cmd ./internal/...
 
-coverage-go:
+coverage-go: prepare-frontend-assets
 	go test -coverprofile=coverage.out . ./cmd ./internal/...
 	go tool cover -func=coverage.out
+
+prepare-frontend-assets:
+	@if [ ! -f frontend/dist/index.html ]; then \
+		mkdir -p frontend/dist; \
+		printf '<!doctype html><title>ZenTerm</title>' > frontend/dist/index.html; \
+	fi
 
 test-frontend:
 	cd frontend && npm test
