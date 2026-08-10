@@ -94,3 +94,37 @@ func TestBackupCurrentCopiesContentAndUsesExpectedPrefix(t *testing.T) {
 		t.Fatalf("backup payload = %q, want %q", string(got), payload)
 	}
 }
+
+// TestRestoreBackupInvalidatesCache 验证回滚后读操作不会继续使用导入前后的旧缓存。
+func TestRestoreBackupInvalidatesCache(t *testing.T) {
+	dir := t.TempDir()
+	storePath := filepath.Join(dir, "config.zen")
+	original := `{"version":1,"hosts":[{"host":{"id":"original","address":"example.com","username":"zen"}}]}`
+	if err := os.WriteFile(storePath, []byte(original), 0o600); err != nil {
+		t.Fatalf("WriteFile(original) error = %v", err)
+	}
+	store, err := NewStore(storePath)
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	if _, err := store.GetHosts(); err != nil {
+		t.Fatalf("GetHosts() error = %v", err)
+	}
+	backupPath, err := store.BackupCurrent()
+	if err != nil {
+		t.Fatalf("BackupCurrent() error = %v", err)
+	}
+	if err := os.WriteFile(storePath, []byte(`{"version":1,"hosts":[{"host":{"id":"imported","address":"other.example.com","username":"zen"}}]}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(imported) error = %v", err)
+	}
+	if err := store.RestoreBackup(backupPath); err != nil {
+		t.Fatalf("RestoreBackup() error = %v", err)
+	}
+	hosts, err := store.GetHosts()
+	if err != nil {
+		t.Fatalf("GetHosts() after restore error = %v", err)
+	}
+	if len(hosts) != 1 || hosts[0].ID != "original" {
+		t.Fatalf("hosts after restore = %#v, want original host", hosts)
+	}
+}
