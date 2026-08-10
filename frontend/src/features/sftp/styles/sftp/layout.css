@@ -12,6 +12,9 @@
   padding: 0.85rem 1rem 0;
   background: var(--sftp-banner-bg);
   border-bottom: 1px solid var(--sftp-banner-border);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .sftp-transfer-banner .pill {
@@ -26,6 +29,23 @@
   border-color: rgba(36, 161, 89, 0.16);
 }
 
+.sftp-transfer-cancel {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--panel-bg-strong);
+}
+
+.sftp-transfer-cancel:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 .sftp-browser {
   grid-row: 2;
   min-height: 0;
@@ -35,4 +55,3 @@
   overflow: hidden;
   background: transparent;
 }
-

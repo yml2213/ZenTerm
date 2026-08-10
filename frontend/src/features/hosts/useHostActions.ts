@@ -10,7 +10,7 @@ import {
   withDemoHosts,
 } from './appHostUtils'
 import { addHost, deleteHost, listHosts, reorderHosts, updateHost, updateHostPinned } from '@/lib/backend'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { HostFormModel } from './hostFormModel'
 import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 

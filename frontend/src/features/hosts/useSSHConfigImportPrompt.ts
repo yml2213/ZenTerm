@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { listLocalSSHConfigHosts } from '@/lib/backend'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { SSHConfigImportPrompt } from './sshConfigImportTypes'
 
 interface SSHConfigImportPromptProps {

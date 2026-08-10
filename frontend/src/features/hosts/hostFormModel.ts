@@ -1,4 +1,4 @@
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
 

@@ -33,6 +33,7 @@ export function createAppViewActions({
       onCreateHost: appActions.openCreateHost,
       onSelectHost: setters.hosts.setSelectedHostId,
       onConnectHost: appActions.handleConnect,
+      onCancelConnectHost: appActions.handleCancelConnect,
       onEditHost: appActions.openEditHost,
       onDeleteHost: setters.hosts.setDeleteCandidate,
       onCopyHostAddress: appActions.handleCopyHostAddress,

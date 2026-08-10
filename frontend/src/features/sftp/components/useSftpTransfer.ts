@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { downloadFile, uploadFile } from '@/lib/backend'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { cancelFileTransfer, downloadFile, uploadFile } from '@/lib/backend'
 import {
   buildTransferNotice,
   isTransferConflictError,
@@ -7,7 +7,7 @@ import {
   uniquePaths,
   type FileListing,
 } from '../sftpUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
 type SftpScope = 'local' | 'remote'
@@ -62,6 +62,7 @@ export function useSftpTransfer({
 }: UseSftpTransferProps) {
   const [transferBusy, setTransferBusy] = useState<TransferDirection | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  const cancelRequestedRef = useRef(false)
 
   const selectedLocalTransferableEntries = useMemo(
     () => pickTransferableEntries(localListing, selectedLocalPaths),
@@ -102,6 +103,7 @@ export function useSftpTransfer({
     }
 
     setTransferBusy(direction)
+    cancelRequestedRef.current = false
     if (startIndex === 0 && completedCount === 0) {
       setNotice(null)
     }
@@ -148,6 +150,10 @@ export function useSftpTransfer({
         message: buildTransferNotice(direction, totalCount, targetDirectory, results.at(-1) || null),
       })
     } catch (error) {
+      if (cancelRequestedRef.current) {
+        setNotice({ tone: 'warning', message: '文件传输已取消。' })
+        return
+      }
       onError(error instanceof Error ? error.message : String(error))
     } finally {
       setTransferBusy(null)
@@ -162,6 +168,20 @@ export function useSftpTransfer({
     await executeTransfer('download')
   }
 
+  async function handleCancelTransfer() {
+    if (!selectedHost || !transferBusy) {
+      return
+    }
+
+    cancelRequestedRef.current = true
+    try {
+      await cancelFileTransfer(selectedHost.id)
+    } catch (error) {
+      cancelRequestedRef.current = false
+      onError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   return {
     transferBusy,
     notice,
@@ -171,5 +191,6 @@ export function useSftpTransfer({
     executeTransfer,
     handleUpload,
     handleDownload,
+    handleCancelTransfer,
   }
 }

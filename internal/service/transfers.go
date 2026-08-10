@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ type sftpDialCall struct {
 	done       chan struct{}
 	once       sync.Once
 	generation uint64
+	cancel     context.CancelFunc
 
 	conn *managedSFTPConnection
 	err  error
@@ -170,6 +172,30 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bo
 	return result, nil
 }
 
+// CancelFileTransfer 取消指定主机的拨号并关闭复用 SFTP 连接，使正在进行的文件读写尽快返回。
+func (s *Service) CancelFileTransfer(hostID string) error {
+	hostID = strings.TrimSpace(hostID)
+	if hostID == "" {
+		return ErrHostIDRequired
+	}
+
+	s.sftpMu.Lock()
+	call := s.sftpInFlight[hostID]
+	conn := s.sftpConnections[hostID]
+	if conn != nil {
+		delete(s.sftpConnections, hostID)
+	}
+	s.sftpMu.Unlock()
+
+	if call != nil && call.cancel != nil {
+		call.cancel()
+	}
+	if conn != nil {
+		return conn.close()
+	}
+	return nil
+}
+
 func remoteTransferTempPath(targetPath string) (string, error) {
 	id, err := newSessionID()
 	if err != nil {
@@ -262,11 +288,13 @@ func (s *Service) getOrCreateSFTPConnection(hostID string) (*managedSFTPConnecti
 	}
 	// 注册自己作为这次拨号的发布者，并记录当前连接池代际；CloseAll 会推进代际，让旧拨号成功后也不能回写缓存 / register ourselves as the publisher of this dial and remember the pool generation; CloseAll advances it so old dials cannot populate the cache after shutdown.
 	generation := s.sftpGeneration
-	call := &sftpDialCall{done: make(chan struct{}), generation: generation}
+	dialCtx, dialCancel := context.WithCancel(context.Background())
+	call := &sftpDialCall{done: make(chan struct{}), generation: generation, cancel: dialCancel}
 	s.sftpInFlight[hostID] = call
 	s.sftpMu.Unlock()
 
-	conn, err := s.dialSFTPConnection(hostID, generation)
+	conn, err := s.dialSFTPConnection(dialCtx, hostID, generation)
+	dialCancel()
 	if err != nil {
 		s.finishSFTPDial(hostID, call, nil, err)
 		return nil, err
@@ -276,7 +304,7 @@ func (s *Service) getOrCreateSFTPConnection(hostID string) (*managedSFTPConnecti
 }
 
 // dialSFTPConnection 执行实际的 SFTP 拨号；调用方负责去重 / performs the actual SFTP dial; the caller handles dedup.
-func (s *Service) dialSFTPConnection(hostID string, generation uint64) (*managedSFTPConnection, error) {
+func (s *Service) dialSFTPConnection(ctx context.Context, hostID string, generation uint64) (*managedSFTPConnection, error) {
 	host, err := s.store.GetHost(hostID)
 	if err != nil {
 		return nil, err
@@ -292,7 +320,7 @@ func (s *Service) dialSFTPConnection(hostID string, generation uint64) (*managed
 		return nil, err
 	}
 
-	client, remoteAddr, err := s.openSSHClient(host, config)
+	client, remoteAddr, err := s.openSSHClientContext(ctx, host, config)
 	if err != nil {
 		return nil, err
 	}
@@ -304,9 +332,12 @@ func (s *Service) dialSFTPConnection(hostID string, generation uint64) (*managed
 	}
 
 	s.sftpMu.Lock()
-	if generation != s.sftpGeneration {
+	if generation != s.sftpGeneration || ctx.Err() != nil {
 		s.sftpMu.Unlock()
 		_ = conn.close()
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		return nil, ErrSFTPConnectionClosed
 	}
 	// 二次检查：若在此期间有别的拨号已经成功写入缓存，丢弃自己新建的连接 / double-check: if another dial won the race while we held no lock, discard our fresh connection.

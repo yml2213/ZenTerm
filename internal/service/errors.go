@@ -26,6 +26,7 @@ var (
 	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
 	ErrHostKeyMismatch             = errors.New("host key does not match the pending confirmation")
 	ErrHostKeyConfirmationTimeout  = errors.New("host key confirmation timed out")
+	ErrConnectionInProgress        = errors.New("connection is already in progress for this host")
 	ErrCredentialIDRequired        = errors.New("credential id is required")
 	ErrCredentialLabelRequired     = errors.New("credential label is required")
 	ErrCredentialInUse             = errors.New("credential is in use by one or more hosts")

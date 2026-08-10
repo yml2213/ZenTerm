@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import type { UploadKeyForm } from '../keychainConfig'
 
 type Host = cmd.Host

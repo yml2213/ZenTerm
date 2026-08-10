@@ -1,4 +1,4 @@
-import { cmd, model } from '../wailsjs/wailsjs/go/models'
+import { cmd, model } from './backendModels'
 import type { UpdateConfig, UpdateInfo } from '../types/update'
 
 type BackendMethod = (...args: unknown[]) => unknown;
@@ -266,6 +266,10 @@ export async function downloadFile(
   return callApp("DownloadFile", hostID, remotePath, localDir, overwrite);
 }
 
+export async function cancelFileTransfer(hostID: string): Promise<void> {
+  return callApp('CancelFileTransfer', hostID)
+}
+
 export async function addHost(host: cmd.Host, identity: model.Identity): Promise<string> {
   return callApp('AddHost', host, identity)
 }
@@ -291,6 +295,10 @@ export async function deleteHost(hostID: string): Promise<void> {
 
 export async function connect(hostID: string): Promise<string> {
   return callApp("Connect", hostID);
+}
+
+export async function cancelConnect(hostID: string): Promise<void> {
+  return callApp('CancelConnect', hostID)
 }
 
 export async function acceptHostKey(
@@ -501,6 +509,10 @@ export async function testWebDAVSync(
   config: WebDAVSyncConfig
 ): Promise<WebDAVSyncTestResult> {
   return callApp("TestWebDAVSync", config);
+}
+
+export async function cancelWebDAVSync(): Promise<void> {
+  return callApp('CancelWebDAVSync')
 }
 
 export async function pushWebDAVSync(

@@ -254,7 +254,7 @@ func (s *Store) saveLocked(data fileData) error {
 		data.Version = currentVersion
 	}
 
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return fmt.Errorf("create store directory: %w", err)
 	}
 
@@ -272,7 +272,7 @@ func (s *Store) saveLocked(data fileData) error {
 	return nil
 }
 func writeFileAtomic(path string, payload []byte, perm os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create parent directory: %w", err)
 	}
 

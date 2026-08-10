@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,6 +85,56 @@ func TestEncryptedSyncSnapshotRoundTripAcrossStores(t *testing.T) {
 	}
 	if identity.Password != "secret" {
 		t.Fatalf("target identity password = %q, want secret", identity.Password)
+	}
+}
+
+func TestEncryptedSyncSnapshotRoundTripWithNonDefaultKDF(t *testing.T) {
+	sourceStore, err := db.NewStore(filepath.Join(t.TempDir(), "source.zen"))
+	if err != nil {
+		t.Fatalf("NewStore(source) error = %v", err)
+	}
+	sourceVault := security.NewVault()
+	if err := sourceVault.SetParams(security.Argon2Params{Time: 1, Memory: 8 * 1024, Threads: 1, KeyLen: 32}); err != nil {
+		t.Fatalf("SetParams(source) error = %v", err)
+	}
+	sourceSvc, err := New(sourceStore, sourceVault)
+	if err != nil {
+		t.Fatalf("New(source) error = %v", err)
+	}
+	if err := sourceSvc.InitializeVault("master-password"); err != nil {
+		t.Fatalf("InitializeVault(source) error = %v", err)
+	}
+
+	envelope, _, err := sourceSvc.BuildEncryptedSyncSnapshot("device-kdf", "KDF device", false)
+	if err != nil {
+		t.Fatalf("BuildEncryptedSyncSnapshot() error = %v", err)
+	}
+
+	var decoded SyncSnapshotEnvelope
+	if err := json.Unmarshal(envelope, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal(envelope) error = %v", err)
+	}
+	if decoded.KDF.Memory != 8*1024 || decoded.KDF.Threads != 1 {
+		t.Fatalf("envelope KDF = %#v, want source parameters", decoded.KDF)
+	}
+
+	targetStore, err := db.NewStore(filepath.Join(t.TempDir(), "target.zen"))
+	if err != nil {
+		t.Fatalf("NewStore(target) error = %v", err)
+	}
+	targetVault := security.NewVault()
+	targetSvc, err := New(targetStore, targetVault)
+	if err != nil {
+		t.Fatalf("New(target) error = %v", err)
+	}
+	if err := targetSvc.InitializeVault("master-password"); err != nil {
+		t.Fatalf("InitializeVault(target) error = %v", err)
+	}
+	if _, _, _, err := targetSvc.ApplyEncryptedSyncSnapshot("master-password", envelope); err != nil {
+		t.Fatalf("ApplyEncryptedSyncSnapshot() error = %v", err)
+	}
+	if got := targetVault.Params(); got.Memory != 8*1024 || got.Threads != 1 {
+		t.Fatalf("target vault KDF = %#v, want source parameters", got)
 	}
 }
 

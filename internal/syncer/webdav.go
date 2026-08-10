@@ -18,6 +18,11 @@ import (
 // ErrInsecureScheme 表示 WebDAV URL 必须使用 https，拒绝 http 明文传输 Basic Auth 凭据 / indicates the WebDAV URL must use https, refusing to send Basic Auth credentials over plaintext http.
 var ErrInsecureScheme = errors.New("webdav url must use https")
 
+const (
+	maxSyncPayloadBytes      = 16 * 1024 * 1024
+	maxPropfindResponseBytes = 1 * 1024 * 1024
+)
+
 // WebDAVProvider 实现通用 WebDAV 文件读写 / implements generic WebDAV file reads and writes.
 type WebDAVProvider struct {
 	baseURL    *url.URL
@@ -63,7 +68,7 @@ func newWebDAVProviderWithClient(config WebDAVConfig, password string, httpClien
 		username:   strings.TrimSpace(config.Username),
 		password:   password,
 		httpClient: httpClient,
-		userAgent:   defaultUserAgent,
+		userAgent:  defaultUserAgent,
 	}, nil
 }
 
@@ -117,7 +122,7 @@ func (p *WebDAVProvider) Get(ctx context.Context, remotePath string) ([]byte, Re
 		return nil, RemoteMeta{}, statusError("webdav get", resp)
 	}
 
-	payload, err := io.ReadAll(resp.Body)
+	payload, err := readLimitedResponse(resp.Body, resp.ContentLength, maxSyncPayloadBytes, "webdav response")
 	if err != nil {
 		return nil, RemoteMeta{}, fmt.Errorf("read webdav response: %w", err)
 	}
@@ -256,7 +261,7 @@ func (p *WebDAVProvider) propfind(ctx context.Context, remotePath string) (Remot
 		return RemoteMeta{}, statusError("webdav propfind", resp)
 	}
 
-	payload, err := io.ReadAll(resp.Body)
+	payload, err := readLimitedResponse(resp.Body, resp.ContentLength, maxPropfindResponseBytes, "webdav propfind response")
 	if err != nil {
 		return RemoteMeta{}, fmt.Errorf("read webdav propfind response: %w", err)
 	}
@@ -310,6 +315,22 @@ func (p *WebDAVProvider) newRequest(ctx context.Context, method, remotePath stri
 	req.SetBasicAuth(p.username, p.password)
 	req.Header.Set("User-Agent", p.userAgent)
 	return req, nil
+}
+
+// readLimitedResponse 在读取前后限制响应大小，兼容未提供 Content-Length 的分块响应。
+func readLimitedResponse(body io.Reader, contentLength, limit int64, operation string) ([]byte, error) {
+	if contentLength > limit {
+		return nil, fmt.Errorf("%s exceeds %d-byte limit", operation, limit)
+	}
+
+	payload, err := io.ReadAll(io.LimitReader(body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(payload)) > limit {
+		return nil, fmt.Errorf("%s exceeds %d-byte limit", operation, limit)
+	}
+	return payload, nil
 }
 
 func joinURLPath(basePath, remotePath string) string {

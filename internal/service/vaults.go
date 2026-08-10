@@ -68,7 +68,9 @@ func (s *Service) UnlockVault(masterPassword string) error {
 	if err != nil {
 		return err
 	}
-	s.vault.SetParams(params)
+	if err := s.vault.SetParams(params); err != nil {
+		return err
+	}
 	if err := s.vault.Unlock(masterPassword, salt); err != nil {
 		return err
 	}
@@ -102,7 +104,9 @@ func (s *Service) ChangeMasterPassword(currentPassword, nextPassword string) err
 		return err
 	}
 	currentVault := security.NewVault()
-	currentVault.SetParams(currentParams)
+	if err := currentVault.SetParams(currentParams); err != nil {
+		return err
+	}
 	if err := currentVault.Unlock(currentPassword, currentSalt); err != nil {
 		return err
 	}
@@ -120,7 +124,10 @@ func (s *Service) ChangeMasterPassword(currentPassword, nextPassword string) err
 	// 新 vault 沿用当前 KDF 参数派生（未来可在此处升级成本），rekey 后落盘 / the new vault keeps the current KDF cost (raise it here in the future) and persists it after rekey.
 	nextParams := currentParams
 	nextVault := security.NewVault()
-	nextVault.SetParams(nextParams)
+	if err := nextVault.SetParams(nextParams); err != nil {
+		currentVault.Lock()
+		return err
+	}
 	if err := nextVault.Unlock(nextPassword, nextSalt); err != nil {
 		currentVault.Lock()
 		return err
@@ -140,7 +147,10 @@ func (s *Service) ChangeMasterPassword(currentPassword, nextPassword string) err
 	currentVault.Lock()
 	nextVault.Lock()
 
-	s.vault.SetParams(nextParams)
+	if err := s.vault.SetParams(nextParams); err != nil {
+		s.vault.Lock()
+		return err
+	}
 	if err := s.vault.Unlock(nextPassword, nextSalt); err != nil {
 		s.vault.Lock()
 		return err

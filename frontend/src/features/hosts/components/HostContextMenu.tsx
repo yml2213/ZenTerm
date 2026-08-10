@@ -1,7 +1,7 @@
 import { Copy, PencilLine, Pin, PlugZap, Trash2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 // 主机右键菜单：从 HostList 拆出，自包含全局关闭监听（点击/Esc/resize）/ host context menu, extracted from HostList and self-contained with global dismiss listeners (click/Esc/resize).
 

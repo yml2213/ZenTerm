@@ -175,6 +175,23 @@ func TestVaultSetParamsPersistsAcrossUnlock(t *testing.T) {
 	}
 }
 
+func TestValidateArgon2ParamsRejectsResourceExhaustion(t *testing.T) {
+	_, err := ValidateArgon2Params(Argon2Params{
+		Time:    maxArgon2Time + 1,
+		Memory:  64 * 1024,
+		Threads: 4,
+		KeyLen:  aesKeySize,
+	})
+	if !errors.Is(err, ErrInvalidArgon2Params) {
+		t.Fatalf("ValidateArgon2Params() error = %v, want ErrInvalidArgon2Params", err)
+	}
+
+	vault := NewVault()
+	if err := vault.SetParams(Argon2Params{Memory: maxArgon2Memory + 1}); !errors.Is(err, ErrInvalidArgon2Params) {
+		t.Fatalf("SetParams() error = %v, want ErrInvalidArgon2Params", err)
+	}
+}
+
 func TestVaultConcurrentAccessIsRaceSafe(t *testing.T) {
 	salt, err := NewSalt(16)
 	if err != nil {

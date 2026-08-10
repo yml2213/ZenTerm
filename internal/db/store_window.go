@@ -58,7 +58,7 @@ func (s *Store) loadWindowStateFileLocked() (model.WindowState, bool, error) {
 	return state, true, nil
 }
 func (s *Store) saveWindowStateFileLocked(state model.WindowState) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return fmt.Errorf("create store directory: %w", err)
 	}
 

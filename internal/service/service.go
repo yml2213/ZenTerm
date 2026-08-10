@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -33,6 +34,8 @@ type Service struct {
 	sftpGeneration  uint64
 	hostKeyMu       sync.Mutex
 	pendingHostKeys map[string]*pendingHostKeyConfirmation
+	connectMu       sync.Mutex
+	connectCancels  map[string]context.CancelFunc
 }
 
 type pendingTranscript struct {
@@ -63,6 +66,7 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		sftpConnections: make(map[string]*managedSFTPConnection),
 		sftpInFlight:    make(map[string]*sftpDialCall),
 		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
+		connectCancels:  make(map[string]context.CancelFunc),
 	}, nil
 }
 

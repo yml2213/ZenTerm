@@ -1,13 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"zenterm/internal/db"
 	"zenterm/internal/security"
 )
 
@@ -15,13 +18,15 @@ const syncEnvelopeVersion = 1
 
 // SyncSnapshotEnvelope 是上传到远端 WebDAV 的外层加密包 / wraps the encrypted sync snapshot stored on WebDAV.
 type SyncSnapshotEnvelope struct {
-	Version    int                 `json:"version"`
-	App        string              `json:"app"`
-	DeviceID   string              `json:"device_id"`
-	DeviceName string              `json:"device_name,omitempty"`
-	Salt       string              `json:"salt"`
-	Payload    security.Ciphertext `json:"payload"`
-	CreatedAt  time.Time           `json:"created_at"`
+	Version    int    `json:"version"`
+	App        string `json:"app"`
+	DeviceID   string `json:"device_id"`
+	DeviceName string `json:"device_name,omitempty"`
+	// KDF 参数不是秘密，但必须在解密 Payload 前可用；旧同步包缺失时按默认参数兼容。
+	KDF       security.Argon2Params `json:"kdf,omitempty"`
+	Salt      string                `json:"salt"`
+	Payload   security.Ciphertext   `json:"payload"`
+	CreatedAt time.Time             `json:"created_at"`
 }
 
 // BuildEncryptedSyncSnapshot 构建可上传到 WebDAV 的端到端加密快照 / builds an end-to-end encrypted snapshot for WebDAV upload.
@@ -50,6 +55,7 @@ func (s *Service) BuildEncryptedSyncSnapshot(deviceID, deviceName string, includ
 		App:        "ZenTerm",
 		DeviceID:   deviceID,
 		DeviceName: deviceName,
+		KDF:        s.vault.Params(),
 		Salt:       base64.StdEncoding.EncodeToString(salt),
 		Payload:    encrypted,
 		CreatedAt:  time.Now().UTC(),
@@ -91,6 +97,9 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	}
 
 	remoteVault := security.NewVault()
+	if err := remoteVault.SetParams(envelope.KDF); err != nil {
+		return "", "", "", fmt.Errorf("validate sync KDF parameters: %w", err)
+	}
 	if err := remoteVault.Unlock(masterPassword, salt); err != nil {
 		return "", "", "", err
 	}
@@ -99,6 +108,23 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	payload, err := remoteVault.DecryptString(envelope.Payload)
 	if err != nil {
 		return "", "", "", security.ErrInvalidMasterPassword
+	}
+	metadata, err := db.InspectSyncSnapshot([]byte(payload))
+	if err != nil {
+		return "", "", "", fmt.Errorf("inspect sync snapshot: %w", err)
+	}
+	if !bytes.Equal(metadata.Salt, salt) {
+		return "", "", "", errors.New("sync snapshot salt does not match envelope")
+	}
+	envelopeKDF, err := security.ValidateArgon2Params(envelope.KDF)
+	if err != nil {
+		return "", "", "", fmt.Errorf("validate sync KDF parameters: %w", err)
+	}
+	if metadata.KDF != envelopeKDF {
+		return "", "", "", errors.New("sync snapshot KDF does not match envelope")
+	}
+	if err := db.ValidateSyncSnapshotSecrets([]byte(payload), remoteVault); err != nil {
+		return "", "", "", fmt.Errorf("validate sync snapshot secrets: %w", err)
 	}
 
 	// 导入远端快照会覆盖本地数据，先备份再关闭会话：备份失败时直接返回，避免出现"会话已关闭但同步未导入"的中间态 / back up before closing sessions: on backup failure we bail out untouched, so we never end up with sessions closed but the import not applied.
@@ -116,7 +142,9 @@ func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeByte
 	if err != nil {
 		return "", "", "", err
 	}
-	s.vault.SetParams(importedParams)
+	if err := s.vault.SetParams(importedParams); err != nil {
+		return "", "", "", err
+	}
 	if err := s.vault.Unlock(masterPassword, salt); err != nil {
 		s.vault.Lock()
 		return "", "", "", err

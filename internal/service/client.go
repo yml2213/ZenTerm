@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"io"
+	"net"
 	"os"
 
 	"github.com/pkg/sftp"
@@ -10,6 +12,10 @@ import (
 
 type sshDialer interface {
 	Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error)
+}
+
+type sshContextDialer interface {
+	DialContext(ctx context.Context, network, addr string, config *ssh.ClientConfig) (sshClient, error)
 }
 
 type sshClient interface {
@@ -34,12 +40,31 @@ type sshSession interface {
 type realSSHDialer struct{}
 
 func (d realSSHDialer) Dial(network, addr string, config *ssh.ClientConfig) (sshClient, error) {
-	client, err := ssh.Dial(network, addr, config)
+	return d.DialContext(context.Background(), network, addr, config)
+}
+
+// DialContext 在 TCP 拨号和 SSH 握手阶段响应取消请求。
+func (d realSSHDialer) DialContext(ctx context.Context, network, addr string, config *ssh.ClientConfig) (sshClient, error) {
+	conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			_ = conn.Close()
+		}
+	}()
 
-	return &realSSHClient{client: client}, nil
+	connection, channels, requests, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		_ = connection.Close()
+		return nil, err
+	}
+
+	return &realSSHClient{client: ssh.NewClient(connection, channels, requests)}, nil
 }
 
 type realSSHClient struct {

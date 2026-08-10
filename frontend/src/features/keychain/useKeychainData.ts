@@ -4,7 +4,7 @@ import {
   listLocalSSHKeys,
   type LocalSSHKey,
 } from '@/lib/backend'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Credential = cmd.Credential
 

@@ -6,7 +6,7 @@ import {
   type FileListing,
   type SortConfig,
 } from '../sftpUtils'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
 type SftpScope = 'local' | 'remote'

@@ -99,3 +99,11 @@ func (a *App) DownloadFile(hostID, remotePath, localDir string, overwrite bool) 
 
 	return result, nil
 }
+
+// CancelFileTransfer 取消指定主机当前正在进行的 SFTP 文件传输。
+func (a *App) CancelFileTransfer(hostID string) error {
+	if err := a.service.CancelFileTransfer(hostID); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}

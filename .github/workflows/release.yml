@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '发布版本，例如 0.1.2'
+        description: '发布版本，例如 0.1.4'
         required: true
-        default: '0.1.2'
+        default: '0.1.4'
 
 permissions:
   contents: write
@@ -73,13 +73,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
           node -e "
             const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
-            pkg.version = process.argv[1];
-            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          " "$VERSION_FROM_WAILS"
+            const version = process.argv[1];
+            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
+            wails.info.productVersion = version;
+            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
+            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
+              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+              pkg.version = version;
+              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
+                pkg.packages[''].version = version;
+              }
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          " "$VERSION"
 
       - name: 校验项目版本
         shell: bash
@@ -105,6 +113,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: 生产依赖审计
+        working-directory: frontend
+        run: npm audit --omit=dev
+
       - name: 前端生产构建
         working-directory: frontend
         run: npm run build
@@ -123,6 +135,12 @@ jobs:
 
       - name: Go 测试
         run: go test . ./cmd ./internal/...
+
+      - name: Go 竞态检测
+        run: go test -race ./cmd ./internal/db ./internal/security ./internal/service ./internal/syncer ./internal/updater
+
+      - name: Go 静态检查
+        run: go vet ./...
 
   build:
     name: 构建 ${{ matrix.name }}
@@ -179,13 +197,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
           node -e "
             const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
-            pkg.version = process.argv[1];
-            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          " "$VERSION_FROM_WAILS"
+            const version = process.argv[1];
+            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
+            wails.info.productVersion = version;
+            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
+            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
+              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+              pkg.version = version;
+              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
+                pkg.packages[''].version = version;
+              }
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          " "$VERSION"
 
       - name: 安装前端依赖
         working-directory: frontend
@@ -270,13 +296,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION_FROM_WAILS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json','utf8')).info.productVersion)")
           node -e "
             const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('frontend/package.json', 'utf8'));
-            pkg.version = process.argv[1];
-            fs.writeFileSync('frontend/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          " "$VERSION_FROM_WAILS"
+            const version = process.argv[1];
+            const wails = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
+            wails.info.productVersion = version;
+            fs.writeFileSync('wails.json', JSON.stringify(wails, null, 2) + '\n');
+            for (const file of ['frontend/package.json', 'frontend/package-lock.json']) {
+              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+              pkg.version = version;
+              if (file.endsWith('package-lock.json') && pkg.packages?.['']) {
+                pkg.packages[''].version = version;
+              }
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          " "$VERSION"
 
       - name: 安装前端依赖
         working-directory: frontend

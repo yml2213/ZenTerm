@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,23 @@ func TestNewWebDAVProvider_AcceptsHTTPS(t *testing.T) {
 	_, err := NewWebDAVProvider(WebDAVConfig{URL: "https://example.com/dav/", Username: "user"}, "app-password")
 	if err != nil {
 		t.Fatalf("NewWebDAVProvider(https) err = %v", err)
+	}
+}
+
+func TestReadLimitedResponseRejectsOversizedBodies(t *testing.T) {
+	_, err := readLimitedResponse(strings.NewReader("12345"), 5, 4, "test response")
+	if err == nil {
+		t.Fatal("readLimitedResponse() error = nil, want size limit error")
+	}
+
+	_, err = readLimitedResponse(strings.NewReader("12345"), -1, 4, "test response")
+	if err == nil {
+		t.Fatal("readLimitedResponse() without Content-Length error = nil, want size limit error")
+	}
+
+	payload, err := readLimitedResponse(strings.NewReader("1234"), 4, 4, "test response")
+	if err != nil || string(payload) != "1234" {
+		t.Fatalf("readLimitedResponse() = %q, %v; want 1234, nil", payload, err)
 	}
 }
 

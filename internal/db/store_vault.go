@@ -12,10 +12,10 @@ import (
 const vaultCheckToken = "zenterm:vault-check:v1"
 
 type vaultData struct {
-	Salt  string                 `json:"salt"`
-	Check *security.Ciphertext   `json:"check,omitempty"`
+	Salt  string               `json:"salt"`
+	Check *security.Ciphertext `json:"check,omitempty"`
 	// KDF 持久化 Argon2 参数；旧 vault 缺该字段时读取端走默认值，保持向后兼容 / persists Argon2 params; legacy vaults without this field fall back to defaults on read.
-	KDF   *security.Argon2Params `json:"kdf,omitempty"`
+	KDF *security.Argon2Params `json:"kdf,omitempty"`
 }
 
 func (s *Store) EnsureSalt() ([]byte, error) {
@@ -57,7 +57,11 @@ func (s *Store) LoadKDFParams() (security.Argon2Params, error) {
 	if data.Vault.KDF == nil {
 		return security.DefaultArgon2Params(), nil
 	}
-	return data.Vault.KDF.Sanitize(), nil
+	params, err := security.ValidateArgon2Params(*data.Vault.KDF)
+	if err != nil {
+		return security.Argon2Params{}, fmt.Errorf("validate stored KDF parameters: %w", err)
+	}
+	return params, nil
 }
 
 // SaveKDFParams 持久化当前使用的 KDF 参数，供下次启动时按同一参数派生密钥 / persists the KDF params in use so the next launch derives the key with the same cost.
@@ -70,7 +74,10 @@ func (s *Store) SaveKDFParams(params security.Argon2Params) error {
 		return err
 	}
 
-	sanitized := params.Sanitize()
+	sanitized, err := security.ValidateArgon2Params(params)
+	if err != nil {
+		return err
+	}
 	data.Vault.KDF = &sanitized
 	return s.saveLocked(data)
 }

@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 import {
   RefreshCw,
 } from 'lucide-react'
-import { cmd } from '@/wailsjs/wailsjs/go/models'
+import { cmd } from '@/lib/backendModels'
 import GenerateKeyDrawer from './components/GenerateKeyDrawer'
 import ImportKeyDrawer from './components/ImportKeyDrawer'
 import ImportLocalKeyDrawer from './components/ImportLocalKeyDrawer'
