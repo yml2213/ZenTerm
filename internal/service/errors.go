@@ -42,6 +42,7 @@ var (
 	ErrFileNameRequired            = errors.New("file name is required")
 	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
 	ErrProtectedLocalPath          = errors.New("refusing to delete protected local path")
+	ErrVaultLocked                 = errors.New("vault is locked")
 )
 
 const (
@@ -88,6 +89,8 @@ type ZenService interface {
 	ChangeMasterPassword(currentPassword, nextPassword string) error
 	ResetVault() error
 	GetHosts() ([]model.Host, error)
+	GetHost(hostID string) (model.Host, error)
+	GetHostSecret(hostID string) (model.Identity, error)
 	ListLocalFiles(path string) (model.FileListing, error)
 	ListRemoteFiles(hostID, path string) (model.FileListing, error)
 	CreateLocalDirectory(parentPath, name string) (model.FileEntry, error)
@@ -98,6 +101,11 @@ type ZenService interface {
 	DeleteRemoteEntry(hostID, path string) error
 	UploadFile(hostID, localPath, remoteDir string, overwrite bool) (model.FileTransferResult, error)
 	DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error)
+	UploadDirectory(hostID, localPath, remoteDir string, autoCompress bool, overwrite bool) (model.FileTransferResult, error)
+	ExtractLocalArchive(archivePath, targetDir string) error
+	ExtractRemoteArchive(hostID, archivePath, targetDir string) error
+	CompressLocalEntry(sourcePath, targetArchivePath string) error
+	CompressRemoteEntry(hostID, sourcePath, targetArchivePath string) error
 	AddHost(host model.Host, identity model.Identity) error
 	UpdateHost(host model.Host, identity model.Identity) error
 	UpdateHostPinned(hostID string, pinned bool) error
@@ -121,6 +129,7 @@ type ZenService interface {
 	ImportCredential(label, privateKeyPEM, passphrase string) (string, error)
 	GetCredentials() ([]model.Credential, error)
 	GetCredential(credentialID string) (model.Credential, error)
+	GetCredentialSecret(credentialID string) (string, string, error)
 	GetCredentialUsage(credentialID string) (model.CredentialUsage, error)
 	GetCredentialPublicKey(credentialID string) (string, error)
 	ListLocalSSHKeys() ([]model.LocalSSHKey, error)
@@ -132,6 +141,7 @@ type ZenService interface {
 	TestCredentialForHost(hostID, credentialID string) error
 	DeleteCredential(credentialID string) error
 }
+
 
 type managedSession struct {
 	Session

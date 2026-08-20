@@ -22,6 +22,24 @@ func (a *App) UpdateHost(host Host, identity model.Identity) error {
 	return nil
 }
 
+// GetHostSecret 解密并返回指定主机的敏感身份信息（密码与私钥） / decrypts and returns the sensitive identity material for a host.
+func (a *App) GetHostSecret(hostID string) (HostSecret, error) {
+	identity, err := a.service.GetHostSecret(hostID)
+	if err != nil {
+		return HostSecret{}, normalizeFrontendError(err)
+	}
+
+	host, _ := a.service.GetHost(hostID)
+
+	return HostSecret{
+		HostID:       hostID,
+		Password:     identity.Password,
+		PrivateKey:   identity.PrivateKey,
+		CredentialID: host.CredentialID,
+	}, nil
+}
+
+
 // UpdateHostPinned 更新主机置顶状态 / updates whether a host is pinned in the host list.
 func (a *App) UpdateHostPinned(hostID string, pinned bool) error {
 	if err := a.service.UpdateHostPinned(hostID, pinned); err != nil {

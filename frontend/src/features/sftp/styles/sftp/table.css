@@ -252,6 +252,32 @@
   border-color: var(--sftp-icon-dir-border);
 }
 
+.file-icon-parent {
+  color: #38bdf8;
+}
+.file-icon-dir {
+  color: #f59e0b;
+}
+.file-icon-archive {
+  color: #fb923c;
+}
+.file-icon-code {
+  color: #818cf8;
+}
+.file-icon-image {
+  color: #34d399;
+}
+.file-icon-media {
+  color: #f472b6;
+}
+.file-icon-key {
+  color: #c084fc;
+}
+.file-icon-doc {
+  color: #94a3b8;
+}
+
+
 .sftp-select-all,
 .sftp-row-select,
 .sftp-select-spacer {

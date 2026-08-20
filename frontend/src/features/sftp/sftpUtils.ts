@@ -38,7 +38,7 @@ export interface ContextMenuState {
 }
 
 export interface DialogState {
-  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'overwrite-transfer'
+  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'overwrite-transfer' | 'extract' | 'compress' | 'upload-folder'
   scope: 'local' | 'remote'
   entry?: FileEntry
   entries?: FileEntry[]
@@ -46,7 +46,13 @@ export interface DialogState {
   targetScope?: 'local' | 'remote'
   targetName?: string
   sourceName?: string
+  sourcePath?: string
+  archiveFormat?: 'tar.gz' | 'zip'
+  extractTarget?: string
+  autoCompress?: boolean
+  value?: string
 }
+
 
 export interface TransferResult {
   sourcePath: string
@@ -55,9 +61,28 @@ export interface TransferResult {
 
 export const defaultSort: SortConfig = { key: 'name', direction: 'asc' }
 
+export function isArchiveFile(name: string | null | undefined): boolean {
+  if (!name) return false
+  const lower = name.toLowerCase()
+  return (
+    lower.endsWith('.zip') ||
+    lower.endsWith('.tar.gz') ||
+    lower.endsWith('.tgz') ||
+    lower.endsWith('.tar') ||
+    lower.endsWith('.gz') ||
+    lower.endsWith('.tar.bz2') ||
+    lower.endsWith('.tbz2') ||
+    lower.endsWith('.tar.xz') ||
+    lower.endsWith('.txz') ||
+    lower.endsWith('.7z') ||
+    lower.endsWith('.rar')
+  )
+}
+
 export function getScopeLabel(scope: 'local' | 'remote'): string {
   return scope === 'remote' ? '远端' : '本地'
 }
+
 
 export function isHiddenEntry(entry: FileEntry | null | undefined): boolean {
   return Boolean(entry && !entry.parent && entry.name?.startsWith('.'))
@@ -318,12 +343,25 @@ export function buildDialogDescription(state: DialogState): string {
     return `将删除${scopeLabel}${entryKind} ${state.entry?.name}，此操作不可撤销。`
   }
 
+  if (state.type === 'extract') {
+    return `将解压${scopeLabel}压缩文件 ${state.entry?.name} 到目标目录 ${state.extractTarget || state.parentPath || '当前目录'}。`
+  }
+
+  if (state.type === 'compress') {
+    return `将压缩${scopeLabel}条目 ${state.entry?.name || '所选条目'} 为 ${state.value || '压缩包'}。`
+  }
+
+  if (state.type === 'upload-folder') {
+    return `将本地文件夹 ${state.sourceName} 上传到远端目录 ${state.parentPath}。勾选自动压缩可显著加速大量小文件的传输。`
+  }
+
   if (state.type === 'rename') {
     return `请输入${scopeLabel}${entryKind} ${state.entry?.name} 的新名称。`
   }
 
   return `将在当前${scopeLabel}目录 ${state.parentPath || '--'} 下创建新文件夹。`
 }
+
 
 export function getContextMenuTitle(state: ContextMenuState): string {
   if (state.useSelectionActions) {

@@ -107,3 +107,45 @@ func (a *App) CancelFileTransfer(hostID string) error {
 	}
 	return nil
 }
+
+// UploadDirectory 上传本地整个目录到远端，支持自动压缩解压加速或递归上传 / uploads a whole local directory to a remote directory.
+func (a *App) UploadDirectory(hostID, localPath, remoteDir string, autoCompress bool, overwrite bool) (model.FileTransferResult, error) {
+	result, err := a.service.UploadDirectory(hostID, localPath, remoteDir, autoCompress, overwrite)
+	if err != nil {
+		return model.FileTransferResult{}, normalizeFrontendError(err)
+	}
+	return result, nil
+}
+
+// ExtractLocalArchive 解压本地压缩文件到目标目录 / extracts a local archive to target directory.
+func (a *App) ExtractLocalArchive(archivePath, targetDir string) error {
+	if err := a.service.ExtractLocalArchive(archivePath, targetDir); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}
+
+// ExtractRemoteArchive 解压远程压缩文件到目标目录 / extracts a remote archive to target directory.
+func (a *App) ExtractRemoteArchive(hostID, archivePath, targetDir string) error {
+	if err := a.service.ExtractRemoteArchive(hostID, archivePath, targetDir); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}
+
+// CompressLocalEntry 压缩本地文件或文件夹 / compresses a local file or directory.
+func (a *App) CompressLocalEntry(sourcePath, targetArchivePath string) error {
+	if err := a.service.CompressLocalEntry(sourcePath, targetArchivePath); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}
+
+// CompressRemoteEntry 压缩远程文件或文件夹 / compresses a remote file or directory.
+func (a *App) CompressRemoteEntry(hostID, sourcePath, targetArchivePath string) error {
+	if err := a.service.CompressRemoteEntry(hostID, sourcePath, targetArchivePath); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}
+

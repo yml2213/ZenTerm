@@ -1,4 +1,4 @@
-import { KeyRound, ShieldCheck, ShieldQuestion } from 'lucide-react'
+import { KeyRound, Server, ShieldCheck, ShieldQuestion } from 'lucide-react'
 
 export interface CredentialType {
   id: string
@@ -42,9 +42,11 @@ export interface ImportLocalKeyForm {
 
 export const credentialTypes: CredentialType[] = [
   { id: 'ssh_key', label: 'SSH 密钥', icon: KeyRound },
-  { id: 'password', label: '密码', icon: ShieldCheck },
+  { id: 'host_secrets', label: '主机密码与凭据', icon: Server },
+  { id: 'password', label: '凭据密码', icon: ShieldCheck },
   { id: 'certificate', label: '证书', icon: ShieldQuestion },
 ]
+
 
 export const keyAlgorithms: KeyAlgorithm[] = [
   { id: 'ed25519', label: 'ED25519', bits: null },

@@ -36,6 +36,20 @@ type Credential struct {
 	LastUsedAt string               `json:"last_used_at,omitempty"`
 }
 
+type CredentialSecret struct {
+	CredentialID string `json:"credential_id"`
+	PrivateKey   string `json:"private_key,omitempty"`
+	Password     string `json:"password,omitempty"`
+}
+
+type HostSecret struct {
+	HostID       string `json:"host_id"`
+	Password     string `json:"password,omitempty"`
+	PrivateKey   string `json:"private_key,omitempty"`
+	CredentialID string `json:"credential_id,omitempty"`
+}
+
+
 type FileEntry struct {
 	Name    string `json:"name"`
 	Path    string `json:"path"`
