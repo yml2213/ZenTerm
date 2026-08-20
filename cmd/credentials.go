@@ -56,6 +56,20 @@ func (a *App) GetCredentialPublicKey(credentialID string) (string, error) {
 	return publicKey, nil
 }
 
+// GetCredentialSecret 解密并返回指定凭据的私钥和密码 / decrypts and returns the sensitive secret for a credential.
+func (a *App) GetCredentialSecret(credentialID string) (CredentialSecret, error) {
+	priv, pass, err := a.service.GetCredentialSecret(credentialID)
+	if err != nil {
+		return CredentialSecret{}, normalizeFrontendError(err)
+	}
+	return CredentialSecret{
+		CredentialID: credentialID,
+		PrivateKey:   priv,
+		Password:     pass,
+	}, nil
+}
+
+
 // ListLocalSSHKeys 扫描本机 ~/.ssh 密钥 / scans local ~/.ssh keys.
 func (a *App) ListLocalSSHKeys() ([]model.LocalSSHKey, error) {
 	keys, err := a.service.ListLocalSSHKeys()

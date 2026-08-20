@@ -1,19 +1,28 @@
 import {
+  Archive,
   ChevronRight,
   Download,
+  FileArchive,
+  FileCode,
+
   FileText,
+  Film,
   Folder,
   FolderOpen,
+  FolderPlus,
   Home,
+  Image,
+  KeyRound,
   LoaderCircle,
   PencilLine,
-  Plus,
   RefreshCw,
   Trash2,
   Upload,
   X,
   type LucideIcon,
 } from 'lucide-react'
+
+
 import { useMemo, type MouseEvent, type ReactNode } from 'react'
 import {
   buildRows,
@@ -23,6 +32,7 @@ import {
   formatTime,
   getEntryPermissionLabel,
   getEntryTypeLabel,
+  isArchiveFile,
   pickTransferableEntries,
   sortRows,
   uniquePaths,
@@ -60,12 +70,41 @@ interface FilePaneProps {
   transferBusy: boolean
   transferDisabled: boolean
   onTransfer: () => void
+  onUploadFolder?: (folderPath: string) => void
+  onExtractArchive?: (entry: FileEntry) => void
+  onCompressEntry?: (entry: FileEntry) => void
   onCreateDirectory: () => void
   onRenameEntry: (entry: FileEntry) => void
   onDeleteEntry: (entry: FileEntry) => void
   onDeleteSelection: (entries: FileEntry[]) => void
   onClearSelection: () => void
   onContextMenu: (state: Omit<ContextMenuState, 'transferLabel' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) => void
+}
+
+export function renderFileRowIcon(entry: FileEntry) {
+  if (entry.parent) {
+    return <FolderOpen size={16} className="file-icon-parent" />
+  }
+  if (entry.isDir) {
+    return <Folder size={16} className="file-icon-dir" />
+  }
+  const name = (entry.name || '').toLowerCase()
+  if (isArchiveFile(name)) {
+    return <FileArchive size={16} className="file-icon-archive" />
+  }
+  if (/\.(ts|tsx|js|jsx|go|py|rs|java|c|cpp|h|hpp|html|css|scss|json|yaml|yml|sh|bash|sql|toml|xml|md)$/.test(name)) {
+    return <FileCode size={16} className="file-icon-code" />
+  }
+  if (/\.(png|jpg|jpeg|gif|svg|webp|ico|bmp|avif)$/.test(name)) {
+    return <Image size={16} className="file-icon-image" />
+  }
+  if (/\.(mp4|mov|mkv|avi|webm|mp3|wav|flac|ogg)$/.test(name)) {
+    return <Film size={16} className="file-icon-media" />
+  }
+  if (/\.(pem|key|pub|crt|cer|pfx|p12)$/.test(name)) {
+    return <KeyRound size={16} className="file-icon-key" />
+  }
+  return <FileText size={16} className="file-icon-doc" />
 }
 
 export default function FilePane({
@@ -94,6 +133,8 @@ export default function FilePane({
   transferBusy,
   transferDisabled,
   onTransfer,
+  onExtractArchive,
+  onCompressEntry,
   onCreateDirectory,
   onRenameEntry,
   onDeleteEntry,
@@ -109,6 +150,7 @@ export default function FilePane({
     () => buildRows(listing ? { ...listing, entries: visibleEntries } : listing),
     [listing, visibleEntries],
   )
+
   const rows = useMemo(() => sortRows(rawRows, sort), [rawRows, sort])
   const selectedEntries = useMemo(
     () => findSelectedEntries(listing ? { ...listing, entries: visibleEntries } : listing, selectedPaths),
@@ -169,21 +211,26 @@ export default function FilePane({
     onSelectOnlyPath(entry.path)
   }
 
+  const selectionPillText = selectedEntries.length === 1 && selectedTransferableEntries.length === 1
+    ? '已选文件'
+    : `已选 ${selectedEntries.length} 项`
+
   return (
     <section className={paneClassName}>
-      <header className="sftp-pane-topbar">
-        <div className="sftp-pane-tabbar">
+      <header className="sftp-pane-topbar sftp-pane-toolbar">
+        {/* 左侧：主机标签 + 路径面包屑 */}
+        <div className="sftp-pane-topbar-left">
           <div className="sftp-pane-tab" title={sourceMetaTitle}>
             {headerActions || (
               <>
                 <SourceIcon size={14} />
-                <span>{sourceLabel}</span>
+                <span className="sftp-pane-tab-title">{sourceLabel}</span>
               </>
             )}
           </div>
-        </div>
 
-        <div className="sftp-pane-toolbar">
+          <span className="sftp-topbar-divider" />
+
           <div className="sftp-breadcrumb-scroll">
             <nav className="sftp-breadcrumb" aria-label={`${sourceLabel} 路径`}>
               {breadcrumbItems.map((item, index) => (
@@ -199,59 +246,84 @@ export default function FilePane({
               ))}
             </nav>
           </div>
+        </div>
 
-          <div className="sftp-pane-topbar-actions">
-            {selectedEntries.length > 0 ? (
-              <span className="visually-hidden">
-                {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
-              </span>
-            ) : null}
+        {/* 右侧：操作区与全局工具 */}
+        <div className="sftp-pane-topbar-actions sftp-pane-toolbar-actions">
+          {selectedEntries.length > 0 && (
+            <>
+              <div className="sftp-selection-group">
+                <span className="pill subtle sftp-selection-pill">
+                  {selectionPillText}
+                </span>
 
-            {selectedEntries.length > 0 ? (
-              <span className="pill subtle sftp-selection-pill">
-                {selectedEntries.length === 1 && selectedTransferableEntries.length === 1 ? '已选文件' : `已选 ${selectedEntries.length} 项`}
-              </span>
-            ) : null}
+                {selectedEntries.length > 1 ? (
+                  <button
+                    type="button"
+                    className="icon-button sftp-context-btn"
+                    aria-label="清空选择"
+                    title="清空选择"
+                    onClick={onClearSelection}
+                  >
+                    <X size={13} />
+                  </button>
+                ) : null}
 
-            <div className="sftp-toolbar-actions">
-              {selectedEntries.length > 1 ? (
+                {/* 唯一的传输操作主按钮 */}
+                {transferActionLabel ? (
+                  <button
+                    type="button"
+                    className="primary-button sftp-transfer-action-button"
+                    aria-label={transferActionAriaLabel || ''}
+                    title={transferActionAriaLabel || ''}
+                    disabled={transferDisabled}
+                    onClick={onTransfer}
+                  >
+                    {transferBusy ? <LoaderCircle size={14} className="spin" /> : transferIcon}
+                    <span>{transferActionLabel}</span>
+                  </button>
+                ) : null}
+
+                {/* 条目操作图标按钮 */}
+                {singleSelectedEntry && isArchiveFile(singleSelectedEntry.name) && onExtractArchive && (
+                  <button
+                    type="button"
+                    className="icon-button sftp-context-btn accent"
+                    aria-label="解压压缩包"
+                    title="解压压缩包"
+                    onClick={() => onExtractArchive(singleSelectedEntry)}
+                  >
+                    <FileArchive size={14} />
+                  </button>
+                )}
+
+                {singleSelectedEntry && !singleSelectedEntry.parent && onCompressEntry && (
+                  <button
+                    type="button"
+                    className="icon-button sftp-context-btn"
+                    aria-label="压缩条目"
+                    title="压缩为 .tar.gz"
+                    onClick={() => onCompressEntry(singleSelectedEntry)}
+                  >
+                    <Archive size={14} />
+                  </button>
+                )}
+
+                {singleSelectedEntry && !singleSelectedEntry.parent ? (
+                  <button
+                    type="button"
+                    className="icon-button sftp-context-btn"
+                    aria-label="重命名"
+                    title="重命名"
+                    onClick={() => onRenameEntry(singleSelectedEntry)}
+                  >
+                    <PencilLine size={14} />
+                  </button>
+                ) : null}
+
                 <button
                   type="button"
-                  className="icon-button sftp-tool-button"
-                  aria-label="清空选择"
-                  title="清空选择"
-                  onClick={onClearSelection}
-                >
-                  <X size={15} />
-                </button>
-              ) : null}
-
-              <button
-                type="button"
-                className="icon-button sftp-tool-button"
-                aria-label="新建目录"
-                title="新建目录"
-                onClick={onCreateDirectory}
-              >
-                <Plus size={15} />
-              </button>
-
-              {singleSelectedEntry && !singleSelectedEntry.parent ? (
-                <button
-                  type="button"
-                  className="icon-button sftp-tool-button"
-                  aria-label="重命名"
-                  title="重命名"
-                  onClick={() => onRenameEntry(singleSelectedEntry)}
-                >
-                  <PencilLine size={15} />
-                </button>
-              ) : null}
-
-              {selectedEntries.length > 0 ? (
-                <button
-                  type="button"
-                  className="icon-button sftp-tool-button danger-outline"
+                  className="icon-button sftp-context-btn danger"
                   aria-label={selectedEntries.length > 1 ? `删除所选 (${selectedEntries.length})` : '删除'}
                   title={selectedEntries.length > 1 ? `删除所选 (${selectedEntries.length})` : '删除'}
                   onClick={() => (
@@ -260,43 +332,47 @@ export default function FilePane({
                       : onDeleteEntry(singleSelectedEntry!)
                   )}
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={14} />
                 </button>
-              ) : null}
+              </div>
+              <span className="sftp-topbar-divider" />
+            </>
+          )}
 
-              {transferActionLabel ? (
-                <button
-                  type="button"
-                  className="icon-button sftp-tool-button"
-                  aria-label={transferActionAriaLabel || ''}
-                  title={transferActionAriaLabel || ''}
-                  disabled={transferDisabled}
-                  onClick={onTransfer}
-                >
-                  {transferBusy ? <LoaderCircle size={15} className="spin" /> : transferIcon}
-                </button>
-              ) : null}
-            </div>
+          {/* 全局工具：新建目录 + 刷新 */}
+          <button
+            type="button"
+            className="icon-button sftp-header-btn"
+            aria-label="新建目录"
+            title="新建目录"
+            onClick={onCreateDirectory}
+          >
+            <FolderPlus size={14} />
+          </button>
 
-            {loading ? (
-              <span className="pill subtle">
-                <LoaderCircle size={13} className="spin" />
-                加载中
-              </span>
-            ) : null}
+          {loading ? (
+            <span className="pill subtle sftp-loading-pill" title="正在读取目录">
+              <LoaderCircle size={13} className="spin" />
+            </span>
+          ) : null}
 
-            <button
-              type="button"
-              className="icon-button sftp-pane-refresh"
-              aria-label={`刷新 ${sourceLabel}`}
-              title={`刷新 ${sourceLabel}`}
-              onClick={onRefresh}
-            >
-              <RefreshCw size={15} />
-            </button>
-          </div>
+          <button
+            type="button"
+            className="icon-button sftp-header-btn"
+            aria-label={`刷新 ${sourceLabel}`}
+            title={`刷新 ${sourceLabel}`}
+            onClick={onRefresh}
+          >
+            <RefreshCw size={14} className={loading ? 'spin' : ''} />
+          </button>
         </div>
       </header>
+
+
+
+
+
+
 
       <div className="sftp-file-table">
         <div className={`sftp-file-head${showSelectionControls ? ' has-selection' : ''}`}>
@@ -419,7 +495,7 @@ export default function FilePane({
 
                 <div className="sftp-file-name sftp-col-name">
                   <span className={`sftp-file-icon${entry.isDir || entry.parent ? ' is-dir' : ' is-file'}`}>
-                    {entry.parent ? <FolderOpen size={16} /> : entry.isDir ? <Folder size={16} /> : <FileText size={16} />}
+                    {renderFileRowIcon(entry)}
                   </span>
                   <div className="sftp-file-copy">
                     <strong>{entry.name}</strong>

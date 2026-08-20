@@ -9,6 +9,12 @@ func (s *Service) GetHosts() ([]model.Host, error) {
 	return s.store.GetHosts()
 }
 
+// GetHost 返回指定 ID 的主机元数据 / returns host metadata for the given host ID.
+func (s *Service) GetHost(hostID string) (model.Host, error) {
+	return s.store.GetHost(hostID)
+}
+
+
 // AddHost 使用已解锁的 Vault 加密并持久化主机身份信息 / encrypts and persists a host identity using the unlocked vault.
 func (s *Service) AddHost(host model.Host, identity model.Identity) error {
 	return s.store.AddHost(host, identity, s.vault)

@@ -34,8 +34,8 @@ describe('App SFTP flows', () => {
     expect(screen.queryByText('root@10.0.0.1:22')).not.toBeInTheDocument()
     expect(await screen.findByText('notes.txt')).toBeInTheDocument()
     expect(await screen.findByText('app.log')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '上传到远端' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '下载到本地' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: '上传到远端' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '下载到本地' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'notes.txt，文件' }))
     expect(screen.getByText('已选文件', { selector: '.sftp-selection-pill' })).toBeInTheDocument()
@@ -133,23 +133,21 @@ describe('App SFTP flows', () => {
     await user.click(screen.getByRole('button', { name: 'app.log，文件' }))
 
     const topbar = view.container.querySelector('.sftp-pane-remote .sftp-pane-topbar')
-    const toolbar = view.container.querySelector('.sftp-pane-remote .sftp-pane-toolbar')
 
     expect(topbar).not.toBeNull()
-    expect(toolbar).not.toBeNull()
-    expect(toolbar.parentElement).toBe(topbar)
-    expect(topbar.querySelector('.sftp-host-switcher-group')).not.toBeNull()
-    expect(topbar.querySelector('.sftp-pane-tabbar')).not.toBeNull()
-    expect(topbar.querySelector('.sftp-pane-host-meta')).toBeNull()
+    expect(topbar?.querySelector('.sftp-host-switcher-group')).not.toBeNull()
+    expect(topbar?.querySelector('.sftp-pane-tab')).not.toBeNull()
+    expect(topbar?.querySelector('.sftp-pane-host-meta')).toBeNull()
 
     const createDirectoryButton = screen.getAllByRole('button', { name: '新建目录' })[1]
     const downloadButton = screen.getByRole('button', { name: '下载到本地' })
 
-    expect(topbar).toContain(toolbar)
-    expect(toolbar).toContain(createDirectoryButton)
-    expect(toolbar).toContain(downloadButton)
-    expect(toolbar).toContain(screen.getByText('已选文件', { selector: '.sftp-selection-pill' }))
+    expect(topbar).toContain(createDirectoryButton)
+    expect(topbar).toContain(downloadButton)
+    expect(topbar).toContain(screen.getByText('已选文件', { selector: '.sftp-selection-pill' }))
   })
+
+
 
   it('SFTP 工作区支持右键重命名远端文件', async () => {
     const user = userEvent.setup()

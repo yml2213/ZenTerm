@@ -14,6 +14,7 @@ interface KeychainListProps {
   localKeys: LocalSSHKey[]
   onGenerate: () => void
   onCopyPublicKey: (credentialId: string) => void
+  onViewPrivateKey?: (credential: Credential) => void
   onUploadCredential: (credentialId: string) => void
   onDeleteCredential: (credentialId: string) => void
   onCopyLocalPublicKey: (localKey: LocalSSHKey) => void
@@ -29,6 +30,7 @@ export default function KeychainList({
   localKeys,
   onGenerate,
   onCopyPublicKey,
+  onViewPrivateKey,
   onUploadCredential,
   onDeleteCredential,
   onCopyLocalPublicKey,
@@ -80,6 +82,17 @@ export default function KeychainList({
               >
                 <Copy size={16} />
               </button>
+              {onViewPrivateKey && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onViewPrivateKey(credential)}
+                  title="查看并复制私钥"
+                  disabled={!vaultUnlocked}
+                >
+                  <FileKey2 size={16} />
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-button"
@@ -100,6 +113,7 @@ export default function KeychainList({
             </div>
           </div>
         ))}
+
 
         {localKeys.length > 0 && (
           <div className="keychain-section-label">本机 ~/.ssh</div>

@@ -3,11 +3,14 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { cmd } from '@/lib/backendModels'
+import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
 import GenerateKeyDrawer from './components/GenerateKeyDrawer'
 import ImportKeyDrawer from './components/ImportKeyDrawer'
 import ImportLocalKeyDrawer from './components/ImportLocalKeyDrawer'
 import KeychainEmptyState from './components/KeychainEmptyState'
 import KeychainList from './components/KeychainList'
+import HostSecretsList from './components/HostSecretsList'
+import SecretModal from './components/SecretModal'
 import UploadKeyDrawer from './components/UploadKeyDrawer'
 import {
   credentialTypes,
@@ -32,6 +35,14 @@ export default function KeychainPanel({
   onHostsChanged,
 }: KeychainPanelProps) {
   const [activeType, setActiveType] = useState('ssh_key')
+  const [modalSecret, setModalSecret] = useState<{
+    isOpen: boolean
+    title: string
+    label: string
+    secret: string
+    type: 'password' | 'private_key'
+  } | null>(null)
+
   const {
     credentials,
     localKeys,
@@ -104,13 +115,30 @@ export default function KeychainPanel({
     closeDrawer()
   }, [closeDrawer])
 
+  const handleViewCredentialPrivateKey = async (cred: cmd.Credential) => {
+    try {
+      const secret = await AppAPI.GetCredentialSecret(cred.id)
+      setModalSecret({
+        isOpen: true,
+        title: `凭据私钥 - ${cred.label}`,
+        label: `${cred.algorithm || 'SSH 密钥'} (创建于 ${cred.created_at ? new Date(cred.created_at).toLocaleDateString() : ''})`,
+        secret: secret.private_key || '',
+        type: 'private_key',
+      })
+    } catch (err) {
+      setError(String(err))
+    }
+  }
+
   const toolbar = useMemo(
     () => (
       <div className="keychain-toolbar">
         <div className="keychain-sections" role="tablist" aria-label="凭据类型">
           {credentialTypes.map((type) => {
             const Icon = type.icon
-            const count = credentials.filter((c) => c.type === type.id).length + (type.id === 'ssh_key' ? localKeys.length : 0)
+            let count = credentials.filter((c) => c.type === type.id).length
+            if (type.id === 'ssh_key') count += localKeys.length
+            if (type.id === 'host_secrets') count = hosts.length
 
             return (
               <button
@@ -142,7 +170,7 @@ export default function KeychainPanel({
         </div>
       </div>
     ),
-    [activeType, credentials, handleTypeChange, loadCredentials, loading, localKeys.length, vaultUnlocked],
+    [activeType, credentials, handleTypeChange, hosts.length, loadCredentials, loading, localKeys.length, vaultUnlocked],
   )
 
   useLayoutEffect(() => {
@@ -155,7 +183,13 @@ export default function KeychainPanel({
       <div className={`keychain-workbench${activeDrawer ? ' drawer-open' : ''}`}>
         <div className="keychain-canvas">
           {notice && <div className="success-message">{notice}</div>}
-          {!hasVisibleKeys ? (
+          {activeType === 'host_secrets' ? (
+            <HostSecretsList
+              hosts={hosts}
+              vaultUnlocked={vaultUnlocked}
+              credentials={credentials}
+            />
+          ) : !hasVisibleKeys ? (
             <KeychainEmptyState
               activeType={activeType}
               label={activeTypeConfig.label}
@@ -175,6 +209,7 @@ export default function KeychainPanel({
               localKeys={visibleLocalKeys}
               onGenerate={() => openDrawer('generateKey')}
               onCopyPublicKey={handleCopyPublicKey}
+              onViewPrivateKey={handleViewCredentialPrivateKey}
               onUploadCredential={openUploadDrawer}
               onDeleteCredential={handleDeleteCredential}
               onCopyLocalPublicKey={handleCopyLocalPublicKey}
@@ -183,6 +218,18 @@ export default function KeychainPanel({
           )}
         </div>
       </div>
+
+      {modalSecret && (
+        <SecretModal
+          isOpen={modalSecret.isOpen}
+          title={modalSecret.title}
+          label={modalSecret.label}
+          secret={modalSecret.secret}
+          secretType={modalSecret.type}
+          onClose={() => setModalSecret(null)}
+        />
+      )}
+
 
       {activeDrawer === 'generateKey' && (
         <GenerateKeyDrawer

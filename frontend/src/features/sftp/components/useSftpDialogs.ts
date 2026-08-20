@@ -119,6 +119,62 @@ export function useSftpDialogs({
     })
   }
 
+  function openExtractArchive(scope: SftpScope, entry: FileEntry, intoSubfolder = false) {
+    if (!entry || entry.parent) return
+    closeContextMenu()
+
+    const parent = scope === 'remote' ? remoteListing?.path || '/' : localListing?.path || ''
+    const baseNameWithoutExt = entry.name.replace(/(\.tar\.gz|\.tgz|\.zip|\.tar|\.gz|\.tar\.bz2|\.tbz2|\.tar\.xz|\.txz|\.7z|\.rar)$/i, '')
+    const targetDir = intoSubfolder
+      ? (scope === 'remote' ? (parent === '/' ? `/${baseNameWithoutExt}` : `${parent}/${baseNameWithoutExt}`) : `${parent}/${baseNameWithoutExt}`)
+      : parent
+
+    setDialogState({
+      type: 'extract',
+      scope,
+      entry,
+      parentPath: parent,
+      extractTarget: targetDir,
+      value: targetDir,
+    })
+  }
+
+  function openCompressEntry(scope: SftpScope, entry: FileEntry, format: 'tar.gz' | 'zip' = 'tar.gz') {
+    if (!entry || entry.parent) return
+    closeContextMenu()
+
+    const parent = scope === 'remote' ? remoteListing?.path || '/' : localListing?.path || ''
+    const archiveName = `${entry.name}.${format}`
+
+    setDialogState({
+      type: 'compress',
+      scope,
+      entry,
+      parentPath: parent,
+      archiveFormat: format,
+      value: archiveName,
+    })
+  }
+
+  function openUploadFolderDialog(localFolderPath: string) {
+    closeContextMenu()
+    const folderName = localFolderPath.split(/[/\\]/).filter(Boolean).at(-1) || 'folder'
+    setDialogState({
+      type: 'upload-folder',
+      scope: 'local',
+      targetScope: 'remote',
+      parentPath: remoteListing?.path || '/',
+      sourcePath: localFolderPath,
+      sourceName: folderName,
+      autoCompress: true,
+      value: folderName,
+    })
+  }
+
+  function toggleDialogAutoCompress() {
+    setDialogState((current) => current ? { ...current, autoCompress: !current.autoCompress } : current)
+  }
+
   function closeDialog() {
     setDialogState(null)
   }
@@ -137,7 +193,12 @@ export function useSftpDialogs({
     openDeleteEntry,
     openDeleteSelection,
     openTransferConflictDialog,
+    openExtractArchive,
+    openCompressEntry,
+    openUploadFolderDialog,
+    toggleDialogAutoCompress,
     closeDialog,
     changeDialogValue,
   }
 }
+

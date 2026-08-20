@@ -381,3 +381,244 @@
 .keychain-submit {
   width: 100%;
 }
+
+/* ==========================================================================
+   Host Secrets List & Secret Viewer Modal Styles
+   ========================================================================== */
+
+.host-secrets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.2rem;
+  overflow-y: auto;
+}
+
+.host-secrets-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.host-secrets-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  min-width: 260px;
+  max-width: 400px;
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.host-secrets-search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.host-secrets-stats {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.host-secrets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.host-secret-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.host-secret-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.host-secret-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.host-secret-host-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.host-secret-host-info strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.host-secret-host-info small {
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.host-secret-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.host-secret-type-badge.password {
+  background: color-mix(in srgb, var(--accent-cyan) 14%, transparent);
+  color: var(--accent-cyan);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 28%, transparent);
+}
+
+.host-secret-type-badge.key {
+  background: color-mix(in srgb, var(--accent-violet) 14%, transparent);
+  color: var(--accent-violet);
+  border: 1px solid color-mix(in srgb, var(--accent-violet) 28%, transparent);
+}
+
+.host-secret-type-badge.none {
+  background: var(--surface-neutral-bg);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+.host-secret-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--panel-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.host-secret-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.host-secret-label {
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+}
+
+.host-secret-value-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.host-secret-masked-value {
+  letter-spacing: 0.15em;
+}
+
+.host-secret-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+/* Secret Modal Viewer */
+.secret-modal-dialog {
+  max-width: 580px;
+  width: 90vw;
+}
+
+.secret-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.2rem 0;
+}
+
+.secret-viewer-box {
+  background: #090d14;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.secret-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: #111722;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.secret-viewer-content {
+  padding: 1rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  max-height: 280px;
+  overflow-y: auto;
+  color: #a5f3fc;
+  word-break: break-all;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
+.secret-masked-preview {
+  letter-spacing: 0.25em;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.secret-modal-security-tip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: var(--accent-amber);
+  background: color-mix(in srgb, var(--accent-amber) 10%, transparent);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent-amber) 25%, transparent);
+}
+

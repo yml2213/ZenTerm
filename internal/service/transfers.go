@@ -557,3 +557,161 @@ func resolveExistingRemoteFile(client sftpClient, targetPath string) (string, os
 
 	return resolvedPath, info, nil
 }
+
+// UploadDirectory 上传本地整个文件夹到远端目录，支持自动压缩解压加速或逐文件递归上传 / uploads a whole local directory to a remote directory.
+func (s *Service) UploadDirectory(hostID, localDirPath, remoteParentDir string, autoCompress bool, overwrite bool) (model.FileTransferResult, error) {
+	resolvedLocalDir, err := resolveExistingLocalDirectory(localDirPath)
+	if err != nil {
+		return model.FileTransferResult{}, err
+	}
+
+	dirName := filepath.Base(resolvedLocalDir)
+
+	if autoCompress {
+		// 尝试使用自动压缩模式
+		tempArchive, err := createTempLocalArchiveOfDir(resolvedLocalDir)
+		if err == nil {
+			defer func() { _ = os.Remove(tempArchive) }()
+
+			// 上传临时压缩包
+			archiveResult, uploadErr := s.UploadFile(hostID, tempArchive, remoteParentDir, true)
+			if uploadErr == nil {
+				// 执行远端解压
+				remoteArchivePath := archiveResult.TargetPath
+				extractErr := s.ExtractRemoteArchive(hostID, remoteArchivePath, remoteParentDir)
+				// 清理远端临时压缩包
+				_ = s.withReusableSFTPClient(hostID, func(client sftpClient, remoteAddr string) error {
+					return client.Remove(remoteArchivePath)
+				})
+
+				if extractErr == nil {
+					return model.FileTransferResult{
+						SourcePath:  resolvedLocalDir,
+						TargetPath:  pathpkg.Join(remoteParentDir, dirName),
+						BytesCopied: archiveResult.BytesCopied,
+					}, nil
+				}
+			}
+		}
+		// 如果压缩/远端解压失败，自动 fallback 到递归普通上传
+	}
+
+	return s.uploadDirectoryRecursive(hostID, resolvedLocalDir, remoteParentDir, overwrite)
+}
+
+func (s *Service) uploadDirectoryRecursive(hostID, localDirPath, remoteParentDir string, overwrite bool) (model.FileTransferResult, error) {
+	var totalBytes int64
+	dirBase := filepath.Base(localDirPath)
+	remoteTargetRoot := pathpkg.Join(remoteParentDir, dirBase)
+
+	err := s.withReusableSFTPClient(hostID, func(client sftpClient, remoteAddr string) error {
+		resolvedRemoteParent, info, err := resolveExistingRemoteDirectory(client, remoteParentDir)
+		if err != nil {
+			return fmt.Errorf("resolve remote directory: %w", err)
+		}
+		if !info.IsDir() {
+			return ErrTransferTargetNotDirectory
+		}
+		remoteTargetRoot = pathpkg.Join(resolvedRemoteParent, dirBase)
+
+		return filepath.Walk(localDirPath, func(currentPath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			rel, err := filepath.Rel(localDirPath, currentPath)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+
+			targetPath := remoteTargetRoot
+			if rel != "." {
+				targetPath = pathpkg.Join(remoteTargetRoot, rel)
+			}
+
+			if info.IsDir() {
+				if err := ensureRemoteDirAll(client, targetPath); err != nil {
+					return fmt.Errorf("create remote dir %s: %w", targetPath, err)
+				}
+				return nil
+			}
+
+			// 上传常规文件
+			sourceFile, err := os.Open(currentPath)
+			if err != nil {
+				return fmt.Errorf("open local file %s: %w", currentPath, err)
+			}
+			defer func() { _ = sourceFile.Close() }()
+
+			if err := ensureRemoteDirAll(client, pathpkg.Dir(targetPath)); err != nil {
+				return fmt.Errorf("create remote parent dir %s: %w", pathpkg.Dir(targetPath), err)
+			}
+
+			tempPath, err := remoteTransferTempPath(targetPath)
+			if err != nil {
+				return err
+			}
+			tempFile, err := client.Create(tempPath)
+			if err != nil {
+				return fmt.Errorf("create remote temp file %s: %w", tempPath, err)
+			}
+
+			written, copyErr := io.Copy(tempFile, sourceFile)
+			closeErr := tempFile.Close()
+			if copyErr != nil {
+				_ = client.Remove(tempPath)
+				return fmt.Errorf("upload content %s: %w", currentPath, copyErr)
+			}
+			if closeErr != nil {
+				_ = client.Remove(tempPath)
+				return fmt.Errorf("close remote temp file %s: %w", tempPath, closeErr)
+			}
+
+			if err := commitRemoteTransferTemp(client, tempPath, targetPath, overwrite); err != nil {
+				_ = client.Remove(tempPath)
+				return err
+			}
+
+			totalBytes += written
+			return nil
+		})
+	})
+	if err != nil {
+		return model.FileTransferResult{}, err
+	}
+
+	return model.FileTransferResult{
+		SourcePath:  localDirPath,
+		TargetPath:  remoteTargetRoot,
+		BytesCopied: totalBytes,
+	}, nil
+}
+
+func ensureRemoteDirAll(client sftpClient, targetPath string) error {
+	clean := pathpkg.Clean(targetPath)
+	if clean == "/" || clean == "." {
+		return nil
+	}
+	if info, err := client.Stat(clean); err == nil {
+		if info.IsDir() {
+			return nil
+		}
+		return ErrTransferTargetNotDirectory
+	}
+	parent := pathpkg.Dir(clean)
+	if parent != clean && parent != "." && parent != "/" {
+		if err := ensureRemoteDirAll(client, parent); err != nil {
+			return err
+		}
+	}
+	if err := client.Mkdir(clean); err != nil {
+		if info, statErr := client.Stat(clean); statErr == nil && info.IsDir() {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+

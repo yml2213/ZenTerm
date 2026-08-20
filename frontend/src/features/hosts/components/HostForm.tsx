@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
+  Eye,
+  EyeOff,
   FileKey2,
   Folder,
   KeyRound,
@@ -18,6 +20,7 @@ import {
 import { getCredentials } from '@/lib/backend'
 import type { HostFormModel } from '../hostFormModel'
 import { cmd } from '@/lib/backendModels'
+import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
 
 type Credential = cmd.Credential
 
@@ -44,6 +47,8 @@ export default function HostForm({
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
+  const [showPasswordText, setShowPasswordText] = useState(false)
+
 
   async function loadCredentials() {
     setLoadingCredentials(true)
@@ -259,16 +264,48 @@ export default function HostForm({
           </div>
 
           {value.authType !== 'credential' && (
-            <label>
-              <span className="sr-only">密码</span>
-              <input
-                type="password"
-                value={value.password}
-                onChange={(event) => update('password', event.target.value)}
-                placeholder={isEdit ? '留空则保留现有密码' : '可选'}
-                disabled={value.authType === 'key'}
-              />
-            </label>
+            <div className="host-form-secret-field">
+              <label>
+                <span className="sr-only">密码</span>
+                <input
+                  type={showPasswordText ? 'text' : 'password'}
+                  value={value.password}
+                  onChange={(event) => update('password', event.target.value)}
+                  placeholder={isEdit ? '留空则保留现有密码' : '可选'}
+                  disabled={value.authType === 'key'}
+                />
+              </label>
+              <div className="host-form-secret-actions">
+                <button
+                  type="button"
+                  className="icon-button compact"
+                  onClick={() => setShowPasswordText(!showPasswordText)}
+                  title={showPasswordText ? '隐藏明文' : '显示明文'}
+                >
+                  {showPasswordText ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+                {isEdit && !value.password && (
+                  <button
+                    type="button"
+                    className="ghost-button compact text-xs"
+                    onClick={async () => {
+                      try {
+                        const sec = await AppAPI.GetHostSecret(value.id)
+                        if (sec.password) {
+                          update('password', sec.password)
+                          setShowPasswordText(true)
+                        }
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    title="读取并填入当前已保存的密码"
+                  >
+                    查看已保存
+                  </button>
+                )}
+              </div>
+            </div>
           )}
 
           {value.credentialId && (
@@ -290,17 +327,41 @@ export default function HostForm({
           )}
 
           {!value.credentialId && value.authType === 'key' ? (
-            <label>
-              <span className="sr-only">私钥</span>
-              <textarea
-                aria-label="私钥"
-                value={value.privateKey}
-                onChange={(event) => update('privateKey', event.target.value)}
-                placeholder={isEdit ? '留空则保留现有私钥' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
-                rows={5}
-              />
-            </label>
+            <div className="host-form-secret-field">
+              <label>
+                <span className="sr-only">私钥</span>
+                <textarea
+                  aria-label="私钥"
+                  value={value.privateKey}
+                  onChange={(event) => update('privateKey', event.target.value)}
+                  placeholder={isEdit ? '留空则保留现有私钥' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
+                  rows={5}
+                />
+              </label>
+              {isEdit && !value.privateKey && (
+                <div className="host-form-secret-actions">
+                  <button
+                    type="button"
+                    className="ghost-button compact text-xs"
+                    onClick={async () => {
+                      try {
+                        const sec = await AppAPI.GetHostSecret(value.id)
+                        if (sec.private_key) {
+                          update('privateKey', sec.private_key)
+                        }
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    title="读取并填入当前已保存的私钥"
+                  >
+                    查看已保存私钥
+                  </button>
+                </div>
+              )}
+            </div>
           ) : null}
+
 
           <div className="auth-add-menu-wrap">
             <button

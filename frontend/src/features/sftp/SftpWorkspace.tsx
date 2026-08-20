@@ -18,11 +18,11 @@ import { useSftpSelection } from './components/useSftpSelection'
 import { useSftpTransfer } from './components/useSftpTransfer'
 import {
   findSelectedEntries,
-  pickTransferableEntries,
   splitLocalPath,
   splitRemotePath,
   type ContextMenuState,
 } from './sftpUtils'
+
 import { cmd } from '@/lib/backendModels'
 
 type Host = cmd.Host
@@ -91,6 +91,9 @@ export default function SftpWorkspace({
     openDeleteEntry,
     openDeleteSelection,
     openTransferConflictDialog,
+    openExtractArchive,
+    openCompressEntry,
+    openUploadFolderDialog,
     closeDialog,
     changeDialogValue,
   } = useSftpDialogs({
@@ -182,6 +185,34 @@ export default function SftpWorkspace({
       return
     }
 
+    if (action === 'extract') {
+      if (contextMenu.entry) {
+        openExtractArchive(contextMenu.scope, contextMenu.entry, false)
+      }
+      return
+    }
+
+    if (action === 'extract-subfolder') {
+      if (contextMenu.entry) {
+        openExtractArchive(contextMenu.scope, contextMenu.entry, true)
+      }
+      return
+    }
+
+    if (action === 'compress-targz') {
+      if (contextMenu.entry) {
+        openCompressEntry(contextMenu.scope, contextMenu.entry, 'tar.gz')
+      }
+      return
+    }
+
+    if (action === 'compress-zip') {
+      if (contextMenu.entry) {
+        openCompressEntry(contextMenu.scope, contextMenu.entry, 'zip')
+      }
+      return
+    }
+
     if (action === 'toggle-hidden-files') {
       toggleHiddenFiles(contextMenu.scope)
       setContextMenu(null)
@@ -191,10 +222,12 @@ export default function SftpWorkspace({
   function openContextMenu(nextState: Omit<ContextMenuState, 'useSelectionActions' | 'selectionCount' | 'transferLabel' | 'canTransferSelection' | 'canClearSelection' | 'canDeleteSelection' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) {
     const scope = nextState.scope
     const selectedPaths = scope === 'remote' ? selectedRemotePaths : selectedLocalPaths
-    const listing = getVisibleListing(scope)
-    const selectedEntries = findSelectedEntries(listing, selectedPaths)
-    const transferableEntries = pickTransferableEntries(listing, selectedPaths)
-    const keepBatchSelection = selectedEntries.length > 1 && (!nextState.entry || selectedPaths.includes(nextState.entry.path))
+    const isTargetSelected = nextState.entry ? selectedPaths.includes(nextState.entry.path) : false
+    const keepBatchSelection = isTargetSelected && selectedPaths.length > 1
+    const selectedEntries = scope === 'remote'
+      ? findSelectedEntries(getVisibleListing('remote'), selectedRemotePaths)
+      : findSelectedEntries(getVisibleListing('local'), selectedLocalPaths)
+    const transferableEntries = selectedEntries.filter((entry) => !entry.isDir)
 
     setContextMenu({
       ...nextState,
@@ -257,6 +290,9 @@ export default function SftpWorkspace({
           transferBusy={transferBusy === 'upload'}
           transferDisabled={selectedLocalTransferableEntries.length === 0 || !selectedHost || !vaultUnlocked || transferBusy !== null}
           onTransfer={handleUpload}
+          onUploadFolder={openUploadFolderDialog}
+          onExtractArchive={(entry) => openExtractArchive('local', entry, false)}
+          onCompressEntry={(entry) => openCompressEntry('local', entry, 'tar.gz')}
           onCreateDirectory={() => openCreateDirectory('local')}
           onRenameEntry={(entry) => openRenameEntry('local', entry)}
           onDeleteEntry={(entry) => openDeleteEntry('local', entry)}
@@ -299,6 +335,8 @@ export default function SftpWorkspace({
               transferBusy={transferBusy === 'download'}
               transferDisabled={selectedRemoteTransferableEntries.length === 0 || !localListing?.path || transferBusy !== null}
               onTransfer={handleDownload}
+              onExtractArchive={(entry) => openExtractArchive('remote', entry, false)}
+              onCompressEntry={(entry) => openCompressEntry('remote', entry, 'tar.gz')}
               onCreateDirectory={() => openCreateDirectory('remote')}
               onRenameEntry={(entry) => openRenameEntry('remote', entry)}
               onDeleteEntry={(entry) => openDeleteEntry('remote', entry)}

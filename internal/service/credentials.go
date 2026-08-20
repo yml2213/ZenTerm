@@ -267,6 +267,29 @@ func algorithmFromPublicKey(publicKey ssh.PublicKey) string {
 	}
 }
 
+// GetCredentialSecret 解密并返回指定凭据的敏感私钥和密码 / decrypts and returns the sensitive private key and password for a credential.
+func (s *Service) GetCredentialSecret(credentialID string) (string, string, error) {
+	if s.vault == nil || !s.vault.IsUnlocked() {
+		return "", "", ErrVaultLocked
+	}
+	if credentialID == "" {
+		return "", "", ErrCredentialIDRequired
+	}
+	return s.store.GetCredentialSecret(credentialID, s.vault)
+}
+
+// GetHostSecret 解密并返回指定主机的密码或私钥身份凭据 / decrypts and returns the stored identity for a specific host.
+func (s *Service) GetHostSecret(hostID string) (model.Identity, error) {
+	if s.vault == nil || !s.vault.IsUnlocked() {
+		return model.Identity{}, ErrVaultLocked
+	}
+	if hostID == "" {
+		return model.Identity{}, ErrHostIDRequired
+	}
+	return s.store.GetIdentity(hostID, s.vault)
+}
+
+
 func newCredentialID() string {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
@@ -275,3 +298,4 @@ func newCredentialID() string {
 	}
 	return "cred_" + hex.EncodeToString(buf)
 }
+
