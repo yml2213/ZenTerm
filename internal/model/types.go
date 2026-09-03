@@ -177,11 +177,23 @@ type FileTransferResult struct {
 	BytesCopied int64  `json:"bytesCopied"`
 }
 
+// FileContent 表示编辑器读取的文件内容 / represents file content loaded into the editor.
+// Editable 为 false 时 Content 为空，Reason 说明不可编辑的原因。
+type FileContent struct {
+	Path     string `json:"path"`
+	Content  string `json:"content"`
+	Editable bool   `json:"editable"`
+	Size     int64  `json:"size"`
+	Reason   string `json:"reason,omitempty"`
+}
+
 // AppPreferences 全局应用偏好 / global application preferences.
 type AppPreferences struct {
 	OpenInspectorOnStartup   bool `json:"open_inspector_on_startup,omitempty"`
 	RecordSessionTranscripts bool `json:"record_session_transcripts,omitempty"`
 	SessionLogRetentionLimit *int `json:"session_log_retention_limit,omitempty"`
+	// DisableEditorBackup 关闭编辑器保存前备份；零值 false 表示默认开启备份 / disables pre-save .bak backup; zero value keeps backup on.
+	DisableEditorBackup bool `json:"disable_editor_backup,omitempty"`
 }
 
 // UpdateConfig 更新配置 / update configuration.

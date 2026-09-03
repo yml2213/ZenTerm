@@ -628,3 +628,173 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== SFTP 文件编辑器 ===== */
+
+.sftp-editor-modal {
+  width: min(860px, 94vw);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sftp-editor-dirty {
+  margin-right: auto;
+}
+
+.sftp-editor-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.sftp-editor-head h3 {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sftp-editor-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.sftp-editor-textarea {
+  width: 100%;
+  height: min(58vh, 560px);
+  resize: vertical;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong, var(--panel-bg));
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  tab-size: 4;
+  outline: none;
+}
+
+.sftp-editor-textarea:focus {
+  border-color: var(--accent, var(--text-secondary));
+}
+
+.sftp-editor-discard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--surface-danger-border, rgba(220, 38, 38, 0.35));
+  background: var(--surface-danger-bg, rgba(220, 38, 38, 0.08));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.sftp-editor-discard-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.sftp-editor-hint {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.pill.warning {
+  background: var(--surface-warning-bg, rgba(217, 119, 6, 0.12));
+  color: var(--accent-warning, #d97706);
+}
+
+.sftp-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sftp-editor-save {
+  min-width: 108px;
+  justify-content: center;
+}
+
+.sftp-editor-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sftp-editor-hint kbd {
+  display: inline-block;
+  padding: 0.08rem 0.42rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px;
+  background: var(--panel-bg-strong, var(--panel-bg));
+  font-family: inherit;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* ===== 编辑器查找替换栏 ===== */
+
+.sftp-editor-findbar {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg-strong, var(--panel-bg));
+}
+
+.sftp-editor-find-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.sftp-editor-find-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.sftp-editor-find-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.32rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.sftp-editor-find-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.sftp-editor-match-label {
+  flex-shrink: 0;
+  min-width: 3.2em;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-button.active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}

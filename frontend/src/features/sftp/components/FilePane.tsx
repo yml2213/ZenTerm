@@ -73,6 +73,7 @@ interface FilePaneProps {
   onUploadFolder?: (folderPath: string) => void
   onExtractArchive?: (entry: FileEntry) => void
   onCompressEntry?: (entry: FileEntry) => void
+  onEditFile?: (entry: FileEntry) => void
   onCreateDirectory: () => void
   onRenameEntry: (entry: FileEntry) => void
   onDeleteEntry: (entry: FileEntry) => void
@@ -135,6 +136,7 @@ export default function FilePane({
   onTransfer,
   onExtractArchive,
   onCompressEntry,
+  onEditFile,
   onCreateDirectory,
   onRenameEntry,
   onDeleteEntry,
@@ -441,6 +443,10 @@ export default function FilePane({
                 onDoubleClick={() => {
                   if (entry.isDir) {
                     onNavigate(entry.path)
+                    return
+                  }
+                  if (!entry.parent && onEditFile) {
+                    onEditFile(entry)
                   }
                 }}
                 onContextMenu={(event) => {
@@ -465,6 +471,8 @@ export default function FilePane({
                   if (event.key === 'Enter') {
                     if (entry.isDir) {
                       onNavigate(entry.path)
+                    } else if (!entry.parent && onEditFile) {
+                      onEditFile(entry)
                     } else {
                       onSelectOnlyPath(entry.path)
                     }
