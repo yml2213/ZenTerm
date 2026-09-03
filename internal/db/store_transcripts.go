@@ -406,6 +406,21 @@ func (s *Store) transcriptDirPath() string {
 	return filepath.Join(filepath.Dir(s.path), transcriptDirName)
 }
 
+// TranscriptBytes 统计会话终端输出文件的磁盘占用 / reports the total disk usage of session transcript files.
+func (s *Store) TranscriptBytes() (int64, error) {
+	var total int64
+	err := filepath.Walk(s.transcriptDirPath(), func(_ string, info os.FileInfo, walkErr error) error {
+		if walkErr == nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return 0, err
+	}
+	return total, nil
+}
+
 // transcriptFilePath 返回该 logID 的主分片路径（seq=0），保留用于向后兼容的单文件入口 / returns the primary shard path (seq=0) for a log, kept as the backwards-compatible single-file entry point.
 func (s *Store) transcriptFilePath(logID string) string {
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(logID))

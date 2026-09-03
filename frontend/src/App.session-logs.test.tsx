@@ -12,6 +12,8 @@ import {
   getSessionTranscript,
   listSessionLogs,
   toggleSessionLogFavorite,
+  deleteSessionLog,
+  clearSessionLogs,
 } from './lib/backend'
 
 registerAppHarness()
@@ -50,5 +52,29 @@ describe('App session logs', () => {
     await user.click(screen.getByRole('button', { name: '全部' }))
     await user.dblClick(screen.getByText('Beta'))
     await waitFor(() => expect(connect).toHaveBeenCalledWith('host-2'))
+  })
+
+  it('支持单条删除与清空全部日志', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '日志' }))
+
+    await waitFor(() => expect(listSessionLogs).toHaveBeenCalledWith(200))
+    await screen.findByText('Beta')
+
+    // 单条删除
+    await user.click(screen.getByRole('button', { name: '删除日志 Beta' }))
+    await waitFor(() => expect(deleteSessionLog).toHaveBeenCalledWith('log-2'))
+    await waitFor(() => expect(screen.queryByText('Beta')).not.toBeInTheDocument())
+    expect(screen.getByText('Alpha')).toBeInTheDocument()
+
+    // 清空全部（二次确认）
+    await user.click(screen.getByRole('button', { name: '清空全部日志' }))
+    await user.click(screen.getByRole('button', { name: '确认清空全部日志' }))
+    await waitFor(() => expect(clearSessionLogs).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByText('Alpha')).not.toBeInTheDocument())
+    expect(screen.getByText('连接后会在这里生成历史记录')).toBeInTheDocument()
   })
 })

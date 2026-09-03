@@ -121,6 +121,28 @@ func (s *Store) ToggleSessionLogFavorite(logID string, favorite bool) error {
 	return ErrSessionLogNotFound
 }
 
+// ClearSessionLogs 清空全部连接历史与终端输出记录 / clears all connection history and terminal transcripts.
+func (s *Store) ClearSessionLogs() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	removedLogIDs := make([]string, 0, len(data.SessionLogs))
+	for _, log := range data.SessionLogs {
+		removedLogIDs = append(removedLogIDs, log.ID)
+	}
+	data.SessionLogs = nil
+	data.SessionTranscripts = nil
+	if err := s.saveLocked(data); err != nil {
+		return err
+	}
+	return s.deleteTranscriptFilesLocked(removedLogIDs)
+}
+
 // DeleteSessionLog 删除一条连接历史记录 / deletes a connection history record.
 func (s *Store) DeleteSessionLog(logID string) error {
 	if logID == "" {

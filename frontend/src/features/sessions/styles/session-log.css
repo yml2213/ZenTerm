@@ -11,7 +11,7 @@
   min-height: var(--workspace-control-size);
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) max-content max-content;
+  grid-template-columns: minmax(180px, 1fr) max-content max-content max-content;
   align-items: center;
   gap: 0.55rem;
   overflow: hidden;
@@ -203,6 +203,82 @@
 .session-log-favorite {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.session-log-delete {
+  width: 27px;
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--text-tertiary);
+  background: transparent;
+  opacity: 0.58;
+  cursor: pointer;
+  transition: opacity 140ms ease, background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.session-log-row:hover .session-log-delete,
+.session-log-row:focus-within .session-log-delete,
+.session-log-row.selected .session-log-delete {
+  opacity: 0.88;
+}
+
+.session-log-delete:hover:not(:disabled) {
+  color: var(--accent-danger);
+  background: var(--surface-danger-bg);
+  border-color: var(--surface-danger-border);
+  opacity: 1;
+}
+
+.session-log-delete:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.session-log-clear {
+  flex: 0 0 auto;
+  width: var(--workspace-control-size);
+  min-height: var(--workspace-control-size);
+  padding: 0;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.session-log-clear:hover:not(:disabled) {
+  color: var(--accent-danger);
+  border-color: var(--surface-danger-border);
+  background: var(--surface-danger-bg);
+}
+
+.session-log-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.session-log-clear.confirm {
+  width: auto;
+  gap: 0.35rem;
+  padding: 0 0.7rem;
+  color: var(--accent-danger);
+  border-color: var(--surface-danger-border-strong);
+  background: var(--surface-danger-bg);
+  animation: session-log-clear-pop 160ms ease;
+}
+
+@keyframes session-log-clear-pop {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .session-log-detail {

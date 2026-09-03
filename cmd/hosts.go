@@ -138,6 +138,15 @@ func (a *App) DeleteSessionLog(logID string) error {
 	return nil
 }
 
+// ClearSessionLogs 清空全部连接历史与终端输出记录 / clears all connection history and terminal transcripts.
+func (a *App) ClearSessionLogs() error {
+	if err := a.service.ClearSessionLogs(); err != nil {
+		return normalizeFrontendError(err)
+	}
+
+	return nil
+}
+
 // SendInput 将前端按键输入写入对应会话 / writes frontend keystrokes into the target session.
 func (a *App) SendInput(sessionID, data string) error {
 	if err := a.service.SendInput(sessionID, data); err != nil {

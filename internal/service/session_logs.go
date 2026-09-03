@@ -45,6 +45,11 @@ func (s *Service) DeleteSessionLog(logID string) error {
 	return s.store.DeleteSessionLog(logID)
 }
 
+// ClearSessionLogs 清空全部连接历史与终端输出记录 / clears all connection history and terminal transcripts.
+func (s *Service) ClearSessionLogs() error {
+	return s.store.ClearSessionLogs()
+}
+
 func (s *Service) beginSessionLog(host model.Host) string {
 	logID, err := newSessionID()
 	if err != nil {
