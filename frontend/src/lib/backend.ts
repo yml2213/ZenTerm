@@ -282,6 +282,21 @@ export async function deleteRemoteEntry(
   return callApp("DeleteRemoteEntry", hostID, path);
 }
 
+export async function chmodLocalEntry(
+  path: string,
+  mode: string
+): Promise<void> {
+  return callApp("ChmodLocalEntry", path, mode);
+}
+
+export async function chmodRemoteEntry(
+  hostID: string,
+  path: string,
+  mode: string
+): Promise<void> {
+  return callApp("ChmodRemoteEntry", hostID, path, mode);
+}
+
 export async function uploadFile(
   hostID: string,
   localPath: string,

@@ -35,10 +35,13 @@ export default function EntryDialog({
   const isExtract = state.type === 'extract'
   const isCompress = state.type === 'compress'
   const isUploadFolder = state.type === 'upload-folder'
+  const isChmod = state.type === 'chmod'
 
   const title = isCreate
     ? `在${getScopeLabel(state.scope)}创建目录`
-    : isExtract
+    : isChmod
+      ? `修改${getScopeLabel(state.scope)}权限`
+      : isExtract
       ? `解压${getScopeLabel(state.scope)}压缩文件`
       : isCompress
         ? `压缩${getScopeLabel(state.scope)}条目`
@@ -54,7 +57,9 @@ export default function EntryDialog({
 
   const confirmLabel = isCreate
     ? '确认创建'
-    : isExtract
+    : isChmod
+      ? '确认修改'
+      : isExtract
       ? '开始解压'
       : isCompress
         ? '开始压缩'
@@ -95,7 +100,9 @@ export default function EntryDialog({
                   ? '解压到目标目录'
                   : isCompress
                     ? '压缩包文件名'
-                    : '新名称'}
+                    : isChmod
+                      ? '权限（八进制）'
+                      : '新名称'}
             </span>
             <input
               autoFocus
@@ -108,7 +115,9 @@ export default function EntryDialog({
                     ? '例如 /data/logs'
                     : isCompress
                       ? '例如 backup.tar.gz'
-                      : '请输入新名称'
+                      : isChmod
+                        ? '例如 0755 或 0644'
+                        : '请输入新名称'
               }
             />
           </label>

@@ -147,6 +147,10 @@ func (c *realSFTPClient) RemoveDirectory(path string) error {
 	return c.client.RemoveDirectory(path)
 }
 
+func (c *realSFTPClient) Chmod(path string, mode os.FileMode) error {
+	return c.client.Chmod(path, mode)
+}
+
 func (c *realSFTPClient) Close() error {
 	return c.client.Close()
 }

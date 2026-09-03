@@ -1,6 +1,14 @@
 package cmd
 
-import "zenterm/internal/model"
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
+	"zenterm/internal/model"
+	"zenterm/internal/service"
+)
 
 // ListLocalFiles 返回本机目录内容 / returns the local directory contents.
 func (a *App) ListLocalFiles(path string) (FileListing, error) {
@@ -149,3 +157,51 @@ func (a *App) CompressRemoteEntry(hostID, sourcePath, targetArchivePath string) 
 	return nil
 }
 
+// ChmodLocalEntry 修改本地文件或目录的权限 / changes the permissions of a local file or directory.
+func (a *App) ChmodLocalEntry(path string, mode string) (FileEntry, error) {
+	parsed, err := parseFileMode(mode)
+	if err != nil {
+		return FileEntry{}, normalizeFrontendError(err)
+	}
+
+	entry, err := a.service.ChmodLocalEntry(path, parsed)
+	if err != nil {
+		return FileEntry{}, normalizeFrontendError(err)
+	}
+
+	return fileEntryFromModel(entry), nil
+}
+
+// ChmodRemoteEntry 修改远端文件或目录的权限 / changes the permissions of a remote file or directory.
+func (a *App) ChmodRemoteEntry(hostID, path, mode string) (FileEntry, error) {
+	parsed, err := parseFileMode(mode)
+	if err != nil {
+		return FileEntry{}, normalizeFrontendError(err)
+	}
+
+	entry, err := a.service.ChmodRemoteEntry(hostID, path, parsed)
+	if err != nil {
+		return FileEntry{}, normalizeFrontendError(err)
+	}
+
+	return fileEntryFromModel(entry), nil
+}
+
+// parseFileMode 将前端传入的八进制字符串（如 "0755" 或 "755"）解析为 os.FileMode / parses an octal mode string from the frontend into os.FileMode.
+func parseFileMode(mode string) (os.FileMode, error) {
+	trimmed := strings.TrimSpace(mode)
+	if trimmed == "" {
+		return 0, service.ErrInvalidFileMode
+	}
+
+	parsed, err := strconv.ParseUint(trimmed, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %s", service.ErrInvalidFileMode, trimmed)
+	}
+
+	if parsed > 0o7777 {
+		return 0, fmt.Errorf("%w: %s exceeds maximum 7777", service.ErrInvalidFileMode, trimmed)
+	}
+
+	return os.FileMode(parsed), nil
+}

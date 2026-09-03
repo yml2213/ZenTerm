@@ -1,6 +1,8 @@
 import EntryDialog from './EntryDialog'
 import type { ExtendedDialogState } from './useSftpDialogs'
 import {
+  chmodLocalEntry,
+  chmodRemoteEntry,
   compressLocalEntry,
   compressRemoteEntry,
   createLocalDirectory,
@@ -128,6 +130,27 @@ export default function SftpDialogController({
           message: buildActionSuccessMessage('rename', currentDialog.scope, {
             entry: currentDialog.entry!,
             name: currentDialog.value!.trim(),
+          }),
+        })
+      }
+
+      if (currentDialog.type === 'chmod') {
+        if (currentDialog.scope === 'remote') {
+          if (!selectedHost) {
+            return
+          }
+          await chmodRemoteEntry(selectedHost.id, currentDialog.entry!.path, currentDialog.value!)
+          await handleRemoteNavigate(remoteListing?.path || '')
+        } else {
+          await chmodLocalEntry(currentDialog.entry!.path, currentDialog.value!)
+          await handleLocalNavigate(localListing?.path || '')
+        }
+
+        setNotice({
+          tone: 'success',
+          message: buildActionSuccessMessage('chmod', currentDialog.scope, {
+            entry: currentDialog.entry!,
+            mode: currentDialog.value!.trim(),
           }),
         })
       }

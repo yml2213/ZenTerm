@@ -416,3 +416,75 @@ func runRemoteDeleteBatch(entries []remoteDeleteEntry, remove func(path string) 
 	}
 	return errors.Join(errs...)
 }
+
+// ChmodLocalEntry 修改本地文件或目录的权限 / changes the permissions of a local file or directory.
+func (s *Service) ChmodLocalEntry(targetPath string, mode os.FileMode) (model.FileEntry, error) {
+	trimmedPath := strings.TrimSpace(targetPath)
+	if trimmedPath == "" {
+		return model.FileEntry{}, ErrFileActionPathRequired
+	}
+
+	resolvedPath, err := resolveLocalPath(trimmedPath)
+	if err != nil {
+		return model.FileEntry{}, err
+	}
+
+	if _, err := os.Stat(resolvedPath); err != nil {
+		return model.FileEntry{}, fmt.Errorf("stat local chmod target: %w", err)
+	}
+
+	if err := os.Chmod(resolvedPath, mode); err != nil {
+		return model.FileEntry{}, fmt.Errorf("chmod local entry: %w", err)
+	}
+
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return model.FileEntry{}, fmt.Errorf("stat local entry after chmod: %w", err)
+	}
+
+	parentPath := filepath.Dir(resolvedPath)
+	return buildFileEntry(parentPath, info, false), nil
+}
+
+// ChmodRemoteEntry 修改远端文件或目录的权限 / changes the permissions of a remote file or directory.
+func (s *Service) ChmodRemoteEntry(hostID, targetPath string, mode os.FileMode) (model.FileEntry, error) {
+	var entry model.FileEntry
+
+	trimmedPath := strings.TrimSpace(targetPath)
+	if trimmedPath == "" {
+		return model.FileEntry{}, ErrFileActionPathRequired
+	}
+
+	err := s.withReusableSFTPClient(hostID, func(client sftpClient, remoteAddr string) error {
+		resolvedPath, err := resolveRemotePath(client, trimmedPath)
+		if err != nil {
+			return fmt.Errorf("resolve remote chmod path for %s: %w", remoteAddr, err)
+		}
+
+		if _, err := client.Stat(resolvedPath); err != nil {
+			return fmt.Errorf("stat remote chmod target: %w", err)
+		}
+
+		if err := client.Chmod(resolvedPath, mode); err != nil {
+			return fmt.Errorf("chmod remote entry: %w", err)
+		}
+
+		info, err := client.Stat(resolvedPath)
+		if err != nil {
+			return fmt.Errorf("stat remote entry after chmod: %w", err)
+		}
+
+		parentPath := pathpkg.Dir(resolvedPath)
+		if parentPath == "." {
+			parentPath = "/"
+		}
+
+		entry = buildFileEntry(parentPath, info, true)
+		return nil
+	})
+	if err != nil {
+		return model.FileEntry{}, err
+	}
+
+	return entry, nil
+}

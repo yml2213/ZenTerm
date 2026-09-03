@@ -94,6 +94,7 @@ export default function SftpWorkspace({
     openExtractArchive,
     openCompressEntry,
     openUploadFolderDialog,
+    openChmodEntry,
     closeDialog,
     changeDialogValue,
   } = useSftpDialogs({
@@ -209,6 +210,13 @@ export default function SftpWorkspace({
     if (action === 'compress-zip') {
       if (contextMenu.entry) {
         openCompressEntry(contextMenu.scope, contextMenu.entry, 'zip')
+      }
+      return
+    }
+
+    if (action === 'chmod') {
+      if (contextMenu.entry) {
+        openChmodEntry(contextMenu.scope, contextMenu.entry)
       }
       return
     }

@@ -3,6 +3,7 @@ import {
   collapseEntriesForDelete,
   getBaseName,
   joinTransferTargetPath,
+  modeToOctal,
   type DialogState,
   type FileEntry,
   type FileListing,
@@ -175,6 +176,20 @@ export function useSftpDialogs({
     setDialogState((current) => current ? { ...current, autoCompress: !current.autoCompress } : current)
   }
 
+  function openChmodEntry(scope: SftpScope, entry: FileEntry) {
+    if (!entry || entry.parent) {
+      return
+    }
+
+    closeContextMenu()
+    setDialogState({
+      type: 'chmod',
+      scope,
+      entry,
+      value: entry.mode ? modeToOctal(entry.mode) : '0644',
+    })
+  }
+
   function closeDialog() {
     setDialogState(null)
   }
@@ -196,6 +211,7 @@ export function useSftpDialogs({
     openExtractArchive,
     openCompressEntry,
     openUploadFolderDialog,
+    openChmodEntry,
     toggleDialogAutoCompress,
     closeDialog,
     changeDialogValue,

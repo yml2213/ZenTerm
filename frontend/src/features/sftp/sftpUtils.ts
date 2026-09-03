@@ -38,7 +38,7 @@ export interface ContextMenuState {
 }
 
 export interface DialogState {
-  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'overwrite-transfer' | 'extract' | 'compress' | 'upload-folder'
+  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'overwrite-transfer' | 'extract' | 'compress' | 'upload-folder' | 'chmod'
   scope: 'local' | 'remote'
   entry?: FileEntry
   entries?: FileEntry[]
@@ -60,6 +60,27 @@ export interface TransferResult {
 }
 
 export const defaultSort: SortConfig = { key: 'name', direction: 'asc' }
+
+/**
+ * modeToOctal 将 Go 的 mode 字符串（如 "-rwxr-xr-x"）转换为八进制字符串（如 "0755"）。
+ * 如果解析失败，返回 "0644" 作为默认值。
+ */
+export function modeToOctal(modeStr: string): string {
+  if (!modeStr || modeStr.length < 10) {
+    return '0644'
+  }
+
+  // 跳过第一位（类型标志）只处理后 9 位 rwx
+  const perms = modeStr.slice(-9)
+  let octal = 0
+  for (let i = 0; i < 9; i++) {
+    if (perms[i] !== '-') {
+      octal |= 1 << (8 - i)
+    }
+  }
+
+  return '0' + octal.toString(8)
+}
 
 export function isArchiveFile(name: string | null | undefined): boolean {
   if (!name) return false
@@ -282,9 +303,9 @@ export function collapseEntriesForDelete(entries: FileEntry[]): FileEntry[] {
 }
 
 export function buildActionSuccessMessage(
-  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch',
+  type: 'mkdir' | 'rename' | 'delete' | 'delete-batch' | 'chmod',
   scope: 'local' | 'remote',
-  payload: { name?: string; entry?: FileEntry; count?: number } = {}
+  payload: { name?: string; entry?: FileEntry; count?: number; mode?: string } = {}
 ): string {
   const scopeLabel = getScopeLabel(scope)
 
@@ -302,6 +323,10 @@ export function buildActionSuccessMessage(
 
   if (type === 'delete-batch') {
     return `已删除${scopeLabel} ${payload.count} 个条目`
+  }
+
+  if (type === 'chmod') {
+    return `已修改${scopeLabel}${payload.entry?.isDir ? '目录' : '文件'} ${payload.entry?.name} 的权限为 ${payload.mode}`
   }
 
   return ''
@@ -357,6 +382,10 @@ export function buildDialogDescription(state: DialogState): string {
 
   if (state.type === 'rename') {
     return `请输入${scopeLabel}${entryKind} ${state.entry?.name} 的新名称。`
+  }
+
+  if (state.type === 'chmod') {
+    return `请输入${scopeLabel}${entryKind} ${state.entry?.name} 的新权限（八进制格式，例如 0755）。当前权限：${state.entry?.mode || '未知'}。`
   }
 
   return `将在当前${scopeLabel}目录 ${state.parentPath || '--'} 下创建新文件夹。`
