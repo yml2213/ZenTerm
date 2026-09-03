@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"zenterm/internal/db"
 	"zenterm/internal/model"
@@ -1458,5 +1461,72 @@ func TestWriteRemoteFileCreatesBackupByDefault(t *testing.T) {
 	}
 	if got := string(sftp.files["/etc/nginx/site.conf.bak"]); got != string(original) {
 		t.Fatalf("backup content = %q, want untouched %q", got, original)
+	}
+}
+
+func TestForwardOutputPreservesSplitMultibyteChars(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// 模拟 btop 输出：大量 3 字节 UTF-8 字符（braille 图形）+ 控制序列
+	payload := "\x1b[?2026h"
+	for i := 0; i < 3000; i++ {
+		payload += "\u28ff\u28c0\u2588\u2593"
+	}
+	payload += "\x1b[?2026l"
+
+	var mu sync.Mutex
+	var chunks []string
+	svc.SetEventEmitter(func(event string, data any) {
+		if event != "term:data:sess-test" {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		chunks = append(chunks, data.(string))
+	})
+
+	pr, pw := io.Pipe()
+	done := make(chan struct{})
+	go func() {
+		svc.forwardOutput("sess-test", "", pr)
+		close(done)
+	}()
+
+	// 以故意劈开多字节字符的偏移分块写入（模拟 Read 边界落在字符中间）
+	go func() {
+		for i := 0; i < len(payload); i += 5 {
+			end := i + 5
+			if end > len(payload) {
+				end = len(payload)
+			}
+			if _, err := pw.Write([]byte(payload[i:end])); err != nil {
+				return
+			}
+		}
+		_ = pw.Close()
+	}()
+	<-done
+
+	mu.Lock()
+	defer mu.Unlock()
+	for i, chunk := range chunks {
+		if !utf8.ValidString(chunk) {
+			t.Fatalf("chunk %d contains invalid UTF-8 (split multibyte char leaked to JSON layer): %q", i, chunk)
+		}
+	}
+	rebuilt := strings.Join(chunks, "")
+	if rebuilt != payload {
+		t.Fatalf("rebuilt output differs: len(rebuilt)=%d len(payload)=%d", len(rebuilt), len(payload))
+	}
+	if strings.ContainsRune(rebuilt, '\uFFFD') {
+		t.Fatalf("rebuilt output contains U+FFFD replacement chars")
 	}
 }
