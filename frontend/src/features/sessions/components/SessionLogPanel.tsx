@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, UserRound, X } from 'lucide-react'
-import { getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '@/lib/backend'
+import { Clock3, ExternalLink, FileText, History, PlugZap, RefreshCw, Search, Star, Trash2, UserRound, X } from 'lucide-react'
+import { clearSessionLogs, deleteSessionLog, getSessionTranscript, listSessionLogs, onRuntimeEvent, toggleSessionLogFavorite } from '@/lib/backend'
 import { cmd } from '@/lib/backendModels'
 
 type SessionLog = cmd.SessionLog
@@ -105,6 +105,8 @@ export default function SessionLogPanel({
   const [transcript, setTranscript] = useState<SessionTranscript | null>(null)
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const loadLogs = useCallback(async () => {
     if (!vaultUnlocked) {
@@ -182,11 +184,42 @@ export default function SessionLogPanel({
     }
   }
 
-  function handleCloseDetail() {
+  const handleCloseDetail = useCallback(() => {
     setSelectedLog(null)
     setTranscript(null)
     setTranscriptError(null)
-  }
+  }, [])
+
+  const handleDeleteLog = useCallback(async (log: SessionLog) => {
+    setDeleteBusy(log.id)
+    setError(null)
+    try {
+      await deleteSessionLog(log.id)
+      setLogs((current) => current.filter((item) => item.id !== log.id))
+      if (selectedLog?.id === log.id) {
+        handleCloseDetail()
+      }
+    } catch (err) {
+      setError((err as Error).message || String(err))
+    } finally {
+      setDeleteBusy(null)
+    }
+  }, [handleCloseDetail, selectedLog])
+
+  const handleClearLogs = useCallback(async () => {
+    setDeleteBusy('__all__')
+    setError(null)
+    try {
+      await clearSessionLogs()
+      setLogs([])
+      setConfirmClear(false)
+      handleCloseDetail()
+    } catch (err) {
+      setError((err as Error).message || String(err))
+    } finally {
+      setDeleteBusy(null)
+    }
+  }, [handleCloseDetail])
 
   function handleOpenFullLog(log: SessionLog | null = selectedLog) {
     if (!log) return
@@ -207,7 +240,7 @@ export default function SessionLogPanel({
     if (selectedLog && !visibleLogs.some((log) => log.id === selectedLog.id)) {
       handleCloseDetail()
     }
-  }, [selectedLog, visibleLogs])
+  }, [handleCloseDetail, selectedLog, visibleLogs])
 
   const toolbar = useMemo(
     () => (
@@ -243,9 +276,27 @@ export default function SessionLogPanel({
           <RefreshCw size={14} className={loading ? 'spin' : undefined} />
           刷新
         </button>
+        <button
+          type="button"
+          className={`ghost-button compact session-log-clear${confirmClear ? ' confirm' : ''}`}
+          onClick={() => {
+            if (!confirmClear) {
+              setConfirmClear(true)
+              window.setTimeout(() => setConfirmClear(false), 3000)
+              return
+            }
+            void handleClearLogs()
+          }}
+          disabled={logs.length === 0 || Boolean(deleteBusy) || !vaultUnlocked}
+          title={confirmClear ? '再次点击确认清空全部日志' : '清空全部日志'}
+          aria-label={confirmClear ? '确认清空全部日志' : '清空全部日志'}
+        >
+          <Trash2 size={15} />
+          {confirmClear ? '确认清空' : null}
+        </button>
       </div>
     ),
-    [filterKey, loadLogs, loading, query, vaultUnlocked],
+    [confirmClear, deleteBusy, filterKey, handleClearLogs, loadLogs, loading, logs.length, query, vaultUnlocked],
   )
 
   useLayoutEffect(() => {
@@ -343,6 +394,19 @@ export default function SessionLogPanel({
                         }}
                       >
                         <Star size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="session-log-delete"
+                        aria-label={`删除日志 ${hostTitle}`}
+                        title="删除该条日志及其终端记录"
+                        disabled={deleteBusy === log.id}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void handleDeleteLog(log)
+                        }}
+                      >
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>

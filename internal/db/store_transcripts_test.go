@@ -149,3 +149,66 @@ func TestStoreTranscriptLegacySingleFileCompat(t *testing.T) {
 func mustNow() time.Time {
 	return time.Now().UTC()
 }
+
+// TestStoreClearSessionLogsRemovesLogsAndFiles 验证：清空日志后记录移除且 transcript 文件一并删除 / verifies that clearing logs removes records and deletes transcript files.
+func TestStoreClearSessionLogsRemovesLogsAndFiles(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	logID := "log-clear"
+	if err := store.CreateSessionLog(model.SessionLog{
+		ID:          logID,
+		HostID:      "host-1",
+		HostAddress: "10.0.0.2",
+		HostPort:    22,
+		SSHUsername: "root",
+		Protocol:    "ssh",
+		Status:      model.SessionLogStatusClosed,
+		StartedAt:   mustNow(),
+	}); err != nil {
+		t.Fatalf("CreateSessionLog() error = %v", err)
+	}
+	if err := store.AppendSessionTranscript(logID, "session-clear", "clear me", vault); err != nil {
+		t.Fatalf("AppendSessionTranscript() error = %v", err)
+	}
+
+	if bytes, err := store.TranscriptBytes(); err != nil || bytes <= 0 {
+		t.Fatalf("TranscriptBytes() = %d, %v; want > 0", bytes, err)
+	}
+
+	if err := store.ClearSessionLogs(); err != nil {
+		t.Fatalf("ClearSessionLogs() error = %v", err)
+	}
+
+	logs, err := store.ListSessionLogs(0)
+	if err != nil {
+		t.Fatalf("ListSessionLogs() error = %v", err)
+	}
+	if len(logs) != 0 {
+		t.Fatalf("ListSessionLogs() after clear = %d entries, want 0", len(logs))
+	}
+
+	bytes, err := store.TranscriptBytes()
+	if err != nil {
+		t.Fatalf("TranscriptBytes() error = %v", err)
+	}
+	if bytes != 0 {
+		t.Fatalf("TranscriptBytes() after clear = %d, want 0", bytes)
+	}
+
+	if _, err := store.GetSessionTranscript(logID, vault); err == nil {
+		t.Fatalf("GetSessionTranscript() after clear should fail")
+	}
+}

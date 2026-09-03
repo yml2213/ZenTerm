@@ -19,6 +19,7 @@ import {
   listBackups,
   openStoreDirectory,
   restoreBackup,
+  clearSessionLogs,
   type BackupEntry,
   type DataStats,
 } from "@/lib/backend";
@@ -57,6 +58,7 @@ export default function DataSettings() {
   const [importPassword, setImportPassword] = useState("");
   const [restorePassword, setRestorePassword] = useState("");
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [confirmClearLogs, setConfirmClearLogs] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -163,6 +165,22 @@ export default function DataSettings() {
     }
   }
 
+  async function handleClearSessionLogs() {
+    setBusy("clear-logs");
+    setError(null);
+    setNotice(null);
+    try {
+      await clearSessionLogs();
+      setNotice("已清空全部会话记录与终端输出。");
+      setConfirmClearLogs(false);
+      await loadData();
+    } catch (err) {
+      setError((err as Error).message || String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="settings-section-stack">
       {/* 数据概览 */}
@@ -201,7 +219,12 @@ export default function DataSettings() {
             <History size={16} />
             <div>
               <strong>{stats?.session_log_count ?? "—"}</strong>
-              <small>会话记录</small>
+              <small>
+                会话记录
+                {stats && stats.transcript_bytes > 0
+                  ? ` · 终端输出 ${formatBytes(stats.transcript_bytes)}`
+                  : ""}
+              </small>
             </div>
           </div>
         </div>
@@ -220,6 +243,29 @@ export default function DataSettings() {
           >
             <ExternalLink size={14} />
             打开目录
+          </button>
+        </div>
+
+        <div className="settings-action-grid data-export-actions">
+          <button
+            type="button"
+            className={`ghost-button danger-outline${confirmClearLogs ? " confirm" : ""}`}
+            onClick={() => {
+              if (!confirmClearLogs) {
+                setConfirmClearLogs(true);
+                window.setTimeout(() => setConfirmClearLogs(false), 3000);
+                return;
+              }
+              void handleClearSessionLogs();
+            }}
+            disabled={Boolean(busy) || (stats?.session_log_count ?? 0) === 0}
+          >
+            <Trash2 size={16} />
+            {busy === "clear-logs"
+              ? "清空中…"
+              : confirmClearLogs
+                ? "确认清空全部会话记录?"
+                : "清空会话记录"}
           </button>
         </div>
       </section>

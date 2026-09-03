@@ -410,6 +410,10 @@ export async function deleteSessionLog(logID: string): Promise<void> {
   return callApp("DeleteSessionLog", logID);
 }
 
+export async function clearSessionLogs(): Promise<void> {
+  return callApp("ClearSessionLogs");
+}
+
 export async function getAppVersion(): Promise<string> {
   return callApp("GetAppVersion");
 }
@@ -712,6 +716,7 @@ export interface DataStats {
   host_count: number;
   credential_count: number;
   session_log_count: number;
+  transcript_bytes: number;
   modified_at: string;
 }
 

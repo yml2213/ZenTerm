@@ -18,6 +18,7 @@ type DataStats struct {
 	HostCount       int    `json:"host_count"`
 	CredentialCount int    `json:"credential_count"`
 	SessionLogCount int    `json:"session_log_count"`
+	TranscriptBytes int64  `json:"transcript_bytes"`
 	ModifiedAt      string `json:"modified_at"`
 }
 
@@ -56,12 +57,18 @@ func (a *App) GetDataStats() (DataStats, error) {
 		return DataStats{}, normalizeFrontendError(err)
 	}
 
+	transcriptBytes, err := a.store.TranscriptBytes()
+	if err != nil {
+		return DataStats{}, normalizeFrontendError(err)
+	}
+
 	return DataStats{
 		StorePath:       storePath,
 		FileSize:        fileSize,
 		HostCount:       len(hosts),
 		CredentialCount: len(creds),
 		SessionLogCount: len(logs),
+		TranscriptBytes: transcriptBytes,
 		ModifiedAt:      modifiedAt,
 	}, nil
 }
