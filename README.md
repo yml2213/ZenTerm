@@ -85,7 +85,7 @@ npm run build
 
 ## GitHub 云端发布
 
-项目已配置 GitHub Actions Release workflow，当前版本为 `0.1.6`。推送 `v0.1.4` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
+项目已配置 GitHub Actions Release workflow，当前版本为 `0.1.6`。推送 `v0.1.6` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
 
 ### 发布步骤
 
@@ -106,7 +106,7 @@ git push origin v0.1.6
 - `ZenTerm-0.1.6-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
 - 每个包旁边都会生成 `.sha256` 校验文件。
 
-macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。Release workflow 已支持 GitHub artifact provenance，以及由仓库 secrets 启用的 Windows Authenticode、macOS Developer ID 签名和 notarization；未配置签名 secrets 时仍会生成未签名产物。配置方法与验证命令见 [`docs/RELEASE_SECURITY.md`](docs/RELEASE_SECURITY.md)。
+macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。Release workflow 会为所有产物生成 GitHub artifact provenance 与 SHA-256 校验文件。由于未内置商业签名证书，初次运行若遇到系统拦截，可参考 [`docs/RELEASE_SECURITY.md`](docs/RELEASE_SECURITY.md) 进行系统放行或自签运行。
 
 ## 数据与安全模型
 
