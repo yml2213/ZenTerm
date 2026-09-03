@@ -2,6 +2,9 @@
   position: fixed;
   z-index: 999;
   min-width: 180px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   padding: 0.4rem;
   border: 1px solid var(--border-default);
   border-radius: 12px;

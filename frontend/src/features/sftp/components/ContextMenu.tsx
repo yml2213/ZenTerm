@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Archive,
   Eye,
@@ -7,6 +9,7 @@ import {
   FolderPlus,
   Pencil,
   RefreshCw,
+  Shield,
   Trash2,
   Upload,
   X,
@@ -32,16 +35,41 @@ interface ContextMenuProps {
   onAction: (action: string) => void
 }
 
+const VIEWPORT_GAP = 12
+
 export default function ContextMenu({ state, onClose, onAction }: ContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const [position, setPosition] = useState<{ left: number; top: number }>(() =>
+    state ? getContextMenuPosition(state) : { left: 0, top: 0 }
+  )
+
+  // 用真实 DOM 尺寸重新钳位，避免估算高度不准导致菜单在视口边缘被截断。
+  // 注意：菜单有 scale(0.96) 入场动画，getBoundingClientRect 会返回缩放中的
+  // 视觉尺寸（偏小约 4%），因此改用不受 transform 影响的 offsetWidth/offsetHeight。
+  useLayoutEffect(() => {
+    if (!state || !menuRef.current) {
+      return
+    }
+
+    const menuWidth = menuRef.current.offsetWidth
+    const menuHeight = menuRef.current.offsetHeight
+    const maxX = Math.max(VIEWPORT_GAP, window.innerWidth - menuWidth - VIEWPORT_GAP)
+    const maxY = Math.max(VIEWPORT_GAP, window.innerHeight - menuHeight - VIEWPORT_GAP)
+    const nextLeft = Math.min(state.x, maxX)
+    const nextTop = Math.min(state.y, maxY)
+
+    setPosition((prev) => (prev.left === nextLeft && prev.top === nextTop ? prev : { left: nextLeft, top: nextTop }))
+  }, [state])
+
   if (!state) {
     return null
   }
 
-  const position = getContextMenuPosition(state)
   const isArchive = state.entry ? isArchiveFile(state.entry.name) : false
 
-  return (
+  return createPortal(
     <div
+      ref={menuRef}
       className="sftp-context-menu"
       role="menu"
       aria-label={`${getScopeLabel(state.scope)}${state.entry ? '条目' : '工作区'}菜单`}
@@ -119,6 +147,13 @@ export default function ContextMenu({ state, onClose, onAction }: ContextMenuPro
       ) : null}
 
       {!state.useSelectionActions && state.entry && !state.entry.parent ? (
+        <button type="button" role="menuitem" onClick={() => onAction('chmod')}>
+          <Shield size={14} />
+          <span>修改权限</span>
+        </button>
+      ) : null}
+
+      {!state.useSelectionActions && state.entry && !state.entry.parent ? (
         <button type="button" role="menuitem" className="danger" onClick={() => onAction('delete')}>
           <Trash2 size={14} />
           <span>删除</span>
@@ -143,7 +178,10 @@ export default function ContextMenu({ state, onClose, onAction }: ContextMenuPro
         <X size={14} />
         <span>关闭菜单</span>
       </button>
-    </div>
+    </div>,
+    // 渲染到 body：祖先 .page-shell 上的 backdrop-filter 会把 position: fixed
+    // 的包含块从视口改为该元素，导致菜单坐标系偏离视口并被 overflow: hidden 裁剪。
+    // Portal 到 body 后 fixed 重新相对视口，clientX/clientY 与钳位计算完全一致。
+    document.body
   )
 }
-
