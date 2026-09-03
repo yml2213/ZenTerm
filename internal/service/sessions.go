@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"zenterm/internal/model"
 
@@ -519,16 +520,58 @@ func (s *Service) hasActiveSessionForHost(hostID string) bool {
 	return false
 }
 
+// incompleteUTF8Tail 返回 data 末尾不完整 UTF-8 序列的字节数（最多 3），完整序列或纯 ASCII 返回 0 / returns the number of trailing bytes (at most 3) forming an incomplete UTF-8 sequence, or 0 when the tail is complete.
+func incompleteUTF8Tail(data []byte) int {
+	for i := len(data) - 1; i >= 0 && i > len(data)-utf8.UTFMax; i-- {
+		b := data[i]
+		if b&0xC0 == 0x80 {
+			continue // continuation byte, keep scanning backwards
+		}
+		if b < 0xC0 {
+			return 0 // ASCII lead byte, tail is complete
+		}
+		size := 0
+		switch {
+		case b >= 0xF0:
+			size = 4
+		case b >= 0xE0:
+			size = 3
+		case b >= 0xC0:
+			size = 2
+		}
+		if remaining := len(data) - i; remaining < size {
+			return remaining
+		}
+		return 0
+	}
+	return 0
+}
+
 func (s *Service) forwardOutput(sessionID, logID string, reader io.Reader) {
 	buf := make([]byte, 4096)
+	var pending []byte
 	for {
 		n, err := reader.Read(buf)
 		if n > 0 {
-			chunk := string(buf[:n])
-			s.appendSessionTranscript(logID, sessionID, chunk)
-			s.emit("term:data:"+sessionID, chunk)
+			pending = append(pending, buf[:n]...)
+			//? 多字节 UTF-8 字符可能被 Read 的分块边界截断；不完整的尾部留待下个分块，
+			//? 否则 JSON 序列化会把它替换成 U+FFFD，终端上表现为随机的 "?"（如 btop 的图形符号）
+			//? / a multi-byte UTF-8 char can be split at a read boundary; hold back the incomplete
+			//? tail so JSON marshalling does not turn it into U+FFFD ("?" on screen, e.g. btop graphs).
+			if cut := len(pending) - incompleteUTF8Tail(pending); cut > 0 {
+				chunk := string(pending[:cut])
+				s.appendSessionTranscript(logID, sessionID, chunk)
+				s.emit("term:data:"+sessionID, chunk)
+				pending = pending[cut:]
+			}
 		}
 		if err != nil {
+			//? 连接结束时把剩余字节冲出去（损坏的残缺序列已无法修复，但别丢内容） / flush leftovers on close.
+			if len(pending) > 0 {
+				chunk := string(pending)
+				s.appendSessionTranscript(logID, sessionID, chunk)
+				s.emit("term:data:"+sessionID, chunk)
+			}
 			if !errors.Is(err, io.EOF) {
 				s.emit("term:error:"+sessionID, err.Error())
 			}
