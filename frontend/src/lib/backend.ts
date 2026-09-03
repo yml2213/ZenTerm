@@ -207,6 +207,40 @@ export async function listRemoteFiles(hostID: string, path: string = ''): Promis
   return callApp('ListRemoteFiles', hostID, path)
 }
 
+export async function uploadDirectory(
+  hostID: string,
+  localPath: string,
+  remoteDir: string,
+  autoCompress: boolean,
+  overwrite: boolean = false
+): Promise<model.FileTransferResult> {
+  return callApp('UploadDirectory', hostID, localPath, remoteDir, autoCompress, overwrite)
+}
+
+export async function extractLocalArchive(archivePath: string, targetDir: string): Promise<void> {
+  return callApp('ExtractLocalArchive', archivePath, targetDir)
+}
+
+export async function extractRemoteArchive(
+  hostID: string,
+  archivePath: string,
+  targetDir: string
+): Promise<void> {
+  return callApp('ExtractRemoteArchive', hostID, archivePath, targetDir)
+}
+
+export async function compressLocalEntry(sourcePath: string, targetArchivePath: string): Promise<void> {
+  return callApp('CompressLocalEntry', sourcePath, targetArchivePath)
+}
+
+export async function compressRemoteEntry(
+  hostID: string,
+  sourcePath: string,
+  targetArchivePath: string
+): Promise<void> {
+  return callApp('CompressRemoteEntry', hostID, sourcePath, targetArchivePath)
+}
+
 export async function createLocalDirectory(
   parentPath: string,
   name: string
@@ -291,6 +325,10 @@ export async function reorderHosts(hostIDs: string[]): Promise<void> {
 
 export async function deleteHost(hostID: string): Promise<void> {
   return callApp("DeleteHost", hostID);
+}
+
+export async function getHostSecret(hostID: string): Promise<cmd.HostSecret> {
+  return callApp('GetHostSecret', hostID)
 }
 
 export async function connect(hostID: string): Promise<string> {
@@ -563,6 +601,10 @@ export async function getCredentialPublicKey(
   credentialID: string
 ): Promise<string> {
   return callApp("GetCredentialPublicKey", credentialID);
+}
+
+export async function getCredentialSecret(credentialID: string): Promise<cmd.CredentialSecret> {
+  return callApp('GetCredentialSecret', credentialID)
 }
 
 export interface LocalSSHKey {

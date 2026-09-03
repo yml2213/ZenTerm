@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Check, Copy, Eye, EyeOff, FileKey2, KeyRound, Lock, Search, Server, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { cmd } from '@/lib/backendModels'
-import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
+import { getHostSecret } from '@/lib/backend'
 import SecretModal from './SecretModal'
 
 type Host = cmd.Host
@@ -45,7 +45,7 @@ export default function HostSecretsList({
     hosts.forEach((host) => {
       if (secrets[host.id]) return
 
-      AppAPI.GetHostSecret(host.id)
+      getHostSecret(host.id)
         .then((sec) => {
           if (cancelled) return
           setSecrets((prev) => ({

@@ -1,19 +1,23 @@
 import EntryDialog from './EntryDialog'
 import type { ExtendedDialogState } from './useSftpDialogs'
 import {
+  compressLocalEntry,
+  compressRemoteEntry,
   createLocalDirectory,
   createRemoteDirectory,
   deleteLocalEntry,
   deleteRemoteEntry,
+  extractLocalArchive,
+  extractRemoteArchive,
   renameLocalEntry,
   renameRemoteEntry,
+  uploadDirectory,
 } from '@/lib/backend'
 import {
   buildActionSuccessMessage,
   type FileListing,
 } from '../sftpUtils'
 import { cmd } from '@/lib/backendModels'
-import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
 
 
 type Host = cmd.Host
@@ -176,10 +180,10 @@ export default function SftpDialogController({
         const targetDir = currentDialog.value || currentDialog.extractTarget || currentDialog.parentPath || ''
         if (currentDialog.scope === 'remote') {
           if (!selectedHost) return
-          await AppAPI.ExtractRemoteArchive(selectedHost.id, currentDialog.entry!.path, targetDir)
+          await extractRemoteArchive(selectedHost.id, currentDialog.entry!.path, targetDir)
           await handleRemoteNavigate(remoteListing?.path || '')
         } else {
-          await AppAPI.ExtractLocalArchive(currentDialog.entry!.path, targetDir)
+          await extractLocalArchive(currentDialog.entry!.path, targetDir)
           await handleLocalNavigate(localListing?.path || '')
         }
 
@@ -198,10 +202,10 @@ export default function SftpDialogController({
 
         if (currentDialog.scope === 'remote') {
           if (!selectedHost) return
-          await AppAPI.CompressRemoteEntry(selectedHost.id, currentDialog.entry!.path, targetArchivePath)
+          await compressRemoteEntry(selectedHost.id, currentDialog.entry!.path, targetArchivePath)
           await handleRemoteNavigate(remoteListing?.path || '')
         } else {
-          await AppAPI.CompressLocalEntry(currentDialog.entry!.path, targetArchivePath)
+          await compressLocalEntry(currentDialog.entry!.path, targetArchivePath)
           await handleLocalNavigate(localListing?.path || '')
         }
 
@@ -213,7 +217,7 @@ export default function SftpDialogController({
 
       if (currentDialog.type === 'upload-folder') {
         if (!selectedHost || !currentDialog.sourcePath || !currentDialog.parentPath) return
-        await AppAPI.UploadDirectory(
+        await uploadDirectory(
           selectedHost.id,
           currentDialog.sourcePath,
           currentDialog.parentPath,
@@ -250,4 +254,3 @@ export default function SftpDialogController({
     />
   )
 }
-

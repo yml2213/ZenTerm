@@ -1,6 +1,10 @@
-.PHONY: test test-go test-frontend typecheck lint sync-version generate-bindings coverage-go prepare-frontend-assets
+.PHONY: test test-version test-go test-frontend typecheck lint sync-version generate-bindings coverage-go prepare-frontend-assets
 
-test: test-go test-frontend
+test: test-version test-go test-frontend
+
+test-version:
+	node --test scripts/sync-version.test.mjs
+	node scripts/sync-version.mjs --check
 
 test-go: prepare-frontend-assets
 	go test . ./cmd ./internal/...

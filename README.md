@@ -2,6 +2,8 @@
 
 ZenTerm 是一个基于 Wails v2 的桌面 SSH 终端与 SFTP 客户端，后端使用 Go，前端使用 React、TypeScript 和 Vite。项目重点是安全地保存 SSH 凭据、管理常用主机、运行多标签终端、浏览 SFTP 文件，并支持通过 WebDAV 同步本地加密配置。
 
+当前用户界面以简体中文为唯一支持语言，避免在翻译覆盖不完整时根据系统语言展示混合界面。
+
 ## 功能特性
 
 - **SSH 终端**：基于 xterm.js，支持多会话、多标签、终端尺寸同步和会话关闭状态追踪。
@@ -19,7 +21,7 @@ ZenTerm 是一个基于 Wails v2 的桌面 SSH 终端与 SFTP 客户端，后端
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | Go 1.24, Wails v2, pkg/sftp, go-keyring, golang.org/x/crypto |
+| 后端 | Go 1.26.6, Wails v2, pkg/sftp, go-keyring, golang.org/x/crypto |
 | 前端 | React 19, TypeScript 6, Vite 7, xterm.js, lucide-react |
 | 加密 | Argon2id, AES-256-GCM |
 | 测试 | Go test, Vitest, React Testing Library |
@@ -83,28 +85,28 @@ npm run build
 
 ## GitHub 云端发布
 
-项目已配置 GitHub Actions Release workflow，当前版本为 `0.1.4`。推送 `v0.1.4` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
+项目已配置 GitHub Actions Release workflow，当前版本为 `0.1.6`。推送 `v0.1.4` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
 
 ### 发布步骤
 
 ```bash
 git push origin main
-git tag v0.1.4
-git push origin v0.1.4
+git tag v0.1.6
+git push origin v0.1.6
 ```
 
-也可以在 GitHub 的 Actions 页面手动运行 `Release` workflow，并填写版本号 `0.1.4`。
+也可以在 GitHub 的 Actions 页面手动运行 `Release` workflow，并填写版本号 `0.1.6`。
 
 ### 云端构建产物
 
-- `ZenTerm-0.1.4-macos-universal.zip`：macOS Universal，兼容 Intel 与 Apple Silicon。
-- `ZenTerm-0.1.4-macos-amd64.zip`：macOS Intel。
-- `ZenTerm-0.1.4-macos-arm64.zip`：macOS Apple Silicon。
-- `ZenTerm-0.1.4-windows-amd64.zip`：Windows x64。
-- `ZenTerm-0.1.4-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
+- `ZenTerm-0.1.6-macos-universal.zip`：macOS Universal，兼容 Intel 与 Apple Silicon。
+- `ZenTerm-0.1.6-macos-amd64.zip`：macOS Intel。
+- `ZenTerm-0.1.6-macos-arm64.zip`：macOS Apple Silicon。
+- `ZenTerm-0.1.6-windows-amd64.zip`：Windows x64。
+- `ZenTerm-0.1.6-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
 - 每个包旁边都会生成 `.sha256` 校验文件。
 
-macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。当前发布包未做代码签名和 macOS notarization，首次运行时系统可能提示安全确认。后续如果接入 Apple Developer 证书和 Windows 签名证书，可以在 Release workflow 中增加签名步骤。
+macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。Release workflow 已支持 GitHub artifact provenance，以及由仓库 secrets 启用的 Windows Authenticode、macOS Developer ID 签名和 notarization；未配置签名 secrets 时仍会生成未签名产物。配置方法与验证命令见 [`docs/RELEASE_SECURITY.md`](docs/RELEASE_SECURITY.md)。
 
 ## 数据与安全模型
 
