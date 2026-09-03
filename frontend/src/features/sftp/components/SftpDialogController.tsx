@@ -1,5 +1,6 @@
 import EntryDialog from './EntryDialog'
 import type { ExtendedDialogState } from './useSftpDialogs'
+import type { DirectoryUploadOptions } from './useSftpTransfer'
 import {
   chmodLocalEntry,
   chmodRemoteEntry,
@@ -13,7 +14,6 @@ import {
   extractRemoteArchive,
   renameLocalEntry,
   renameRemoteEntry,
-  uploadDirectory,
 } from '@/lib/backend'
 import {
   buildActionSuccessMessage,
@@ -50,6 +50,7 @@ interface SftpDialogControllerProps {
   closeDialog: () => void
   changeValue: (value: string) => void
   executeTransfer: (direction: TransferDirection, options?: ExecuteTransferOptions) => Promise<void>
+  executeDirectoryUpload: (options: DirectoryUploadOptions) => Promise<void>
   handleLocalNavigate: (path: string) => Promise<void>
   handleRemoteNavigate: (path: string) => Promise<void>
   clearScopeSelection: (scope: SftpScope) => void
@@ -68,6 +69,7 @@ export default function SftpDialogController({
   closeDialog,
   changeValue,
   executeTransfer,
+  executeDirectoryUpload,
   handleLocalNavigate,
   handleRemoteNavigate,
   clearScopeSelection,
@@ -240,17 +242,11 @@ export default function SftpDialogController({
 
       if (currentDialog.type === 'upload-folder') {
         if (!selectedHost || !currentDialog.sourcePath || !currentDialog.parentPath) return
-        await uploadDirectory(
-          selectedHost.id,
-          currentDialog.sourcePath,
-          currentDialog.parentPath,
-          Boolean(currentDialog.autoCompress),
-          true
-        )
-        await handleRemoteNavigate(remoteListing?.path || '')
-        setNotice({
-          tone: 'success',
-          message: `已成功上传文件夹 ${currentDialog.sourceName}`,
+        await executeDirectoryUpload({
+          sourcePath: currentDialog.sourcePath,
+          parentPath: currentDialog.parentPath,
+          sourceName: currentDialog.sourceName || currentDialog.sourcePath.split('/').at(-1) || '',
+          autoCompress: Boolean(currentDialog.autoCompress),
         })
       }
 

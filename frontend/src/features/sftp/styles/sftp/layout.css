@@ -13,8 +13,46 @@
   background: var(--sftp-banner-bg);
   border-bottom: 1px solid var(--sftp-banner-border);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.45rem;
+}
+
+.sftp-transfer-progress-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sftp-transfer-progress-row .pill {
+  flex: 0 0 auto;
+}
+
+.sftp-transfer-progress-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sftp-transfer-progress-track {
+  height: 4px;
+  margin: 0 0 0.1rem;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.sftp-transfer-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  transition: width 0.18s ease-out;
 }
 
 .sftp-transfer-banner .pill {

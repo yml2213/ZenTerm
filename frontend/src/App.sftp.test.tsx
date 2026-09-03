@@ -42,14 +42,14 @@ describe('App SFTP flows', () => {
     await user.click(screen.getByRole('button', { name: '上传到远端' }))
 
     await waitFor(() => {
-      expect(uploadFile).toHaveBeenCalledWith('host-1', '/Users/yml/notes.txt', '/home/root', false)
+      expect(uploadFile).toHaveBeenCalledWith('host-1', '/Users/yml/notes.txt', '/home/root', false, expect.any(String))
     })
 
     await user.click(screen.getByRole('button', { name: 'app.log，文件' }))
     await user.click(screen.getByRole('button', { name: '下载到本地' }))
 
     await waitFor(() => {
-      expect(downloadFile).toHaveBeenCalledWith('host-1', '/home/root/app.log', '/Users/yml', false)
+      expect(downloadFile).toHaveBeenCalledWith('host-1', '/home/root/app.log', '/Users/yml', false, expect.any(String))
     })
 
     expect(screen.getByText('已下载 app.log → /Users/yml/app.log')).toBeInTheDocument()
@@ -254,8 +254,8 @@ describe('App SFTP flows', () => {
     await user.click(screen.getByRole('button', { name: '覆盖并继续' }))
 
     await waitFor(() => {
-      expect(downloadFile).toHaveBeenNthCalledWith(1, 'host-1', '/home/root/app.log', '/Users/yml', false)
-      expect(downloadFile).toHaveBeenNthCalledWith(2, 'host-1', '/home/root/app.log', '/Users/yml', true)
+      expect(downloadFile).toHaveBeenNthCalledWith(1, 'host-1', '/home/root/app.log', '/Users/yml', false, expect.any(String))
+      expect(downloadFile).toHaveBeenNthCalledWith(2, 'host-1', '/home/root/app.log', '/Users/yml', true, expect.any(String))
     })
 
     expect(screen.getByText('已下载 app.log → /Users/yml/app.log')).toBeInTheDocument()
@@ -349,8 +349,8 @@ describe('App SFTP flows', () => {
     await user.click(screen.getByRole('button', { name: '上传所选 (2)' }))
 
     await waitFor(() => {
-      expect(uploadFile).toHaveBeenNthCalledWith(1, 'host-1', '/Users/yml/notes.txt', '/home/root', false)
-      expect(uploadFile).toHaveBeenNthCalledWith(2, 'host-1', '/Users/yml/draft.txt', '/home/root', false)
+      expect(uploadFile).toHaveBeenNthCalledWith(1, 'host-1', '/Users/yml/notes.txt', '/home/root', false, expect.any(String))
+      expect(uploadFile).toHaveBeenNthCalledWith(2, 'host-1', '/Users/yml/draft.txt', '/home/root', false, expect.any(String))
     })
 
     expect(screen.getByText('已上传 2 个文件到 /home/root')).toBeInTheDocument()

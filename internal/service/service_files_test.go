@@ -313,7 +313,7 @@ func TestUploadFileCopiesLocalFileToRemoteDirectory(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", false)
+	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", false, nil)
 	if err != nil {
 		t.Fatalf("UploadFile() error = %v", err)
 	}
@@ -371,7 +371,7 @@ func TestDownloadFileCopiesRemoteFileToLocalDirectory(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, false)
+	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, false, nil)
 	if err != nil {
 		t.Fatalf("DownloadFile() error = %v", err)
 	}
@@ -436,7 +436,7 @@ func TestUploadFileOverwritesRemoteFileWhenRequested(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", true)
+	result, err := svc.UploadFile(host.ID, localPath, "/srv/project", true, nil)
 	if err != nil {
 		t.Fatalf("UploadFile() overwrite error = %v", err)
 	}
@@ -496,7 +496,7 @@ func TestDownloadFileOverwritesLocalFileWhenRequested(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, true)
+	result, err := svc.DownloadFile(host.ID, "/srv/app.log", dir, true, nil)
 	if err != nil {
 		t.Fatalf("DownloadFile() overwrite error = %v", err)
 	}
@@ -557,7 +557,7 @@ func TestUploadFileRemovesRemoteTempFileWhenCopyFails(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	if _, err := svc.UploadFile(host.ID, localPath, "/srv/project", false); err == nil {
+	if _, err := svc.UploadFile(host.ID, localPath, "/srv/project", false, nil); err == nil {
 		t.Fatal("UploadFile() error = nil, want write failure")
 	}
 	if len(client.sftp.files) != 0 {
@@ -616,7 +616,7 @@ func TestDownloadFileKeepsExistingLocalFileWhenCopyFails(t *testing.T) {
 		t.Fatalf("newWithDialer() error = %v", err)
 	}
 
-	if _, err := svc.DownloadFile(host.ID, "/srv/app.log", downloadDir, true); err == nil {
+	if _, err := svc.DownloadFile(host.ID, "/srv/app.log", downloadDir, true, nil); err == nil {
 		t.Fatal("DownloadFile() error = nil, want read failure")
 	}
 	downloaded, err := os.ReadFile(targetPath)
@@ -1052,5 +1052,146 @@ func TestEnsureLocalDeleteAllowed(t *testing.T) {
 				t.Fatalf("ensureLocalDeleteAllowed(%q) error = %v, want nil", tc.path, err)
 			}
 		})
+	}
+}
+
+func TestUploadFileReportsMonotonicProgress(t *testing.T) {
+	dir := t.TempDir()
+
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-progress", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	localPath := filepath.Join(dir, "payload.bin")
+	content := make([]byte, 4*1024*1024) // 4 MiB，确保多次复制循环
+	for i := range content {
+		content[i] = byte(i % 251)
+	}
+	if err := os.WriteFile(localPath, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/project": "/srv/project"},
+			dirs:      map[string][]os.FileInfo{"/srv/project": {}},
+			stats: map[string]os.FileInfo{
+				"/srv/project": stubFileInfo{name: "project", mode: os.ModeDir | 0o755, modTime: time.Unix(1710000000, 0), dir: true},
+			},
+			files: map[string][]byte{},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	var ticks []TransferProgress
+	_, err = svc.UploadFile(host.ID, localPath, "/srv/project", false, func(p TransferProgress) {
+		ticks = append(ticks, p)
+	})
+	if err != nil {
+		t.Fatalf("UploadFile() error = %v", err)
+	}
+
+	if len(ticks) < 2 {
+		t.Fatalf("progress ticks = %d, want at least 2 (start and end)", len(ticks))
+	}
+	if ticks[0].DoneBytes != 0 || ticks[0].Percent != 0 {
+		t.Fatalf("first tick = %+v, want doneBytes 0 / percent 0", ticks[0])
+	}
+	last := ticks[len(ticks)-1]
+	if last.DoneBytes != int64(len(content)) || last.Percent != 100 {
+		t.Fatalf("last tick = %+v, want doneBytes %d / percent 100", last, len(content))
+	}
+	if ticks[0].Direction != "upload" || ticks[0].FileName != "payload.bin" {
+		t.Fatalf("first tick direction/fileName = %q/%q, want upload/payload.bin", ticks[0].Direction, ticks[0].FileName)
+	}
+	if last.TotalBytes != int64(len(content)) {
+		t.Fatalf("totalBytes = %d, want %d", last.TotalBytes, len(content))
+	}
+	for i := 1; i < len(ticks); i++ {
+		if ticks[i].DoneBytes < ticks[i-1].DoneBytes {
+			t.Fatalf("progress went backwards at tick %d: %d -> %d", i, ticks[i-1].DoneBytes, ticks[i].DoneBytes)
+		}
+	}
+}
+
+func TestDownloadFileReportsFullProgress(t *testing.T) {
+	dir := t.TempDir()
+
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	host := model.Host{ID: "host-progress-dl", Address: "example.com", Username: "zen"}
+	if err := store.AddHost(host, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	content := []byte("download progress payload")
+	client := &stubSSHClient{
+		sftp: &stubSFTPClient{
+			cwd:       "/home/zen",
+			realPaths: map[string]string{"/srv/app.log": "/srv/app.log"},
+			stats: map[string]os.FileInfo{
+				"/srv/app.log": stubFileInfo{name: "app.log", mode: 0o644, size: int64(len(content)), modTime: time.Unix(1710000000, 0)},
+			},
+			files: map[string][]byte{"/srv/app.log": content},
+		},
+	}
+
+	svc, err := newWithDialer(store, vault, &stubDialer{client: client})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	downloadDir := filepath.Join(dir, "downloads")
+	if err := os.MkdirAll(downloadDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	var ticks []TransferProgress
+	_, err = svc.DownloadFile(host.ID, "/srv/app.log", downloadDir, false, func(p TransferProgress) {
+		ticks = append(ticks, p)
+	})
+	if err != nil {
+		t.Fatalf("DownloadFile() error = %v", err)
+	}
+
+	if len(ticks) < 2 {
+		t.Fatalf("progress ticks = %d, want at least 2", len(ticks))
+	}
+	if ticks[0].Direction != "download" || ticks[0].FileName != "app.log" {
+		t.Fatalf("first tick direction/fileName = %q/%q, want download/app.log", ticks[0].Direction, ticks[0].FileName)
+	}
+	last := ticks[len(ticks)-1]
+	if last.DoneBytes != int64(len(content)) || last.Percent != 100 {
+		t.Fatalf("last tick = %+v, want doneBytes %d / percent 100", last, len(content))
 	}
 }

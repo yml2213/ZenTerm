@@ -88,9 +88,15 @@ func (a *App) DeleteRemoteEntry(hostID, path string) error {
 	return nil
 }
 
+// eventSFTPTransferProgress 是 SFTP 文件传输进度事件名 / the SFTP file-transfer progress event name.
+const eventSFTPTransferProgress = "sftp:transfer-progress"
+
 // UploadFile 将本地文件上传到远端目录，可按需覆盖已有文件 / uploads a local file into the selected remote directory and can overwrite an existing file when requested.
-func (a *App) UploadFile(hostID, localPath, remoteDir string, overwrite bool) (model.FileTransferResult, error) {
-	result, err := a.service.UploadFile(hostID, localPath, remoteDir, overwrite)
+func (a *App) UploadFile(hostID, localPath, remoteDir string, overwrite bool, transferID string) (model.FileTransferResult, error) {
+	result, err := a.service.UploadFile(hostID, localPath, remoteDir, overwrite, func(p service.TransferProgress) {
+		p.TransferID = transferID
+		a.emitEvent(eventSFTPTransferProgress, p)
+	})
 	if err != nil {
 		return model.FileTransferResult{}, normalizeFrontendError(err)
 	}
@@ -99,8 +105,11 @@ func (a *App) UploadFile(hostID, localPath, remoteDir string, overwrite bool) (m
 }
 
 // DownloadFile 将远端文件下载到本地目录，可按需覆盖已有文件 / downloads a remote file into the selected local directory and can overwrite an existing file when requested.
-func (a *App) DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error) {
-	result, err := a.service.DownloadFile(hostID, remotePath, localDir, overwrite)
+func (a *App) DownloadFile(hostID, remotePath, localDir string, overwrite bool, transferID string) (model.FileTransferResult, error) {
+	result, err := a.service.DownloadFile(hostID, remotePath, localDir, overwrite, func(p service.TransferProgress) {
+		p.TransferID = transferID
+		a.emitEvent(eventSFTPTransferProgress, p)
+	})
 	if err != nil {
 		return model.FileTransferResult{}, normalizeFrontendError(err)
 	}
@@ -117,8 +126,11 @@ func (a *App) CancelFileTransfer(hostID string) error {
 }
 
 // UploadDirectory 上传本地整个目录到远端，支持自动压缩解压加速或递归上传 / uploads a whole local directory to a remote directory.
-func (a *App) UploadDirectory(hostID, localPath, remoteDir string, autoCompress bool, overwrite bool) (model.FileTransferResult, error) {
-	result, err := a.service.UploadDirectory(hostID, localPath, remoteDir, autoCompress, overwrite)
+func (a *App) UploadDirectory(hostID, localPath, remoteDir string, autoCompress bool, overwrite bool, transferID string) (model.FileTransferResult, error) {
+	result, err := a.service.UploadDirectory(hostID, localPath, remoteDir, autoCompress, overwrite, func(p service.TransferProgress) {
+		p.TransferID = transferID
+		a.emitEvent(eventSFTPTransferProgress, p)
+	})
 	if err != nil {
 		return model.FileTransferResult{}, normalizeFrontendError(err)
 	}

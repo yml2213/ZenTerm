@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"zenterm/internal/model"
 )
@@ -28,13 +29,153 @@ type sftpDialCall struct {
 	err  error
 }
 
+// progressEmitInterval 控制进度回调的最小间隔，避免高频事件拖慢传输本身 / minimum interval between progress callbacks to avoid event flooding.
+const progressEmitInterval = 200 * time.Millisecond
+
+// TransferProgress 描述一次文件传输的进度快照 / describes one file-transfer progress snapshot.
+type TransferProgress struct {
+	Direction  string  `json:"direction"` // upload | download
+	TransferID string  `json:"transferId,omitempty"`
+	FileName   string  `json:"fileName,omitempty"`
+	DoneBytes  int64   `json:"doneBytes"`
+	TotalBytes int64   `json:"totalBytes"`
+	Percent    float64 `json:"percent"` // 0-100
+	SpeedBps   float64 `json:"speedBps"`
+	Phase      string  `json:"phase,omitempty"` // compress | copy
+}
+
+// ProgressFunc 接收传输进度回调 / receives transfer progress ticks.
+type ProgressFunc func(p TransferProgress)
+
+// copyWithProgress 复制数据并在复制期间按节流间隔上报进度；total<=0 或没有回调时退化为 io.Copy。
+func copyWithProgress(dst io.Writer, src io.Reader, total int64, direction string, progress ProgressFunc) (int64, error) {
+	if progress == nil || total <= 0 {
+		return io.Copy(dst, src)
+	}
+
+	buf := make([]byte, 256*1024)
+	var copied int64
+	var lastEmit time.Time
+	var lastCount int64
+
+	emit := func(force bool) {
+		now := time.Now()
+		if !force && now.Sub(lastEmit) < progressEmitInterval {
+			return
+		}
+		elapsed := now.Sub(lastEmit).Seconds()
+		lastEmit = now
+		speed := 0.0
+		if elapsed > 0 {
+			speed = float64(copied-lastCount) / elapsed
+		}
+		lastCount = copied
+		percent := float64(copied) / float64(total) * 100
+		if percent > 100 {
+			percent = 100
+		}
+		progress(TransferProgress{
+			Direction:  direction,
+			DoneBytes:  copied,
+			TotalBytes: total,
+			Percent:    percent,
+			SpeedBps:   speed,
+		})
+	}
+
+	emit(true) // 起始 0%
+	for {
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			if _, writeErr := dst.Write(buf[:n]); writeErr != nil {
+				return copied, writeErr
+			}
+			copied += int64(n)
+			emit(false)
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return copied, readErr
+		}
+	}
+	emit(true) // 完成 100%
+	return copied, nil
+}
+
+// batchProgress 聚合目录上传的批内总进度（已完成文件字节 + 当前文件字节）/ aggregates overall progress of a directory upload (finished files plus the file being copied).
+type batchProgress struct {
+	onProgress   ProgressFunc
+	direction    string
+	totalBytes   int64
+	completed    int64 // 已完整传输的文件字节
+	fileName     string
+	currentBytes int64 // 当前文件已传输字节
+	lastEmit     time.Time
+	lastCount    int64
+}
+
+func (p *batchProgress) emit(force bool) {
+	if p.onProgress == nil {
+		return
+	}
+	now := time.Now()
+	if !force && now.Sub(p.lastEmit) < progressEmitInterval {
+		return
+	}
+	elapsed := now.Sub(p.lastEmit).Seconds()
+	p.lastEmit = now
+	count := p.completed + p.currentBytes
+	speed := 0.0
+	if elapsed > 0 {
+		speed = float64(count-p.lastCount) / elapsed
+	}
+	p.lastCount = count
+	percent := 100.0
+	if p.totalBytes > 0 {
+		percent = float64(count) / float64(p.totalBytes) * 100
+		if percent > 100 {
+			percent = 100
+		}
+	}
+	p.onProgress(TransferProgress{
+		Direction:  p.direction,
+		FileName:   p.fileName,
+		DoneBytes:  count,
+		TotalBytes: p.totalBytes,
+		Percent:    percent,
+		SpeedBps:   speed,
+	})
+}
+
+// sumLocalFileSizes 预算本地目录下所有常规文件的总字节，用于目录传输的进度分母 / estimates the total bytes of regular files under a directory as the denominator for batch progress.
+func sumLocalFileSizes(root string) int64 {
+	var total int64
+	_ = filepath.Walk(root, func(_ string, info os.FileInfo, walkErr error) error {
+		if walkErr == nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
+
 // UploadFile 将本地文件上传到远端目录，可按需覆盖同名文件 / uploads a local file into the selected remote directory and can overwrite an existing file when requested.
-func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool) (model.FileTransferResult, error) {
+func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool, onProgress ProgressFunc) (model.FileTransferResult, error) {
 	var result model.FileTransferResult
 
-	resolvedLocalPath, _, err := resolveExistingLocalFile(localPath)
+	resolvedLocalPath, localInfo, err := resolveExistingLocalFile(localPath)
 	if err != nil {
 		return model.FileTransferResult{}, err
+	}
+
+	emitLocalUploadProgress := func(p TransferProgress) {
+		if onProgress == nil {
+			return
+		}
+		p.FileName = filepath.Base(resolvedLocalPath)
+		onProgress(p)
 	}
 
 	err = s.withReusableSFTPClient(hostID, func(client sftpClient, remoteAddr string) error {
@@ -70,7 +211,7 @@ func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool
 			return fmt.Errorf("create remote temp file: %w", err)
 		}
 
-		written, copyErr := io.Copy(tempFile, sourceFile)
+		written, copyErr := copyWithProgress(tempFile, sourceFile, localInfo.Size(), "upload", emitLocalUploadProgress)
 		closeErr := tempFile.Close()
 		if copyErr != nil {
 			_ = client.Remove(tempPath)
@@ -101,7 +242,7 @@ func (s *Service) UploadFile(hostID, localPath, remoteDir string, overwrite bool
 }
 
 // DownloadFile 将远端文件下载到本地目录，可按需覆盖同名文件 / downloads a remote file into the selected local directory and can overwrite an existing file when requested.
-func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bool) (model.FileTransferResult, error) {
+func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bool, onProgress ProgressFunc) (model.FileTransferResult, error) {
 	var result model.FileTransferResult
 
 	resolvedLocalDir, err := resolveExistingLocalDirectory(localDir)
@@ -113,6 +254,14 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bo
 		resolvedRemotePath, remoteInfo, err := resolveExistingRemoteFile(client, remotePath)
 		if err != nil {
 			return fmt.Errorf("resolve remote file for %s: %w", remoteAddr, err)
+		}
+
+		emitDownloadProgress := func(p TransferProgress) {
+			if onProgress == nil {
+				return
+			}
+			p.FileName = filepath.Base(resolvedRemotePath)
+			onProgress(p)
 		}
 
 		targetPath := filepath.Join(resolvedLocalDir, filepath.Base(resolvedRemotePath))
@@ -144,7 +293,7 @@ func (s *Service) DownloadFile(hostID, remotePath, localDir string, overwrite bo
 			return fmt.Errorf("create local temp file: %w", err)
 		}
 
-		written, copyErr := io.Copy(tempFile, sourceFile)
+		written, copyErr := copyWithProgress(tempFile, sourceFile, remoteInfo.Size(), "download", emitDownloadProgress)
 		closeErr := tempFile.Close()
 		if copyErr != nil {
 			_ = os.Remove(tempPath)
@@ -559,7 +708,7 @@ func resolveExistingRemoteFile(client sftpClient, targetPath string) (string, os
 }
 
 // UploadDirectory 上传本地整个文件夹到远端目录，支持自动压缩解压加速或逐文件递归上传 / uploads a whole local directory to a remote directory.
-func (s *Service) UploadDirectory(hostID, localDirPath, remoteParentDir string, autoCompress bool, overwrite bool) (model.FileTransferResult, error) {
+func (s *Service) UploadDirectory(hostID, localDirPath, remoteParentDir string, autoCompress bool, overwrite bool, onProgress ProgressFunc) (model.FileTransferResult, error) {
 	resolvedLocalDir, err := resolveExistingLocalDirectory(localDirPath)
 	if err != nil {
 		return model.FileTransferResult{}, err
@@ -573,8 +722,16 @@ func (s *Service) UploadDirectory(hostID, localDirPath, remoteParentDir string, 
 		if err == nil {
 			defer func() { _ = os.Remove(tempArchive) }()
 
+			if onProgress != nil {
+				onProgress(TransferProgress{Direction: "upload", FileName: dirName, Phase: "compress"})
+			}
+
 			// 上传临时压缩包
-			archiveResult, uploadErr := s.UploadFile(hostID, tempArchive, remoteParentDir, true)
+			archiveResult, uploadErr := s.UploadFile(hostID, tempArchive, remoteParentDir, true, func(p TransferProgress) {
+				p.Phase = "copy"
+				p.FileName = dirName
+				onProgress(p)
+			})
 			if uploadErr == nil {
 				// 执行远端解压
 				remoteArchivePath := archiveResult.TargetPath
@@ -596,13 +753,14 @@ func (s *Service) UploadDirectory(hostID, localDirPath, remoteParentDir string, 
 		// 如果压缩/远端解压失败，自动 fallback 到递归普通上传
 	}
 
-	return s.uploadDirectoryRecursive(hostID, resolvedLocalDir, remoteParentDir, overwrite)
+	return s.uploadDirectoryRecursive(hostID, resolvedLocalDir, remoteParentDir, overwrite, onProgress)
 }
 
-func (s *Service) uploadDirectoryRecursive(hostID, localDirPath, remoteParentDir string, overwrite bool) (model.FileTransferResult, error) {
-	var totalBytes int64
+func (s *Service) uploadDirectoryRecursive(hostID, localDirPath, remoteParentDir string, overwrite bool, onProgress ProgressFunc) (model.FileTransferResult, error) {
+	var totalBytes int64 = sumLocalFileSizes(localDirPath)
 	dirBase := filepath.Base(localDirPath)
 	remoteTargetRoot := pathpkg.Join(remoteParentDir, dirBase)
+	batch := &batchProgress{onProgress: onProgress, direction: "upload", totalBytes: totalBytes}
 
 	err := s.withReusableSFTPClient(hostID, func(client sftpClient, remoteAddr string) error {
 		resolvedRemoteParent, info, err := resolveExistingRemoteDirectory(client, remoteParentDir)
@@ -657,8 +815,14 @@ func (s *Service) uploadDirectoryRecursive(hostID, localDirPath, remoteParentDir
 				return fmt.Errorf("create remote temp file %s: %w", tempPath, err)
 			}
 
-			written, copyErr := io.Copy(tempFile, sourceFile)
+			batch.fileName = filepath.Base(currentPath)
+			batch.currentBytes = 0
+			written, copyErr := copyWithProgress(tempFile, sourceFile, info.Size(), "upload", func(p TransferProgress) {
+				batch.currentBytes = p.DoneBytes
+				batch.emit(false)
+			})
 			closeErr := tempFile.Close()
+			batch.currentBytes = 0
 			if copyErr != nil {
 				_ = client.Remove(tempPath)
 				return fmt.Errorf("upload content %s: %w", currentPath, copyErr)
@@ -673,7 +837,8 @@ func (s *Service) uploadDirectoryRecursive(hostID, localDirPath, remoteParentDir
 				return err
 			}
 
-			totalBytes += written
+			batch.completed += written
+			batch.emit(true) // 文件切换节点强制上报一次
 			return nil
 		})
 	})
