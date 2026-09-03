@@ -218,12 +218,9 @@ export function sortHosts(hosts: cmd.Host[]): cmd.Host[] {
       return left.favorite ? -1 : 1
     }
 
-    const leftTime = Date.parse(left.last_connected_at || '') || 0
-    const rightTime = Date.parse(right.last_connected_at || '') || 0
-    if (leftTime !== rightTime) {
-      return rightTime - leftTime
-    }
-
+    // 不按最近连接时间排序：连接成功会更新 last_connected_at，
+    // 按它排会导致列表跟随连接情况跳动。无手动排序时保持稳定，
+    // 仅以名称作为确定性兜底（Array.sort 稳定，同序数组不会重排）。
     return (left.name || left.id).localeCompare(right.name || right.id)
   })
 }
