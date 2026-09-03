@@ -44,6 +44,9 @@ var (
 	ErrProtectedLocalPath          = errors.New("refusing to delete protected local path")
 	ErrVaultLocked                 = errors.New("vault is locked")
 	ErrInvalidFileMode             = errors.New("invalid file mode")
+	ErrFileEditNotRegularFile      = errors.New("仅支持编辑普通文件")
+	ErrFileEditTooLarge            = errors.New("文件超过编辑器大小上限")
+	ErrFileEditNotSupported        = errors.New("文件内容不支持在线编辑")
 )
 
 const (

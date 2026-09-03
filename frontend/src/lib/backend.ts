@@ -322,6 +322,31 @@ export async function cancelFileTransfer(hostID: string): Promise<void> {
   return callApp('CancelFileTransfer', hostID)
 }
 
+// FileContent 编辑器读取的文件内容；editable 为 false 时 reason 说明原因。
+export interface FileContent {
+  path: string
+  content: string
+  editable: boolean
+  size: number
+  reason?: string
+}
+
+export async function readLocalFile(path: string): Promise<FileContent> {
+  return callApp('ReadLocalFile', path);
+}
+
+export async function readRemoteFile(hostID: string, path: string): Promise<FileContent> {
+  return callApp('ReadRemoteFile', hostID, path);
+}
+
+export async function writeLocalFile(path: string, content: string): Promise<boolean> {
+  return callApp('WriteLocalFile', path, content);
+}
+
+export async function writeRemoteFile(hostID: string, path: string, content: string): Promise<boolean> {
+  return callApp('WriteRemoteFile', hostID, path, content);
+}
+
 export async function addHost(host: cmd.Host, identity: model.Identity): Promise<string> {
   return callApp('AddHost', host, identity)
 }
@@ -774,6 +799,8 @@ export interface AppPreferences {
   open_inspector_on_startup?: boolean;
   record_session_transcripts?: boolean;
   session_log_retention_limit?: number;
+  /** 关闭编辑器保存前备份；缺省 false = 备份开启 */
+  disable_editor_backup?: boolean;
 }
 
 export async function getAppPreferences(): Promise<AppPreferences> {

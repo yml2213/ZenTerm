@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   FileArchive,
+  FileEdit,
   FolderOpen,
   FolderPlus,
   Pencil,
@@ -138,6 +139,13 @@ export default function ContextMenu({ state, onClose, onAction }: ContextMenuPro
         <FolderPlus size={14} />
         <span>新建目录</span>
       </button>
+
+      {!state.useSelectionActions && state.entry && !state.entry.parent && !state.entry.isDir ? (
+        <button type="button" role="menuitem" onClick={() => onAction('edit')}>
+          <FileEdit size={14} />
+          <span>编辑文件</span>
+        </button>
+      ) : null}
 
       {!state.useSelectionActions && state.entry && !state.entry.parent ? (
         <button type="button" role="menuitem" onClick={() => onAction('rename')}>

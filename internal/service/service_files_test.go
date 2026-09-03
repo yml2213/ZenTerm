@@ -1195,3 +1195,268 @@ func TestDownloadFileReportsFullProgress(t *testing.T) {
 		t.Fatalf("last tick = %+v, want doneBytes %d / percent 100", last, len(content))
 	}
 }
+
+func TestReadAndWriteLocalFileForEditor(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "app.conf")
+	if err := os.WriteFile(filePath, []byte("key=value\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	content, err := svc.ReadLocalFile(filePath)
+	if err != nil {
+		t.Fatalf("ReadLocalFile() error = %v", err)
+	}
+	if !content.Editable || content.Content != "key=value\n" {
+		t.Fatalf("ReadLocalFile() = %+v, want editable key=value", content)
+	}
+
+	if _, err := svc.WriteLocalFile(filePath, "key=changed\n"); err != nil {
+		t.Fatalf("WriteLocalFile() error = %v", err)
+	}
+	updated, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(updated) != "key=changed\n" {
+		t.Fatalf("file content = %q, want key=changed", updated)
+	}
+
+	// 目录不可编辑
+	if _, err := svc.ReadLocalFile(dir); err == nil {
+		t.Fatalf("ReadLocalFile(dir) expected error, got nil")
+	}
+
+	// 二进制文件返回不可编辑而不是报错
+	binPath := filepath.Join(dir, "blob.bin")
+	if err := os.WriteFile(binPath, []byte{0x89, 0x50, 0x00, 0x4e}, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	binary, err := svc.ReadLocalFile(binPath)
+	if err != nil {
+		t.Fatalf("ReadLocalFile(binary) error = %v", err)
+	}
+	if binary.Editable || binary.Reason == "" {
+		t.Fatalf("binary content = %+v, want editable=false with reason", binary)
+	}
+}
+
+func TestReadAndWriteRemoteFileForEditor(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	if err := store.AddHost(model.Host{ID: "host-edit", Address: "example.com", Username: "zen"}, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	content := []byte("server {\n listen 80;\n}\n")
+	sftp := &stubSFTPClient{
+		cwd:       "/home/zen",
+		realPaths: map[string]string{"/etc/nginx/site.conf": "/etc/nginx/site.conf"},
+		stats: map[string]os.FileInfo{
+			"/etc/nginx/site.conf": stubFileInfo{name: "site.conf", mode: 0o644, size: int64(len(content)), modTime: time.Unix(1710000000, 0)},
+		},
+		files: map[string][]byte{"/etc/nginx/site.conf": content},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{sftp: sftp}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	loaded, err := svc.ReadRemoteFile("host-edit", "/etc/nginx/site.conf")
+	if err != nil {
+		t.Fatalf("ReadRemoteFile() error = %v", err)
+	}
+	if !loaded.Editable || loaded.Content != string(content) {
+		t.Fatalf("ReadRemoteFile() = %+v, want editable content", loaded)
+	}
+
+	if _, err := svc.WriteRemoteFile("host-edit", "/etc/nginx/site.conf", "server {\n listen 443;\n}\n"); err != nil {
+		t.Fatalf("WriteRemoteFile() error = %v", err)
+	}
+	if got := string(sftp.files["/etc/nginx/site.conf"]); got != "server {\n listen 443;\n}\n" {
+		t.Fatalf("remote content = %q, want updated payload", got)
+	}
+}
+
+func TestReadRemoteFileRejectsOversizedFile(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+
+	if err := store.AddHost(model.Host{ID: "host-big", Address: "example.com", Username: "zen"}, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	huge := stubFileInfo{name: "huge.log", mode: 0o644, size: 3 << 20, modTime: time.Unix(1710000000, 0)}
+	sftp := &stubSFTPClient{
+		cwd:       "/home/zen",
+		realPaths: map[string]string{"/var/huge.log": "/var/huge.log"},
+		stats:     map[string]os.FileInfo{"/var/huge.log": huge},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{sftp: sftp}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	if _, err := svc.ReadRemoteFile("host-big", "/var/huge.log"); err == nil {
+		t.Fatalf("ReadRemoteFile(oversized) expected error, got nil")
+	}
+}
+
+func TestWriteLocalFileCreatesBackupByDefault(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "app.conf")
+	if err := os.WriteFile(filePath, []byte("v1\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	svc, err := New(store, security.NewVault())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if created, err := svc.WriteLocalFile(filePath, "v2\n"); err != nil || !created {
+		t.Fatalf("WriteLocalFile() = (created=%v, err=%v), want created=true", created, err)
+	}
+
+	bak, err := os.ReadFile(filePath + ".bak")
+	if err != nil {
+		t.Fatalf("ReadFile(backup) error = %v", err)
+	}
+	if string(bak) != "v1\n" {
+		t.Fatalf("backup content = %q, want v1", bak)
+	}
+
+	// 再次保存：.bak 覆盖为本次保存前的内容
+	if created, err := svc.WriteLocalFile(filePath, "v3\n"); err != nil || !created {
+		t.Fatalf("WriteLocalFile() = (created=%v, err=%v), want created=true", created, err)
+	}
+	bak, err = os.ReadFile(filePath + ".bak")
+	if err != nil {
+		t.Fatalf("ReadFile(backup) error = %v", err)
+	}
+	if string(bak) != "v2\n" {
+		t.Fatalf("backup content = %q, want v2", bak)
+	}
+
+	// 关闭偏好后不再备份
+	if err := store.SaveAppPreferences(model.AppPreferences{DisableEditorBackup: true}); err != nil {
+		t.Fatalf("SaveAppPreferences() error = %v", err)
+	}
+	created, err := svc.WriteLocalFile(filePath, "v4\n")
+	if err != nil {
+		t.Fatalf("WriteLocalFile() error = %v", err)
+	}
+	if created {
+		t.Fatalf("WriteLocalFile() created backup despite preference disabled")
+	}
+	bak, err = os.ReadFile(filePath + ".bak")
+	if err != nil {
+		t.Fatalf("ReadFile(backup) error = %v", err)
+	}
+	if string(bak) != "v2\n" {
+		t.Fatalf("backup content = %q, want untouched v2", bak)
+	}
+}
+
+func TestWriteRemoteFileCreatesBackupByDefault(t *testing.T) {
+	dir := t.TempDir()
+	store, err := db.NewStore(filepath.Join(dir, "config.zen"))
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	vault := security.NewVault()
+	salt, err := store.EnsureSalt()
+	if err != nil {
+		t.Fatalf("EnsureSalt() error = %v", err)
+	}
+	if err := vault.Unlock("master-password", salt); err != nil {
+		t.Fatalf("Unlock() error = %v", err)
+	}
+	if err := store.AddHost(model.Host{ID: "host-bak", Address: "example.com", Username: "zen"}, model.Identity{Password: "secret"}, vault); err != nil {
+		t.Fatalf("AddHost() error = %v", err)
+	}
+
+	original := []byte("listen 80;\n")
+	sftp := &stubSFTPClient{
+		cwd:       "/home/zen",
+		realPaths: map[string]string{"/etc/nginx/site.conf": "/etc/nginx/site.conf"},
+		stats: map[string]os.FileInfo{
+			"/etc/nginx/site.conf": stubFileInfo{name: "site.conf", mode: 0o644, size: int64(len(original)), modTime: time.Unix(1710000000, 0)},
+		},
+		files: map[string][]byte{"/etc/nginx/site.conf": original},
+	}
+	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{sftp: sftp}})
+	if err != nil {
+		t.Fatalf("newWithDialer() error = %v", err)
+	}
+
+	created, err := svc.WriteRemoteFile("host-bak", "/etc/nginx/site.conf", "listen 443;\n")
+	if err != nil {
+		t.Fatalf("WriteRemoteFile() error = %v", err)
+	}
+	if !created {
+		t.Fatalf("WriteRemoteFile() created=false, want true")
+	}
+
+	bak, ok := sftp.files["/etc/nginx/site.conf.bak"]
+	if !ok {
+		t.Fatalf("backup file missing on remote")
+	}
+	if string(bak) != string(original) {
+		t.Fatalf("backup content = %q, want %q", bak, original)
+	}
+	if got := string(sftp.files["/etc/nginx/site.conf"]); got != "listen 443;\n" {
+		t.Fatalf("file content = %q, want updated payload", got)
+	}
+
+	// 关闭偏好后不再备份
+	if err := store.SaveAppPreferences(model.AppPreferences{DisableEditorBackup: true}); err != nil {
+		t.Fatalf("SaveAppPreferences() error = %v", err)
+	}
+	created, err = svc.WriteRemoteFile("host-bak", "/etc/nginx/site.conf", "listen 8080;\n")
+	if err != nil {
+		t.Fatalf("WriteRemoteFile() error = %v", err)
+	}
+	if created {
+		t.Fatalf("WriteRemoteFile() created backup despite preference disabled")
+	}
+	if got := string(sftp.files["/etc/nginx/site.conf.bak"]); got != string(original) {
+		t.Fatalf("backup content = %q, want untouched %q", got, original)
+	}
+}

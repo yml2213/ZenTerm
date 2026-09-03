@@ -7,6 +7,7 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
+import FileEditorDialog from './components/FileEditorDialog'
 import FilePane from './components/FilePane'
 import PaneEmptyState from './components/PaneEmptyState'
 import SftpContextMenuController, { type ExtendedContextMenuState } from './components/SftpContextMenuController'
@@ -23,7 +24,16 @@ import {
   splitLocalPath,
   splitRemotePath,
   type ContextMenuState,
+  type FileEntry,
 } from './sftpUtils'
+
+import {
+  readLocalFile,
+  readRemoteFile,
+  writeLocalFile,
+  writeRemoteFile,
+  type FileContent,
+} from '@/lib/backend'
 
 import { cmd } from '@/lib/backendModels'
 
@@ -50,6 +60,15 @@ export default function SftpWorkspace({
 }: SftpWorkspaceProps) {
   const [contextMenu, setContextMenu] = useState<ExtendedContextMenuState | null>(null)
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
+  const [editorState, setEditorState] = useState<{ scope: 'local' | 'remote'; entry: FileEntry } | null>(null)
+  const [editorLoading, setEditorLoading] = useState(false)
+  const [editorContent, setEditorContent] = useState<FileContent | null>(null)
+
+  const closeEditor = useCallback(() => {
+    setEditorState(null)
+    setEditorContent(null)
+    setEditorLoading(false)
+  }, [])
   const {
     selectedLocalPath,
     selectedRemotePath,
@@ -130,6 +149,50 @@ export default function SftpWorkspace({
     onError,
   })
 
+  const openEditor = useCallback(async (scope: 'local' | 'remote', entry: FileEntry) => {
+    setEditorState({ scope, entry })
+    setEditorContent(null)
+    setEditorLoading(true)
+    try {
+      const content = scope === 'remote' && selectedHost
+        ? await readRemoteFile(selectedHost.id, entry.path)
+        : await readLocalFile(entry.path)
+      if (!content.editable) {
+        onError(content.reason || '该文件不支持在线编辑')
+        setEditorState(null)
+        return
+      }
+      setEditorContent(content)
+    } catch (error) {
+      onError(error instanceof Error ? error.message : String(error))
+      setEditorState(null)
+    } finally {
+      setEditorLoading(false)
+    }
+  }, [selectedHost, onError])
+
+  const handleEditorSave = useCallback(async (path: string, content: string) => {
+    if (!editorState) {
+      return
+    }
+    let backupCreated: boolean
+    if (editorState.scope === 'remote') {
+      if (!selectedHost) {
+        return
+      }
+      backupCreated = await writeRemoteFile(selectedHost.id, path, content)
+    } else {
+      backupCreated = await writeLocalFile(path, content)
+    }
+    setNotice({
+      tone: 'success',
+      message: backupCreated
+        ? `已保存 ${editorState.entry.name}（${editorState.scope === 'remote' ? '远端' : '本地'}），原文件已备份为 .bak`
+        : `已保存 ${editorState.entry.name}（${editorState.scope === 'remote' ? '远端' : '本地'}）`,
+    })
+    refreshScope(editorState.scope)
+  }, [editorState, selectedHost, setNotice, refreshScope])
+
   function handleContextAction(action: string) {
     if (!contextMenu) {
       return
@@ -169,6 +232,13 @@ export default function SftpWorkspace({
 
     if (action === 'mkdir') {
       openCreateDirectory(contextMenu.scope)
+      return
+    }
+
+    if (action === 'edit') {
+      if (contextMenu.entry && !contextMenu.entry.isDir) {
+        openEditor(contextMenu.scope, contextMenu.entry)
+      }
       return
     }
 
@@ -343,6 +413,7 @@ export default function SftpWorkspace({
           onUploadFolder={openUploadFolderDialog}
           onExtractArchive={(entry) => openExtractArchive('local', entry, false)}
           onCompressEntry={(entry) => openCompressEntry('local', entry, 'tar.gz')}
+          onEditFile={(entry) => openEditor('local', entry)}
           onCreateDirectory={() => openCreateDirectory('local')}
           onRenameEntry={(entry) => openRenameEntry('local', entry)}
           onDeleteEntry={(entry) => openDeleteEntry('local', entry)}
@@ -387,6 +458,7 @@ export default function SftpWorkspace({
               onTransfer={handleDownload}
               onExtractArchive={(entry) => openExtractArchive('remote', entry, false)}
               onCompressEntry={(entry) => openCompressEntry('remote', entry, 'tar.gz')}
+              onEditFile={(entry) => openEditor('remote', entry)}
               onCreateDirectory={() => openCreateDirectory('remote')}
               onRenameEntry={(entry) => openRenameEntry('remote', entry)}
               onDeleteEntry={(entry) => openDeleteEntry('remote', entry)}
@@ -459,6 +531,25 @@ export default function SftpWorkspace({
           />
         )}
       </div>
+
+      {editorLoading && editorState ? (
+        <div className="sftp-transfer-banner">
+          <span className="pill subtle" aria-live="polite">正在读取 {editorState.entry.name}...</span>
+        </div>
+      ) : null}
+
+      {editorState && editorContent ? (
+        <FileEditorDialog
+          hostID={editorState.scope === 'remote' ? selectedHost?.id || null : null}
+          scope={editorState.scope}
+          path={editorContent.path}
+          name={editorState.entry.name}
+          initialContent={editorContent.content}
+          onClose={closeEditor}
+          onSave={handleEditorSave}
+          onError={onError}
+        />
+      ) : null}
 
       <SftpContextMenuController
         state={contextMenu}

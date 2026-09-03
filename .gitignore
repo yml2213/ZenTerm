@@ -9,3 +9,4 @@ build/
 .snow/
 zenterm
 coverage.out
+.workbuddy

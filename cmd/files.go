@@ -199,6 +199,48 @@ func (a *App) ChmodRemoteEntry(hostID, path, mode string) (FileEntry, error) {
 	return fileEntryFromModel(entry), nil
 }
 
+// ReadLocalFile 读取本地文本文件内容供编辑器使用 / reads a local text file for the built-in editor.
+func (a *App) ReadLocalFile(path string) (model.FileContent, error) {
+	content, err := a.service.ReadLocalFile(path)
+	if err != nil {
+		return model.FileContent{}, normalizeFrontendError(err)
+	}
+
+	return content, nil
+}
+
+// ReadRemoteFile 通过 SFTP 读取远端文本文件内容 / reads a remote text file for the built-in editor.
+func (a *App) ReadRemoteFile(hostID, path string) (model.FileContent, error) {
+	content, err := a.service.ReadRemoteFile(hostID, path)
+	if err != nil {
+		return model.FileContent{}, normalizeFrontendError(err)
+	}
+
+	return content, nil
+}
+
+// WriteLocalFile 保存本地文本文件内容 / saves text content back to a local file.
+// 返回值表示本次保存是否创建了 .bak 备份 / the bool reports whether a .bak backup was created.
+func (a *App) WriteLocalFile(path, content string) (bool, error) {
+	backupCreated, err := a.service.WriteLocalFile(path, content)
+	if err != nil {
+		return false, normalizeFrontendError(err)
+	}
+
+	return backupCreated, nil
+}
+
+// WriteRemoteFile 通过 SFTP 保存远端文本文件内容 / saves text content back to a remote file through SFTP.
+// 返回值表示本次保存是否创建了 .bak 备份 / the bool reports whether a .bak backup was created.
+func (a *App) WriteRemoteFile(hostID, path, content string) (bool, error) {
+	backupCreated, err := a.service.WriteRemoteFile(hostID, path, content)
+	if err != nil {
+		return false, normalizeFrontendError(err)
+	}
+
+	return backupCreated, nil
+}
+
 // parseFileMode 将前端传入的八进制字符串（如 "0755" 或 "755"）解析为 os.FileMode / parses an octal mode string from the frontend into os.FileMode.
 func parseFileMode(mode string) (os.FileMode, error) {
 	trimmed := strings.TrimSpace(mode)

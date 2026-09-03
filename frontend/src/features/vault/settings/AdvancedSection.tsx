@@ -1,4 +1,4 @@
-import { History, Info, Settings2 } from "lucide-react";
+import { FileEdit, History, Info, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getAppPreferences,
@@ -35,7 +35,10 @@ export default function AdvancedSettings() {
   }, []);
 
   const handleToggle = async (
-    key: "open_inspector_on_startup" | "record_session_transcripts",
+    key:
+      | "open_inspector_on_startup"
+      | "record_session_transcripts"
+      | "disable_editor_backup",
     value: boolean
   ) => {
     const newPrefs = { ...prefs, [key]: value };
@@ -66,6 +69,32 @@ export default function AdvancedSettings() {
 
   return (
     <div className="settings-section-stack">
+      <section className="settings-section-panel">
+        <div className="settings-section-title">
+          <FileEdit size={18} />
+          <div>
+            <h3>文件编辑</h3>
+            <p>SFTP 文件编辑器的保存行为。</p>
+          </div>
+        </div>
+
+        <label className="settings-toggle-row">
+          <input
+            type="checkbox"
+            checked={!(prefs.disable_editor_backup || false)}
+            onChange={(e) =>
+              handleToggle("disable_editor_backup", !e.target.checked)
+            }
+          />
+          <span>
+            <strong>保存前自动备份原文件</strong>
+            <small>
+              编辑保存前在同目录生成「文件名.bak」，改错了可手动改回；每次保存会覆盖旧备份。备份失败时中止保存。
+            </small>
+          </span>
+        </label>
+      </section>
+
       <section className="settings-section-panel">
         <div className="settings-section-title">
           <History size={18} />
