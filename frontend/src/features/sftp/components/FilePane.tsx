@@ -81,7 +81,7 @@ interface FilePaneProps {
   onContextMenu: (state: Omit<ContextMenuState, 'transferLabel' | 'deleteSelectionLabel' | 'hiddenFilesLabel'>) => void
 }
 
-export function renderFileRowIcon(entry: FileEntry) {
+function renderFileRowIcon(entry: FileEntry) {
   if (entry.parent) {
     return <FolderOpen size={16} className="file-icon-parent" />
   }

@@ -17,10 +17,9 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { getCredentials } from '@/lib/backend'
+import { getCredentials, getHostSecret } from '@/lib/backend'
 import type { HostFormModel } from '../hostFormModel'
 import { cmd } from '@/lib/backendModels'
-import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
 
 type Credential = cmd.Credential
 
@@ -290,7 +289,7 @@ export default function HostForm({
                     className="ghost-button compact text-xs"
                     onClick={async () => {
                       try {
-                        const sec = await AppAPI.GetHostSecret(value.id)
+                        const sec = await getHostSecret(value.id)
                         if (sec.password) {
                           update('password', sec.password)
                           setShowPasswordText(true)
@@ -345,7 +344,7 @@ export default function HostForm({
                     className="ghost-button compact text-xs"
                     onClick={async () => {
                       try {
-                        const sec = await AppAPI.GetHostSecret(value.id)
+                        const sec = await getHostSecret(value.id)
                         if (sec.private_key) {
                           update('privateKey', sec.private_key)
                         }

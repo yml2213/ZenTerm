@@ -2,7 +2,6 @@
 import { beforeEach, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import ThemeProvider from '../contexts/ThemeProvider'
-import LanguageProvider from '../contexts/LanguageProvider'
 import TerminalPreferencesProvider from '../contexts/TerminalPreferencesProvider'
 import App from '../App'
 import {
@@ -219,11 +218,9 @@ export function createDeferred() {
 export function renderApp() {
   return render(
     <ThemeProvider>
-      <LanguageProvider>
-        <TerminalPreferencesProvider>
-          <App />
-        </TerminalPreferencesProvider>
-      </LanguageProvider>
+      <TerminalPreferencesProvider>
+        <App />
+      </TerminalPreferencesProvider>
     </ThemeProvider>,
   )
 }

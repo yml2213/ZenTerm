@@ -45,7 +45,7 @@ describe('App workspace flows', () => {
     await waitFor(() => expect(windowSetSystemDefaultTheme).toHaveBeenCalledTimes(2))
   })
 
-  it('默认打开 Vaults，并支持切换到 SFTP 工作区', async () => {
+  it('默认打开保险箱，并支持切换到 SFTP 工作区', async () => {
     const user = userEvent.setup()
     renderApp()
 
@@ -118,7 +118,7 @@ describe('App workspace flows', () => {
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ })).toBeInTheDocument())
 
@@ -136,7 +136,7 @@ describe('App workspace flows', () => {
     expect(screen.getByRole('button', { name: /Beta 10.0.0.2:2222/ }).closest('.session-tab')).toHaveClass('active')
   })
 
-  it('连接后会进入独立 SSH 界面，并可通过顶部切换 Vaults 和 SFTP', async () => {
+  it('连接后会进入独立 SSH 界面，并可通过顶部切换保险箱和 SFTP', async () => {
     const user = userEvent.setup()
     connect.mockResolvedValueOnce('session-1')
     listSessions
@@ -154,7 +154,7 @@ describe('App workspace flows', () => {
     expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '连接' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
     expect(await screen.findByLabelText('搜索主机')).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: '连接' })).toHaveLength(2)
 
@@ -182,7 +182,7 @@ describe('App workspace flows', () => {
     const terminalPane = await screen.findByTestId('terminal-pane')
     expect(terminalPane).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
 
     expect(await screen.findByLabelText('搜索主机')).toBeInTheDocument()
     expect(terminalPane).toBeInTheDocument()
@@ -225,7 +225,7 @@ describe('App workspace flows', () => {
     expect(within(terminalPane).getByText('Alpha')).toBeInTheDocument()
     expect(within(terminalPane).getByText('10.0.0.1:22')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[1])
     await waitFor(() => expect(within(screen.getByTestId('terminal-pane')).getByText('Beta')).toBeInTheDocument())
     expect(within(screen.getByTestId('terminal-pane')).getByText('10.0.0.2:2222')).toBeInTheDocument()
@@ -260,7 +260,7 @@ describe('App workspace flows', () => {
     renderApp()
 
     await continueWithMasterPassword(user)
-    await user.click(screen.getByRole('button', { name: /Vaults/i }))
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
     runtimeHandlers.get('ssh:host-key:confirm')?.({

@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import ThemeProvider from "./contexts/ThemeProvider";
-import LanguageProvider from "./contexts/LanguageProvider";
 import TerminalPreferencesProvider from "./contexts/TerminalPreferencesProvider";
 import AppearanceProvider from "./contexts/AppearanceProvider";
 import App from "./App";
@@ -15,13 +14,11 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ThemeProvider>
-      <LanguageProvider>
-        <TerminalPreferencesProvider>
-          <AppearanceProvider>
-            <App />
-          </AppearanceProvider>
-        </TerminalPreferencesProvider>
-      </LanguageProvider>
+      <TerminalPreferencesProvider>
+        <AppearanceProvider>
+          <App />
+        </AppearanceProvider>
+      </TerminalPreferencesProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

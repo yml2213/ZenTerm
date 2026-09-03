@@ -2,8 +2,8 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 import {
   RefreshCw,
 } from 'lucide-react'
+import { getCredentialSecret } from '@/lib/backend'
 import { cmd } from '@/lib/backendModels'
-import * as AppAPI from '@/wailsjs/wailsjs/go/cmd/App'
 import GenerateKeyDrawer from './components/GenerateKeyDrawer'
 import ImportKeyDrawer from './components/ImportKeyDrawer'
 import ImportLocalKeyDrawer from './components/ImportLocalKeyDrawer'
@@ -117,7 +117,7 @@ export default function KeychainPanel({
 
   const handleViewCredentialPrivateKey = async (cred: cmd.Credential) => {
     try {
-      const secret = await AppAPI.GetCredentialSecret(cred.id)
+      const secret = await getCredentialSecret(cred.id)
       setModalSecret({
         isOpen: true,
         title: `凭据私钥 - ${cred.label}`,

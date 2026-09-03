@@ -7,15 +7,17 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '发布版本，例如 0.1.4'
+        description: '发布版本，例如 0.1.6'
         required: true
-        default: '0.1.4'
+        default: '0.1.6'
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 env:
-  GO_VERSION: '1.26.x'
+  GO_VERSION: '1.26.6'
   NODE_VERSION: '22'
   NODE_OPTIONS: '--max-old-space-size=4096'
   WAILS_VERSION: 'v2.12.0'
@@ -72,6 +74,12 @@ jobs:
       - name: 同步版本号
         shell: bash
         run: node scripts/sync-version.mjs "$VERSION"
+
+      - name: 验证版本同步脚本
+        shell: bash
+        run: |
+          node --test scripts/sync-version.test.mjs
+          node scripts/sync-version.mjs --check
 
       - name: 校验项目版本
         shell: bash
@@ -130,6 +138,9 @@ jobs:
     name: 构建 ${{ matrix.name }}
     needs: validate
     runs-on: ${{ matrix.os }}
+    env:
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     strategy:
       fail-fast: false
       matrix:
@@ -201,6 +212,36 @@ jobs:
         shell: bash
         run: wails build -platform ${{ matrix.platform }} -ldflags "-X zenterm/cmd.appVersion=${VERSION}"
 
+      - name: 签名 Windows 可执行文件
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) {
+            Write-Host "未配置 Windows 签名证书，跳过 Authenticode 签名。"
+            exit 0
+          }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            throw "已配置 WINDOWS_CERTIFICATE_BASE64，但缺少 WINDOWS_CERTIFICATE_PASSWORD。"
+          }
+
+          $pfxPath = Join-Path $env:RUNNER_TEMP "zenterm-signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+          try {
+            $signature = Set-AuthenticodeSignature `
+              -FilePath "build/bin/ZenTerm.exe" `
+              -Certificate $certificate `
+              -HashAlgorithm SHA256 `
+              -TimestampServer "http://timestamp.digicert.com"
+            if ($signature.Status -ne "Valid") {
+              throw "Authenticode 签名验证失败: $($signature.Status) $($signature.StatusMessage)"
+            }
+          } finally {
+            Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+            Remove-Item "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue
+          }
+
       - name: 打包 Linux 产物
         if: runner.os == 'Linux'
         shell: bash
@@ -232,6 +273,13 @@ jobs:
     name: 构建 macOS
     needs: validate
     runs-on: macos-latest
+    env:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -280,6 +328,31 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: 配置 macOS 签名钥匙串
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERTIFICATE_BASE64}" ]; then
+            echo "未配置 Apple 签名证书，跳过 Developer ID 签名和 notarization。"
+            exit 0
+          fi
+          if [ -z "${APPLE_CERTIFICATE_PASSWORD}" ] || [ -z "${APPLE_SIGNING_IDENTITY}" ]; then
+            echo "已配置 APPLE_CERTIFICATE_BASE64，但证书密码或签名身份缺失。" >&2
+            exit 1
+          fi
+
+          keychain="$RUNNER_TEMP/zenterm-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          certificate="$RUNNER_TEMP/zenterm-signing.p12"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -D > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          rm -f "$certificate"
+
       - name: 创建 macOS 打包脚本
         shell: bash
         run: |
@@ -296,8 +369,28 @@ jobs:
 
           mkdir -p dist
           if [ -d build/bin/ZenTerm.app ]; then
+            if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+              codesign --force --deep --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" build/bin/ZenTerm.app
+              codesign --verify --deep --strict --verbose=2 build/bin/ZenTerm.app
+            fi
             ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm.app "dist/$asset"
+            if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ] && [ -n "${APPLE_APP_PASSWORD:-}" ]; then
+              xcrun notarytool submit "dist/$asset" \
+                --apple-id "$APPLE_ID" \
+                --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_PASSWORD" \
+                --wait
+              xcrun stapler staple build/bin/ZenTerm.app
+              rm -f "dist/$asset"
+              ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm.app "dist/$asset"
+            elif [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+              echo "产物已签名，但 notarization 凭据不完整，跳过公证。"
+            fi
           else
+            if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+              codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" build/bin/ZenTerm
+              codesign --verify --strict --verbose=2 build/bin/ZenTerm
+            fi
             ditto -c -k --sequesterRsrc --keepParent build/bin/ZenTerm "dist/$asset"
           fi
           (cd dist && shasum -a 256 "$asset" > "$asset.sha256")
@@ -317,6 +410,12 @@ jobs:
         continue-on-error: true
         shell: bash
         run: /tmp/build-macos.sh darwin/arm64 macos-arm64
+
+      - name: 清理 macOS 签名钥匙串
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/zenterm-signing.keychain-db" 2>/dev/null || true
 
       - name: 上传 macOS 构建产物
         uses: actions/upload-artifact@v4
@@ -353,6 +452,11 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: 生成构建来源证明
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-assets/ZenTerm-*
+
       - name: 生成 Release 说明
         shell: bash
         run: |
@@ -380,7 +484,8 @@ jobs:
           cat >> release-notes.md <<EOF
 
           说明：
-          - 当前产物未做代码签名和 notarization，首次运行可能需要在系统安全设置中确认。
+          - 所有产物都生成 GitHub artifact provenance，可使用 GitHub CLI 验证构建来源。
+          - 配置仓库签名 secrets 后，Windows 产物使用 Authenticode，macOS 产物使用 Developer ID 并提交 notarization。
           - macOS Universal 是 macOS 主包；Intel / Apple Silicon 单独包为附加构建。
           - Linux 版本需要系统已安装 GTK3 与 WebKitGTK 运行库。
           - 每个包旁边都提供了对应的 SHA-256 校验文件。

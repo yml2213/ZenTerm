@@ -210,12 +210,12 @@ func (a *App) DeleteBackup(backupPath string) error {
 		return fmt.Errorf("backup path is required")
 	}
 
-	backupDir := filepath.Join(filepath.Dir(a.store.Path()), "backups")
-	if !strings.HasPrefix(backupPath, backupDir) {
-		return fmt.Errorf("invalid backup path: not in backups directory")
+	validatedPath, err := backupPathWithinStore(a.store.Path(), backupPath)
+	if err != nil {
+		return err
 	}
 
-	if err := os.Remove(backupPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(validatedPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("delete backup: %w", err)
 	}
 
@@ -231,12 +231,28 @@ func (a *App) RestoreBackup(backupPath string, masterPassword string) error {
 		return fmt.Errorf("master password is required to decrypt the backup")
 	}
 
-	backupDir := filepath.Join(filepath.Dir(a.store.Path()), "backups")
-	if !strings.HasPrefix(backupPath, backupDir) {
-		return fmt.Errorf("invalid backup path: not in backups directory")
+	validatedPath, err := backupPathWithinStore(a.store.Path(), backupPath)
+	if err != nil {
+		return err
 	}
 
-	return a.ImportDataFromPath(backupPath, masterPassword)
+	return a.ImportDataFromPath(validatedPath, masterPassword)
+}
+
+func backupPathWithinStore(storePath, backupPath string) (string, error) {
+	backupDir, err := filepath.Abs(filepath.Join(filepath.Dir(storePath), "backups"))
+	if err != nil {
+		return "", fmt.Errorf("resolve backups directory: %w", err)
+	}
+	candidate, err := filepath.Abs(filepath.Clean(backupPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve backup path: %w", err)
+	}
+	relative, err := filepath.Rel(backupDir, candidate)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("invalid backup path: not in backups directory")
+	}
+	return candidate, nil
 }
 
 // OpenStoreDirectory 在系统文件管理器中打开数据存储目录 / opens the data store directory in the system file manager.

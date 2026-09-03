@@ -4,7 +4,6 @@ import AppWorkspaces from '@/features/app/components/AppWorkspaces'
 import WorkspaceStrip from '@/features/app/components/WorkspaceStrip'
 import { UpdateNotification } from '@/features/app/components/UpdateNotification'
 import { useTheme } from './contexts/ThemeProvider'
-import { useLanguage } from './contexts/LanguageProvider'
 import { createAppViewActions } from '@/features/app/appViewActions'
 import { useAppBootstrap } from '@/features/app/useAppBootstrap'
 import { useAppActionHandlers } from '@/features/app/useAppActionHandlers'
@@ -19,7 +18,6 @@ import type { WorkspaceTab } from '@/features/workspace/workspaceTypes'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
-  const { t } = useLanguage()
   const {
     app,
     hosts: hostView,
@@ -160,8 +158,8 @@ export default function App() {
         onOpenNewTab={workspaceActions.openNewTab}
         onCycleTheme={cycleTheme}
         themeIcon={ThemeIcon}
-        vaultsLabel={t('vaults')}
-        sftpLabel={t('sftp')}
+        vaultsLabel="保险箱"
+        sftpLabel="SFTP"
       />
 
       <AppWorkspaces
@@ -172,8 +170,8 @@ export default function App() {
         page={page}
         refs={refs}
         labels={{
-          searchPlaceholder: t('searchPlaceholder'),
-          newHostLabel: t('newHost'),
+          searchPlaceholder: '搜索主机...',
+          newHostLabel: '新建主机',
         }}
         actions={viewActions.workspace}
       />
@@ -184,8 +182,8 @@ export default function App() {
         hosts={hostView}
         sessions={sessions}
         labels={{
-          errorTitle: t('errorTitle'),
-          confirmLabel: t('confirm'),
+          errorTitle: '发生错误',
+          confirmLabel: '确定',
         }}
         actions={viewActions.overlay}
       />
