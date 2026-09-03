@@ -43,6 +43,7 @@ var (
 	ErrFileEntryAlreadyExists      = errors.New("file entry already exists")
 	ErrProtectedLocalPath          = errors.New("refusing to delete protected local path")
 	ErrVaultLocked                 = errors.New("vault is locked")
+	ErrInvalidFileMode             = errors.New("invalid file mode")
 )
 
 const (
@@ -181,5 +182,6 @@ type sftpClient interface {
 	PosixRename(oldPath, newPath string) error
 	Remove(path string) error
 	RemoveDirectory(path string) error
+	Chmod(path string, mode os.FileMode) error
 	Close() error
 }

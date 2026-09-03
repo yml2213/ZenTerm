@@ -288,6 +288,21 @@ func (c *stubSFTPClient) RemoveDirectory(path string) error {
 	return nil
 }
 
+func (c *stubSFTPClient) Chmod(path string, mode os.FileMode) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if info, ok := c.stats[path]; ok {
+		c.stats[path] = &stubFileInfo{
+			name:    info.Name(),
+			size:    info.Size(),
+			mode:    mode,
+			modTime: info.ModTime(),
+			dir:     info.IsDir(),
+		}
+	}
+	return nil
+}
+
 func (c *stubSFTPClient) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
