@@ -171,6 +171,35 @@ export function formatSize(size: number, isDir: boolean): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
 }
 
+// TransferProgressEvent 后端通过 sftp:transfer-progress 事件推送的进度快照 / progress snapshot pushed by the backend over the sftp:transfer-progress event.
+export interface TransferProgressEvent {
+  direction: 'upload' | 'download'
+  transferId?: string
+  fileName?: string
+  doneBytes?: number
+  totalBytes?: number
+  percent?: number
+  speedBps?: number
+  phase?: 'compress' | 'copy'
+}
+
+// formatSpeed 将字节/秒格式化为可读速度文本 / formats bytes-per-second into a human-readable speed string.
+export function formatSpeed(bytesPerSecond: number): string {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
+    return '--/s'
+  }
+
+  let value = bytesPerSecond
+  let unitIndex = 0
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s']
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
+}
+
 export function formatTime(value: string | null | undefined): string {
   if (!value) {
     return '--'

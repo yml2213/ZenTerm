@@ -18,6 +18,8 @@ import { useSftpSelection } from './components/useSftpSelection'
 import { useSftpTransfer } from './components/useSftpTransfer'
 import {
   findSelectedEntries,
+  formatSize,
+  formatSpeed,
   splitLocalPath,
   splitRemotePath,
   type ContextMenuState,
@@ -104,14 +106,16 @@ export default function SftpWorkspace({
   })
   const {
     transferBusy,
+    transferProgress,
     notice,
     setNotice,
     selectedLocalTransferableEntries,
     selectedRemoteTransferableEntries,
     executeTransfer,
+    executeDirectoryUpload,
     handleUpload,
     handleDownload,
-	  handleCancelTransfer,
+    handleCancelTransfer,
   } = useSftpTransfer({
     selectedHost,
     localListing,
@@ -258,7 +262,45 @@ export default function SftpWorkspace({
 
   return (
     <section className="sftp-shell" aria-label="SFTP 工作区">
-      {transferBusy || notice?.message ? (
+      {transferProgress ? (
+        <div className="sftp-transfer-banner">
+          <div className="sftp-transfer-progress-row">
+            <span className="pill subtle" aria-live="polite">
+              {transferProgress.phase === 'compress'
+                ? '正在压缩文件夹...'
+                : `正在${transferBusy === 'download' ? '下载' : '上传'}...`}
+            </span>
+            <span className="sftp-transfer-progress-text">
+              {transferProgress.fileName}
+              {transferProgress.totalBytes > 0 ? (
+                <>
+                  {' '}· {Math.round(transferProgress.percent)}% · {formatSize(transferProgress.doneBytes, false)}
+                  /{formatSize(transferProgress.totalBytes, false)} · {formatSpeed(transferProgress.speedBps || 0)}
+                </>
+              ) : (
+                <> · {formatSpeed(transferProgress.speedBps || 0)}</>
+              )}
+            </span>
+            <button type="button" className="sftp-transfer-cancel" onClick={handleCancelTransfer} aria-label="取消文件传输" title="取消文件传输">
+              <X size={15} />
+            </button>
+          </div>
+          {transferProgress.totalBytes > 0 ? (
+            <div
+              className="sftp-transfer-progress-track"
+              role="progressbar"
+              aria-valuenow={Math.round(transferProgress.percent)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="sftp-transfer-progress-bar"
+                style={{ width: `${Math.min(100, Math.max(0, transferProgress.percent))}%` }}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : transferBusy || notice?.message ? (
         <div className="sftp-transfer-banner">
           {transferBusy ? (
             <>
@@ -435,6 +477,7 @@ export default function SftpWorkspace({
         closeDialog={closeDialog}
         changeValue={changeDialogValue}
         executeTransfer={executeTransfer}
+        executeDirectoryUpload={executeDirectoryUpload}
         handleLocalNavigate={handleLocalNavigate}
         handleRemoteNavigate={handleRemoteNavigate}
         clearScopeSelection={clearScopeSelection}

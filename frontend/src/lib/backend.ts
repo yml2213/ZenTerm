@@ -212,9 +212,10 @@ export async function uploadDirectory(
   localPath: string,
   remoteDir: string,
   autoCompress: boolean,
-  overwrite: boolean = false
+  overwrite: boolean = false,
+  transferId: string = ''
 ): Promise<model.FileTransferResult> {
-  return callApp('UploadDirectory', hostID, localPath, remoteDir, autoCompress, overwrite)
+  return callApp('UploadDirectory', hostID, localPath, remoteDir, autoCompress, overwrite, transferId)
 }
 
 export async function extractLocalArchive(archivePath: string, targetDir: string): Promise<void> {
@@ -301,18 +302,20 @@ export async function uploadFile(
   hostID: string,
   localPath: string,
   remoteDir: string,
-  overwrite: boolean = false
+  overwrite: boolean = false,
+  transferId: string = ''
 ): Promise<model.FileTransferResult> {
-  return callApp("UploadFile", hostID, localPath, remoteDir, overwrite);
+  return callApp("UploadFile", hostID, localPath, remoteDir, overwrite, transferId);
 }
 
 export async function downloadFile(
   hostID: string,
   remotePath: string,
   localDir: string,
-  overwrite: boolean = false
+  overwrite: boolean = false,
+  transferId: string = ''
 ): Promise<model.FileTransferResult> {
-  return callApp("DownloadFile", hostID, remotePath, localDir, overwrite);
+  return callApp("DownloadFile", hostID, remotePath, localDir, overwrite, transferId);
 }
 
 export async function cancelFileTransfer(hostID: string): Promise<void> {
