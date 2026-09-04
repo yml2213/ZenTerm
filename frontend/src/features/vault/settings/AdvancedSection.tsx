@@ -1,15 +1,6 @@
 import {
-  AppWindow,
-  Code2,
   ExternalLink,
-  FileEdit,
   Github,
-  Heart,
-  History,
-  Info,
-  Layers,
-  Settings2,
-  Shield,
   Sliders,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -23,7 +14,6 @@ import {
 import {
   SettingsGroup,
   SettingsRow,
-  SettingsSwitch,
 } from '../components/SettingsComponents'
 
 const GITHUB_URL = 'https://github.com/yml2213/ZenTerm'

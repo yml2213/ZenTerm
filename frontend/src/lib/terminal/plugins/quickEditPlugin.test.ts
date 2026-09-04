@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MouseEvent } from 'react'
 import type { Terminal } from '@xterm/xterm'
+import {
+  DEFAULT_TERMINAL_PREFERENCES,
+  type TerminalPreferences,
+} from '../../../contexts/TerminalPreferencesProvider'
 import { quickEditPlugin } from './quickEditPlugin'
 import type { TerminalPluginContext } from './types'
 
@@ -11,7 +15,8 @@ function createContext(options: {
   clipboardText?: string
   activeSessionId?: string | null
 } = {}) {
-  const preferences = {
+  const preferences: TerminalPreferences = {
+    ...DEFAULT_TERMINAL_PREFERENCES,
     quickEditEnabled: options.quickEditEnabled ?? true,
     webLinksEnabled: true,
   }

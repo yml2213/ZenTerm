@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Terminal } from '@xterm/xterm'
+import { DEFAULT_TERMINAL_PREFERENCES } from '../../contexts/TerminalPreferencesProvider'
 import { createTerminalPluginRuntime } from './pluginRuntime'
 import type { TerminalPlugin, TerminalPluginContext } from './plugins/builtin'
 
@@ -9,7 +10,7 @@ function createContext(): TerminalPluginContext {
     container: document.createElement('div'),
     getActiveSessionId: () => 'session-1',
     getSessions: () => [],
-    getPreferences: () => ({ quickEditEnabled: false, webLinksEnabled: true }),
+    getPreferences: () => ({ ...DEFAULT_TERMINAL_PREFERENCES }),
     readClipboardText: vi.fn(async () => ''),
     writeClipboardText: vi.fn(async () => true),
     openExternalURL: vi.fn(async () => {}),

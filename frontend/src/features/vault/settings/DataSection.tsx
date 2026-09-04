@@ -8,7 +8,6 @@ import {
   HardDrive,
   History,
   RefreshCw,
-  Save,
   Server,
   Trash2,
   Upload,

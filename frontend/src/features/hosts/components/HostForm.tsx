@@ -9,8 +9,6 @@ import {
   KeyRound,
   Layers,
   MapPin,
-  MonitorCog,
-  Plus,
   PencilLine,
   PlusCircle,
   Server,

@@ -1,7 +1,6 @@
 import {
   AlignLeft,
   AppWindow,
-  MousePointer,
   RotateCcw,
   Sparkles,
   Terminal,
