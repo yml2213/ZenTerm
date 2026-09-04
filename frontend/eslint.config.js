@@ -11,6 +11,7 @@ const fastRefreshSafeExports = [
   'useLanguage',
   'useAppearance',
   'useTerminalPreferences',
+  'DEFAULT_TERMINAL_PREFERENCES',
   'useTheme',
 ]
 

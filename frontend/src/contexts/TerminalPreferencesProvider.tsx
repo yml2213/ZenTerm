@@ -43,6 +43,17 @@ export const DEFAULT_CURSOR_STYLE: CursorStyle = 'bar'
 export const DEFAULT_CURSOR_BLINK = false
 export const DEFAULT_SCROLLBACK = 10000
 
+export const DEFAULT_TERMINAL_PREFERENCES: TerminalPreferences = {
+  quickEditEnabled: false,
+  webLinksEnabled: true,
+  fontFamily: DEFAULT_FONT_FAMILY,
+  fontSize: DEFAULT_FONT_SIZE,
+  lineHeight: DEFAULT_LINE_HEIGHT,
+  cursorStyle: DEFAULT_CURSOR_STYLE,
+  cursorBlink: DEFAULT_CURSOR_BLINK,
+  scrollback: DEFAULT_SCROLLBACK,
+}
+
 function loadQuickEditPreference(): boolean {
   if (typeof window === 'undefined') return false
   return window.localStorage.getItem(QUICK_EDIT_KEY) === 'true'

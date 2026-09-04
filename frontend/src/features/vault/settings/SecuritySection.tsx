@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   Cpu,
   Eye,
@@ -8,12 +7,8 @@ import {
   KeyRound,
   Lock,
   RotateCcw,
-  Shield,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
-  Trash2,
-  XCircle,
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import type { ChangeMasterForm } from '../vaultTypes'

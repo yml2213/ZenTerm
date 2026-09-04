@@ -347,10 +347,7 @@ export default function TerminalPane({
 
   useEffect(() => {
     preferencesRef.current = terminalPreferences
-    notifyPluginPreferencesChange({
-      quickEditEnabled: terminalPreferences.quickEditEnabled,
-      webLinksEnabled: terminalPreferences.webLinksEnabled,
-    })
+    notifyPluginPreferencesChange(terminalPreferences)
 
     const terminal = terminalRef.current
     if (!terminal) return

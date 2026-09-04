@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Terminal } from '@xterm/xterm'
+import { DEFAULT_TERMINAL_PREFERENCES } from '../../../contexts/TerminalPreferencesProvider'
 import { findWebLinks, webLinksPlugin } from './webLinksPlugin'
 import type { TerminalPluginContext } from './types'
 
@@ -32,6 +33,7 @@ function createContext(lineText: string, webLinksEnabled = true) {
     getActiveSessionId: () => 'session-1',
     getSessions: () => [],
     getPreferences: () => ({
+      ...DEFAULT_TERMINAL_PREFERENCES,
       quickEditEnabled: false,
       webLinksEnabled,
     }),
