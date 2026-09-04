@@ -224,3 +224,75 @@ export function sortHosts(hosts: cmd.Host[]): cmd.Host[] {
     return (left.name || left.id).localeCompare(right.name || right.id)
   })
 }
+
+export interface ParsedSshConnection {
+  username?: string
+  address?: string
+  port?: string
+  name?: string
+}
+
+/**
+ * 智能解析快速连接字符串，例如:
+ * - "ssh root@192.168.1.1:2222"
+ * - "ssh -p 2200 admin@example.com"
+ * - "root@47.100.1.1:22"
+ * - "ubuntu@10.0.0.1"
+ * - "192.168.0.1:2222"
+ */
+export function parseSshConnectionString(raw: string): ParsedSshConnection | null {
+  const input = raw.trim()
+  if (!input) {
+    return null
+  }
+
+  let text = input
+  let port: string | undefined
+
+  // 匹配形如 -p 2222 或 -p=2222
+  const pMatch = text.match(/(?:^|\s)-p\s*=?\s*(\d+)/i)
+  if (pMatch) {
+    port = pMatch[1]
+    text = text.replace(pMatch[0], ' ').trim()
+  }
+
+  // 去除开头的 ssh 命令前缀
+  if (text.toLowerCase().startsWith('ssh ')) {
+    text = text.slice(4).trim()
+  }
+
+  // 去除可能的多余选项如 -i xxx, -o xxx 等常见 flags
+  text = text.replace(/-\w+\s+[^\s]+/g, '').trim()
+
+  // 此时 text 应该类似 user@host:port 或 user@host 或 host:port 或 host
+  let username: string | undefined
+  let address = text
+
+  if (address.includes('@')) {
+    const parts = address.split('@')
+    username = parts[0]?.trim()
+    address = parts.slice(1).join('@').trim()
+  }
+
+  if (!port && address.includes(':')) {
+    const colonIndex = address.lastIndexOf(':')
+    const possiblePort = address.slice(colonIndex + 1).trim()
+    if (/^\d+$/.test(possiblePort)) {
+      port = possiblePort
+      address = address.slice(0, colonIndex).trim()
+    }
+  }
+
+  address = address.replace(/^\[|\]$/g, '').trim() // 剥离可能的 ipv6 括号
+
+  if (!address && !username) {
+    return null
+  }
+
+  return {
+    username: username || undefined,
+    address: address || undefined,
+    port: port || undefined,
+    name: address ? (username ? `${username}@${address}` : address) : undefined,
+  }
+}

@@ -53,3 +53,38 @@ describe('sortHosts', () => {
     expect(hosts.map((host) => host.id)).toEqual(['b', 'a'])
   })
 })
+
+describe('parseSshConnectionString', () => {
+  it('支持标准 ssh 命令并解析各要素', async () => {
+    const { parseSshConnectionString } = await import('./appHostUtils')
+    const result = parseSshConnectionString('ssh root@192.168.1.100 -p 2222')
+    expect(result).toEqual({
+      username: 'root',
+      address: '192.168.1.100',
+      port: '2222',
+      name: 'root@192.168.1.100',
+    })
+  })
+
+  it('支持 user@host 简单格式', async () => {
+    const { parseSshConnectionString } = await import('./appHostUtils')
+    const result = parseSshConnectionString('ubuntu@my-server.com')
+    expect(result).toEqual({
+      username: 'ubuntu',
+      address: 'my-server.com',
+      port: undefined,
+      name: 'ubuntu@my-server.com',
+    })
+  })
+
+  it('支持纯 IP 携带端口', async () => {
+    const { parseSshConnectionString } = await import('./appHostUtils')
+    const result = parseSshConnectionString('10.0.0.5:2200')
+    expect(result).toEqual({
+      username: undefined,
+      address: '10.0.0.5',
+      port: '2200',
+      name: '10.0.0.5',
+    })
+  })
+})
