@@ -109,8 +109,24 @@
   }
 
   .settings-form-grid,
-  .settings-action-grid {
+  .settings-action-grid,
+  .data-migration-grid,
+  .sync-actions-panel,
+  .appearance-theme-cards {
     grid-template-columns: 1fr;
+  }
+
+  .data-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-detail {
+    padding: 1rem;
+  }
+
+  .update-hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .keychain-empty-actions {
