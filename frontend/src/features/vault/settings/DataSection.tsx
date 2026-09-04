@@ -1,4 +1,6 @@
 import {
+  AlertTriangle,
+  CheckCircle2,
   Database,
   Download,
   ExternalLink,
@@ -7,10 +9,11 @@ import {
   History,
   RefreshCw,
   Save,
+  Server,
   Trash2,
   Upload,
-} from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+} from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   deleteBackup,
   exportData,
@@ -22,7 +25,8 @@ import {
   clearSessionLogs,
   type BackupEntry,
   type DataStats,
-} from "@/lib/backend";
+} from '@/lib/backend'
+import { SettingsGroup } from '../components/SettingsComponents'
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -183,194 +187,178 @@ export default function DataSettings() {
 
   return (
     <div className="settings-section-stack">
-      {/* 数据概览 */}
-      <section className="settings-section-panel">
-        <div className="settings-section-title">
-          <Database size={18} />
-          <div>
-            <h3>数据概览</h3>
-            <p>当前存储中的主机、凭据和会话记录统计。</p>
+      {/* 数据指标 KPI 概览 */}
+      <div className="data-kpi-grid">
+        <div className="data-kpi-card">
+          <div className="data-kpi-icon kpi-blue">
+            <HardDrive size={18} />
+          </div>
+          <div className="data-kpi-body">
+            <span className="data-kpi-val">{stats ? formatBytes(stats.file_size) : '—'}</span>
+            <span className="data-kpi-lbl">配置数据库大小</span>
           </div>
         </div>
 
-        <div className="data-stats-grid">
-          <div className="data-stat-card">
-            <HardDrive size={16} />
-            <div>
-              <strong>{stats ? formatBytes(stats.file_size) : "—"}</strong>
-              <small>数据文件大小</small>
-            </div>
+        <div className="data-kpi-card">
+          <div className="data-kpi-icon kpi-emerald">
+            <Server size={18} />
           </div>
-          <div className="data-stat-card">
-            <Database size={16} />
-            <div>
-              <strong>{stats?.host_count ?? "—"}</strong>
-              <small>主机</small>
-            </div>
-          </div>
-          <div className="data-stat-card">
-            <Database size={16} />
-            <div>
-              <strong>{stats?.credential_count ?? "—"}</strong>
-              <small>凭据</small>
-            </div>
-          </div>
-          <div className="data-stat-card">
-            <History size={16} />
-            <div>
-              <strong>{stats?.session_log_count ?? "—"}</strong>
-              <small>
-                会话记录
-                {stats && stats.transcript_bytes > 0
-                  ? ` · 终端输出 ${formatBytes(stats.transcript_bytes)}`
-                  : ""}
-              </small>
-            </div>
+          <div className="data-kpi-body">
+            <span className="data-kpi-val">{stats?.host_count ?? '—'}</span>
+            <span className="data-kpi-lbl">已保存主机</span>
           </div>
         </div>
 
-        <div className="settings-note-row">
-          <FolderOpen size={16} />
-          <span>
-            <small className="data-path-text">
-              {stats?.store_path || "读取中…"}
-            </small>
-          </span>
+        <div className="data-kpi-card">
+          <div className="data-kpi-icon kpi-purple">
+            <Database size={18} />
+          </div>
+          <div className="data-kpi-body">
+            <span className="data-kpi-val">{stats?.credential_count ?? '—'}</span>
+            <span className="data-kpi-lbl">已加密凭据</span>
+          </div>
+        </div>
+
+        <div className="data-kpi-card">
+          <div className="data-kpi-icon kpi-amber">
+            <History size={18} />
+          </div>
+          <div className="data-kpi-body">
+            <span className="data-kpi-val">{stats?.session_log_count ?? '—'}</span>
+            <span className="data-kpi-lbl">
+              连接日志
+              {stats && stats.transcript_bytes > 0
+                ? ` (${formatBytes(stats.transcript_bytes)})`
+                : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 存储路径 */}
+      <SettingsGroup
+        title="数据存储位置"
+        description="所有主机、分组、凭据及已知指纹均加密保存在本机专属配置目录中。"
+      >
+        <div className="data-path-box">
+          <div className="data-path-info">
+            <FolderOpen size={16} />
+            <code className="data-path-code">{stats?.store_path || '正在读取路径…'}</code>
+          </div>
           <button
             type="button"
             className="ghost-button compact"
             onClick={handleOpenDir}
           >
             <ExternalLink size={14} />
-            打开目录
+            <span>打开存储目录</span>
           </button>
         </div>
+      </SettingsGroup>
 
-        <div className="settings-action-grid data-export-actions">
-          <button
-            type="button"
-            className={`ghost-button danger-outline${confirmClearLogs ? " confirm" : ""}`}
-            onClick={() => {
-              if (!confirmClearLogs) {
-                setConfirmClearLogs(true);
-                window.setTimeout(() => setConfirmClearLogs(false), 3000);
-                return;
-              }
-              void handleClearSessionLogs();
-            }}
-            disabled={Boolean(busy) || (stats?.session_log_count ?? 0) === 0}
-          >
-            <Trash2 size={16} />
-            {busy === "clear-logs"
-              ? "清空中…"
-              : confirmClearLogs
-                ? "确认清空全部会话记录?"
-                : "清空会话记录"}
-          </button>
-        </div>
-      </section>
+      {/* 数据导出与导入 */}
+      <SettingsGroup
+        title="全量数据备份与迁移"
+        description="导出的数据备份经过主密码 AES-GCM 高强度加密，可安全传输到新电脑或作为灾备。"
+      >
+        <div className="data-migration-grid">
+          <div className="data-migration-card">
+            <div className="data-migration-info">
+              <Download size={18} />
+              <div>
+                <strong>导出加密备份</strong>
+                <p>将当前保险箱的所有主机、钥匙串与配置导出为独立的加密文件。</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleExport}
+              disabled={Boolean(busy)}
+            >
+              <Download size={14} />
+              <span>{busy === 'export' ? '正在导出…' : '导出备份文件'}</span>
+            </button>
+          </div>
 
-      {/* 导出与导入 */}
-      <section className="settings-section-panel">
-        <div className="settings-section-title">
-          <Save size={18} />
-          <div>
-            <h3>导出与导入</h3>
-            <p>
-              导出的备份文件经过主密码加密，可安全存储或传输到其他设备。
-            </p>
+          <div className="data-migration-card">
+            <div className="data-migration-info">
+              <Upload size={18} />
+              <div>
+                <strong>导入加密备份</strong>
+                <p>选择备份文件并输入原主密码，解密后导入到当前保险箱。</p>
+              </div>
+            </div>
+            <div className="data-import-form">
+              <input
+                type="password"
+                value={importPassword}
+                onChange={(event) => setImportPassword(event.target.value)}
+                placeholder="请输入用于解密备份的主密码"
+                className="settings-input"
+              />
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleImport}
+                disabled={Boolean(busy) || !importPassword}
+              >
+                <Upload size={14} />
+                <span>{busy === 'import' ? '导入中…' : '选择文件并导入'}</span>
+              </button>
+            </div>
           </div>
         </div>
+      </SettingsGroup>
 
-        <div className="settings-action-grid data-export-actions">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={handleExport}
-            disabled={Boolean(busy)}
-          >
-            <Download size={16} />
-            {busy === "export" ? "导出中…" : "导出备份"}
-          </button>
-        </div>
-
-        <div className="data-import-row">
-          <label>
-            主密码（解密备份）
-            <input
-              type="password"
-              value={importPassword}
-              onChange={(event) => setImportPassword(event.target.value)}
-              placeholder="输入主密码以导入备份"
-            />
-          </label>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={handleImport}
-            disabled={Boolean(busy) || !importPassword}
-          >
-            <Upload size={16} />
-            {busy === "import" ? "导入中…" : "导入备份"}
-          </button>
-        </div>
-      </section>
-
-      {/* 本地备份 */}
-      <section className="settings-section-panel">
-        <div className="settings-section-title">
-          <History size={18} />
-          <div>
-            <h3>本地备份</h3>
-            <p>同步拉取或手动操作时自动创建的备份文件。</p>
-          </div>
-        </div>
-
+      {/* 本地快照历史 */}
+      <SettingsGroup
+        title="本地备份历史"
+        description="系统在执行云端同步拉取或重要变更时自动生成的安全恢复点。"
+      >
         {backups.length === 0 ? (
           <div className="data-backup-empty">
             <History size={20} />
-            <span>暂无备份文件</span>
+            <span>暂无本地快照备份文件</span>
           </div>
         ) : (
-          <div className="data-backup-list">
+          <div className="data-backup-timeline">
             {backups.map((backup) => (
-              <div key={backup.path} className="data-backup-item">
-                <div className="data-backup-info">
-                  <strong>{backup.name}</strong>
-                  <small>
-                    {formatBytes(backup.size)} · {formatTime(backup.modified)}
-                  </small>
+              <div key={backup.path} className="data-backup-row">
+                <div className="data-backup-main">
+                  <div className="data-backup-dot" />
+                  <div className="data-backup-details">
+                    <strong className="data-backup-name">{backup.name}</strong>
+                    <span className="data-backup-meta">
+                      {formatBytes(backup.size)} · {formatTime(backup.modified)}
+                    </span>
+                  </div>
                 </div>
-                <div className="data-backup-actions">
+
+                <div className="data-backup-ctrls">
                   {restoreTarget === backup.path ? (
-                    <div className="data-restore-inline">
+                    <div className="data-restore-active-box">
                       <input
                         type="password"
                         value={restorePassword}
-                        onChange={(event) =>
-                          setRestorePassword(event.target.value)
-                        }
-                        placeholder="主密码"
-                        className="data-restore-input"
+                        onChange={(event) => setRestorePassword(event.target.value)}
+                        placeholder="请输入主密码解密"
+                        className="settings-input compact-input"
                       />
                       <button
                         type="button"
                         className="primary-button compact"
                         onClick={() => handleRestore(backup.path)}
-                        disabled={
-                          Boolean(busy) || !restorePassword
-                        }
+                        disabled={Boolean(busy) || !restorePassword}
                       >
-                        {busy === `restore-${backup.path}`
-                          ? "恢复中…"
-                          : "确认"}
+                        {busy === `restore-${backup.path}` ? '恢复中…' : '确认恢复'}
                       </button>
                       <button
                         type="button"
                         className="ghost-button compact"
                         onClick={() => {
-                          setRestoreTarget(null);
-                          setRestorePassword("");
+                          setRestoreTarget(null)
+                          setRestorePassword('')
                         }}
                       >
                         取消
@@ -384,16 +372,18 @@ export default function DataSettings() {
                         onClick={() => setRestoreTarget(backup.path)}
                         disabled={Boolean(busy)}
                       >
-                        <RefreshCw size={14} />
-                        恢复
+                        <RefreshCw size={13} />
+                        <span>恢复</span>
                       </button>
                       <button
                         type="button"
                         className="ghost-button compact danger-outline"
                         onClick={() => handleDeleteBackup(backup.path)}
                         disabled={Boolean(busy)}
+                        title="删除该备份"
+                        aria-label="删除该备份"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </>
                   )}
@@ -403,25 +393,68 @@ export default function DataSettings() {
           </div>
         )}
 
-        <button
-          type="button"
-          className="ghost-button compact"
-          onClick={loadData}
-          disabled={Boolean(busy)}
-        >
-          <RefreshCw size={14} />
-          刷新列表
-        </button>
-      </section>
+        <div className="data-backup-foot">
+          <button
+            type="button"
+            className="ghost-button compact"
+            onClick={loadData}
+            disabled={Boolean(busy)}
+          >
+            <RefreshCw size={13} />
+            <span>刷新备份列表</span>
+          </button>
+        </div>
+      </SettingsGroup>
 
-      {notice ? (
-        <div className="settings-inline-message success">{notice}</div>
-      ) : null}
-      {error ? (
-        <div className="settings-inline-message error">{error}</div>
-      ) : null}
+      {/* 清理日志区域 */}
+      <div className="settings-danger-card compact-danger">
+        <div className="settings-danger-header">
+          <Trash2 size={16} />
+          <div>
+            <h3>清理会话历史记录</h3>
+            <p>清空全部保存在本地的 SSH 会话连接记录与终端屏幕转储输出，释放存储空间。</p>
+          </div>
+        </div>
+        <div className="danger-actions-row">
+          <button
+            type="button"
+            className={`ghost-button danger-outline${confirmClearLogs ? ' confirm' : ''}`}
+            onClick={() => {
+              if (!confirmClearLogs) {
+                setConfirmClearLogs(true)
+                window.setTimeout(() => setConfirmClearLogs(false), 3000)
+                return
+              }
+              void handleClearSessionLogs()
+            }}
+            disabled={Boolean(busy) || (stats?.session_log_count ?? 0) === 0}
+          >
+            <Trash2 size={14} />
+            <span>
+              {busy === 'clear-logs'
+                ? '正在清理中…'
+                : confirmClearLogs
+                  ? '确定清空全部会话记录？'
+                  : '清空全部会话记录'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {notice && (
+        <div className="settings-inline-message success">
+          <CheckCircle2 size={15} />
+          <span>{notice}</span>
+        </div>
+      )}
+      {error && (
+        <div className="settings-inline-message error">
+          <AlertTriangle size={15} />
+          <span>{error}</span>
+        </div>
+      )}
     </div>
-  );
+  )
 }
 
 function getFileName(path: string): string {

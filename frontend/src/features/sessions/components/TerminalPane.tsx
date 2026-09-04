@@ -53,10 +53,7 @@ export default function TerminalPane({
   const buffersRef = useRef(new Map<string, string>())
   const unsubscribeMapRef = useRef(new Map<string, () => void>())
   const sessionsRef = useRef<Session[]>(sessions)
-  const preferencesRef = useRef<TerminalPreferences>({
-    quickEditEnabled: terminalPreferences.quickEditEnabled,
-    webLinksEnabled: terminalPreferences.webLinksEnabled,
-  })
+  const preferencesRef = useRef<TerminalPreferences>(terminalPreferences)
   const pluginRuntimeRef = useRef<TerminalPluginRuntime | null>(null)
   const renderTokenRef = useRef(0)
   // 正在分块渲染的 session 与已写入游标；渲染期间 appendChunk 不再直接 write，而是由渲染循环持续追赶 buffer 末尾，避免实时输出被插到旧快照中间 / the session being chunk-rendered and how far we've written; during render appendChunk does not write directly — the render loop chases the buffer tail so live output lands in order rather than ahead of the replayed backlog.
@@ -255,11 +252,12 @@ export default function TerminalPane({
 
     const terminal = new XTerm({
       convertEol: true,
-      cursorBlink: false,
-      cursorStyle: 'bar',
-      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-      fontSize: 14,
-      scrollback: 10000,
+      cursorBlink: preferencesRef.current.cursorBlink,
+      cursorStyle: preferencesRef.current.cursorStyle,
+      fontFamily: preferencesRef.current.fontFamily,
+      fontSize: preferencesRef.current.fontSize,
+      lineHeight: preferencesRef.current.lineHeight,
+      scrollback: preferencesRef.current.scrollback,
       theme: terminalTheme,
     })
 
@@ -348,13 +346,42 @@ export default function TerminalPane({
   }, [visible])
 
   useEffect(() => {
-    const nextPreferences = {
+    preferencesRef.current = terminalPreferences
+    notifyPluginPreferencesChange({
       quickEditEnabled: terminalPreferences.quickEditEnabled,
       webLinksEnabled: terminalPreferences.webLinksEnabled,
+    })
+
+    const terminal = terminalRef.current
+    if (!terminal) return
+
+    let needsResize = false
+    if (terminal.options.fontSize !== terminalPreferences.fontSize) {
+      terminal.options.fontSize = terminalPreferences.fontSize
+      needsResize = true
     }
-    preferencesRef.current = nextPreferences
-    notifyPluginPreferencesChange(nextPreferences)
-  }, [terminalPreferences.quickEditEnabled, terminalPreferences.webLinksEnabled])
+    if (terminal.options.fontFamily !== terminalPreferences.fontFamily) {
+      terminal.options.fontFamily = terminalPreferences.fontFamily
+      needsResize = true
+    }
+    if (terminal.options.lineHeight !== terminalPreferences.lineHeight) {
+      terminal.options.lineHeight = terminalPreferences.lineHeight
+      needsResize = true
+    }
+    if (terminal.options.cursorStyle !== terminalPreferences.cursorStyle) {
+      terminal.options.cursorStyle = terminalPreferences.cursorStyle
+    }
+    if (terminal.options.cursorBlink !== terminalPreferences.cursorBlink) {
+      terminal.options.cursorBlink = terminalPreferences.cursorBlink
+    }
+    if (terminal.options.scrollback !== terminalPreferences.scrollback) {
+      terminal.options.scrollback = terminalPreferences.scrollback
+    }
+
+    if (needsResize) {
+      scheduleSyncSize()
+    }
+  }, [terminalPreferences])
 
   useEffect(() => {
     sessionsRef.current = sessions
