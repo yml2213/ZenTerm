@@ -14,7 +14,11 @@ import (
 	"zenterm/internal/security"
 )
 
-const syncEnvelopeVersion = 1
+const (
+	syncEnvelopeVersion = 1
+	// 限制导入快照大小，避免损坏或恶意数据占用过多内存 / cap imported snapshots to prevent malformed or hostile data from consuming excessive memory.
+	maxSyncEnvelopeBytes = 64 * 1024 * 1024
+)
 
 // SyncSnapshotEnvelope 是上传到远端 WebDAV 的外层加密包 / wraps the encrypted sync snapshot stored on WebDAV.
 type SyncSnapshotEnvelope struct {
@@ -80,6 +84,9 @@ func (s *Service) CurrentSyncSnapshotHash(includeSessionLogs bool) (string, erro
 
 // ApplyEncryptedSyncSnapshot 解密并导入远端同步快照 / decrypts and imports a remote sync snapshot.
 func (s *Service) ApplyEncryptedSyncSnapshot(masterPassword string, envelopeBytes []byte) (string, string, string, error) {
+	if len(envelopeBytes) > maxSyncEnvelopeBytes {
+		return "", "", "", ErrSyncPayloadTooLarge
+	}
 	var envelope SyncSnapshotEnvelope
 	if err := json.Unmarshal(envelopeBytes, &envelope); err != nil {
 		return "", "", "", fmt.Errorf("decode sync envelope: %w", err)
