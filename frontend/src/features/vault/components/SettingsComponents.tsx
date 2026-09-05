@@ -133,7 +133,7 @@ export const SettingsSwitch = forwardRef<HTMLInputElement, SettingsSwitchProps>(
     }
 
     return (
-      <span
+      <label
         className={`settings-switch-wrapper${disabled ? ' is-disabled' : ''}${
           className ? ` ${className}` : ''
         }`}
@@ -157,7 +157,7 @@ export const SettingsSwitch = forwardRef<HTMLInputElement, SettingsSwitchProps>(
         >
           <span className="settings-switch-thumb" />
         </span>
-      </span>
+      </label>
     )
   },
 )
