@@ -6,7 +6,8 @@ import {
   Terminal,
   Type,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getAppVersion } from '@/lib/backend'
 import {
   useTerminalPreferences,
   type CursorStyle,
@@ -62,6 +63,23 @@ export default function TerminalSection() {
   const currentPreset = FONT_PRESETS.find((p) => p.value === fontFamily)
   const isCustomFont = !currentPreset || currentPreset.value === 'custom'
   const [customFontInput, setCustomFontInput] = useState(fontFamily)
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    setCustomFontInput(fontFamily)
+  }, [fontFamily])
+
+  useEffect(() => {
+    let active = true
+    getAppVersion()
+      .then((version) => {
+        if (active) setAppVersion(version)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [])
 
   function handleFontSelect(value: string) {
     if (value === 'custom') {
@@ -103,7 +121,7 @@ export default function TerminalSection() {
             }}
           >
             <div className="term-line">
-              <span className="term-cyan">ZenTerm SSH Workbench</span> v0.1.8 (x86_64-apple-darwin)
+              <span className="term-cyan">ZenTerm SSH Workbench</span> v{appVersion || '0.1.9'} (x86_64-apple-darwin)
             </div>
             <div className="term-line">
               <span className="term-dim">Last login: Thu Sep 3 23:14:02 2026 from 192.168.1.100</span>
@@ -221,13 +239,13 @@ export default function TerminalSection() {
         </SettingsRow>
 
         <SettingsRow
-          title="光标呼吸闪烁"
-          description="光标在闲置或等待输入时周期性闪烁提醒。"
+          title="光标闪烁"
+          description="控制光标在终端中是否周期性闪烁。"
         >
           <SettingsSwitch
             checked={cursorBlink}
             onChange={setCursorBlink}
-            label="光标呼吸闪烁"
+            label="光标闪烁"
           />
         </SettingsRow>
       </SettingsGroup>
