@@ -193,7 +193,7 @@ export default function UpdatesSection() {
             <div className="update-hero-title-row">
               <h3>ZenTerm 版本更新</h3>
               <span className="update-version-badge">
-                v{appVersion || '0.1.8'}
+                v{appVersion || '0.1.9'}
               </span>
             </div>
             <p className="update-hero-sub">

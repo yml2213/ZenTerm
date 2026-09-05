@@ -202,7 +202,7 @@ export default function AdvancedSettings() {
             <div className="about-brand-title-line">
               <h2>ZenTerm</h2>
               <span className="about-brand-version">
-                v{appVersion || '0.1.8'}
+                v{appVersion || '0.1.9'}
               </span>
               <span className="about-brand-tag">Stable</span>
             </div>
@@ -213,7 +213,7 @@ export default function AdvancedSettings() {
         </div>
 
         <div className="about-brand-tech-stack">
-          <span className="about-tech-chip">Go 1.26</span>
+          <span className="about-tech-chip">Go 1.27</span>
           <span className="about-tech-chip">Wails v2</span>
           <span className="about-tech-chip">React 19</span>
           <span className="about-tech-chip">TypeScript 6</span>
