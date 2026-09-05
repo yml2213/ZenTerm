@@ -87,6 +87,8 @@ func normalizeFrontendError(err error) error {
 		return syncer.ErrSyncConflict
 	case errors.Is(err, syncer.ErrRemoteNotFound):
 		return syncer.ErrRemoteNotFound
+	case errors.Is(err, service.ErrSyncPayloadTooLarge):
+		return service.ErrSyncPayloadTooLarge
 	default:
 		return err
 	}

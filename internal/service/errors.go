@@ -47,6 +47,7 @@ var (
 	ErrFileEditNotRegularFile      = errors.New("仅支持编辑普通文件")
 	ErrFileEditTooLarge            = errors.New("文件超过编辑器大小上限")
 	ErrFileEditNotSupported        = errors.New("文件内容不支持在线编辑")
+	ErrSyncPayloadTooLarge         = errors.New("sync payload exceeds the size limit")
 )
 
 const (
@@ -145,7 +146,6 @@ type ZenService interface {
 	TestCredentialForHost(hostID, credentialID string) error
 	DeleteCredential(credentialID string) error
 }
-
 
 type managedSession struct {
 	Session

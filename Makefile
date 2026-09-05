@@ -1,4 +1,4 @@
-.PHONY: test test-version test-go test-frontend typecheck lint sync-version generate-bindings coverage-go prepare-frontend-assets
+.PHONY: test test-version test-go test-frontend typecheck lint verify sync-version generate-bindings coverage-go prepare-frontend-assets
 
 test: test-version test-go test-frontend
 
@@ -20,13 +20,19 @@ prepare-frontend-assets:
 	fi
 
 test-frontend:
+	$(MAKE) generate-bindings
 	cd frontend && npm test
 
 typecheck:
+	$(MAKE) generate-bindings
 	cd frontend && npm run typecheck
 
 lint:
 	cd frontend && npm run lint
+
+verify: test-version generate-bindings
+	go test -race ./cmd ./internal/db ./internal/security ./internal/service ./internal/syncer ./internal/updater
+	cd frontend && npm test && npm run typecheck && npm run lint && npm run build
 
 generate-bindings:
 	@tmp_dir=$$(mktemp -d); \

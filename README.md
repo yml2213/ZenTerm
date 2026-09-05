@@ -21,7 +21,7 @@ ZenTerm 是一个基于 Wails v2 的桌面 SSH 终端与 SFTP 客户端，后端
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | Go 1.26.6, Wails v2, pkg/sftp, go-keyring, golang.org/x/crypto |
+| 后端 | Go 1.27.1, Wails v2, pkg/sftp, go-keyring, golang.org/x/crypto |
 | 前端 | React 19, TypeScript 6, Vite 7, xterm.js, lucide-react |
 | 加密 | Argon2id, AES-256-GCM |
 | 测试 | Go test, Vitest, React Testing Library |

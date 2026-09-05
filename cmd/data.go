@@ -8,8 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"zenterm/internal/service"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+const maxImportFileBytes = 64 * 1024 * 1024
 
 // DataStats 返回本机数据文件的基本统计信息 / returns basic statistics about the local data file.
 type DataStats struct {
@@ -89,10 +93,40 @@ func (a *App) ExportDataToPath(targetPath string) error {
 		return fmt.Errorf("create export directory: %w", err)
 	}
 
-	if err := os.WriteFile(targetPath, payload, 0o600); err != nil {
+	if err := writeExportFileAtomic(targetPath, payload); err != nil {
 		return fmt.Errorf("write export file: %w", err)
 	}
 
+	return nil
+}
+
+// writeExportFileAtomic 先写入同目录临时文件，再原子替换目标文件，避免导出中断留下半个备份。
+func writeExportFileAtomic(targetPath string, payload []byte) error {
+	dir := filepath.Dir(targetPath)
+	tmp, err := os.CreateTemp(dir, ".zenterm-export-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(payload); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -134,6 +168,13 @@ func (a *App) ImportDataFromPath(filePath string, masterPassword string) error {
 		return fmt.Errorf("master password is required to decrypt the backup")
 	}
 
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return fmt.Errorf("stat import file: %w", err)
+	}
+	if info.Size() > maxImportFileBytes {
+		return normalizeFrontendError(service.ErrSyncPayloadTooLarge)
+	}
 	payload, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("read import file: %w", err)
