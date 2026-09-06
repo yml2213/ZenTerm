@@ -71,6 +71,13 @@ func TestIsVersionNewer(t *testing.T) {
 			want:           false,
 			wantErr:        true,
 		},
+		{
+			name:           "dev current version against released version",
+			latestVersion:  "1.0.0",
+			currentVersion: "dev",
+			want:           true,
+			wantErr:        false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -135,6 +142,18 @@ func TestParseVersion(t *testing.T) {
 			version: "1.2.x",
 			want:    [3]int{},
 			wantErr: true,
+		},
+		{
+			name:    "dev version",
+			version: "dev",
+			want:    [3]int{0, 0, 0},
+			wantErr: false,
+		},
+		{
+			name:    "empty version",
+			version: "",
+			want:    [3]int{0, 0, 0},
+			wantErr: false,
 		},
 	}
 

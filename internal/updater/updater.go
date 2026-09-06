@@ -170,6 +170,9 @@ func isVersionNewer(latestVersion, currentVersion string) (bool, error) {
 // parseVersion 解析版本号为 [major, minor, patch]
 func parseVersion(version string) ([3]int, error) {
 	version = strings.TrimPrefix(version, "v")
+	if version == "dev" || version == "" {
+		return [3]int{0, 0, 0}, nil
+	}
 	parts := strings.Split(version, ".")
 
 	if len(parts) != 3 {
