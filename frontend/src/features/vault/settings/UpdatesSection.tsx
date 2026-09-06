@@ -5,6 +5,7 @@ import {
   downloadUpdate,
   getAppVersion,
   getUpdateConfig,
+  installUpdateAndRestart,
   onRuntimeEvent,
   openUpdateFile,
   saveUpdateConfig,
@@ -92,6 +93,11 @@ export default function UpdatesSection() {
         setDownloadProgress(null)
         setError(data.message)
       }),
+      onRuntimeEvent('update:installing', () => {
+        setBusy('install')
+        setError(null)
+        setNotice('正在准备解压并重启更新...')
+      }),
     ]
 
     return () => {
@@ -152,6 +158,21 @@ export default function UpdatesSection() {
         setBusy(null)
         setError(err.message || String(err))
       })
+  }
+
+  function handleInstallAndRestart() {
+    if (!downloadedFile) {
+      return
+    }
+
+    setBusy('install')
+    setError(null)
+    setNotice('正在准备解压并重启更新...')
+
+    installUpdateAndRestart(downloadedFile).catch((err) => {
+      setBusy(null)
+      setError(err.message || String(err))
+    })
   }
 
   function handleShowDownloadedFile() {
@@ -328,14 +349,26 @@ export default function UpdatesSection() {
               <small>{getUpdateFileName(downloadedFile)}</small>
             </div>
           </div>
-          <button
-            type="button"
-            className="primary-button compact"
-            onClick={handleShowDownloadedFile}
-          >
-            <FolderOpen size={14} />
-            <span>打开所在文件夹</span>
-          </button>
+          <div className="update-downloaded-actions" style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="primary-button compact"
+              onClick={handleInstallAndRestart}
+              disabled={busy === 'install'}
+            >
+              <RefreshCw size={14} className={busy === 'install' ? 'spin' : ''} />
+              <span>{busy === 'install' ? '正在重启安装…' : '立即重启并更新'}</span>
+            </button>
+            <button
+              type="button"
+              className="ghost-button compact"
+              onClick={handleShowDownloadedFile}
+              disabled={busy === 'install'}
+            >
+              <FolderOpen size={14} />
+              <span>打开所在文件夹</span>
+            </button>
+          </div>
         </div>
       )}
 

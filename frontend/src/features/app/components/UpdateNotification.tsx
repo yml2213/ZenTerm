@@ -3,6 +3,7 @@ import { Download, ExternalLink, RefreshCw, SkipForward, X } from 'lucide-react'
 import {
   checkForUpdates,
   downloadUpdate,
+  installUpdateAndRestart,
   onRuntimeEvent,
   openUpdateFile,
   skipVersion,
@@ -23,6 +24,7 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [checking, setChecking] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [installing, setInstalling] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<UpdateProgress | null>(null)
   const [downloadedFile, setDownloadedFile] = useState<string | null>(null)
   const [status, setStatus] = useState<StatusNotice | null>(null)
@@ -31,6 +33,7 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
     setUpdateInfo(null)
     setChecking(false)
     setDownloading(false)
+    setInstalling(false)
     setDownloadProgress(null)
     setDownloadedFile(null)
     setStatus(null)
@@ -87,9 +90,17 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
       onRuntimeEvent('update:error', (payload) => {
         const data = payload as { message: string }
         setDownloading(false)
+        setInstalling(false)
         setStatus({
           tone: 'error',
           message: data.message,
+        })
+      }),
+      onRuntimeEvent('update:installing', () => {
+        setInstalling(true)
+        setStatus({
+          tone: 'info',
+          message: '正在准备解压并重启更新...',
         })
       }),
       onRuntimeEvent('update:check-requested', () => {
@@ -136,6 +147,28 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
     }
   }
 
+  async function handleInstallAndRestart() {
+    if (!downloadedFile) {
+      return
+    }
+
+    try {
+      setInstalling(true)
+      setStatus(null)
+      await installUpdateAndRestart(downloadedFile)
+      setStatus({
+        tone: 'info',
+        message: '正在准备解压并重启更新...',
+      })
+    } catch (err) {
+      setInstalling(false)
+      setStatus({
+        tone: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
   async function handleOpenFile() {
     if (!downloadedFile) {
       return
@@ -151,25 +184,27 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
     }
   }
 
-  if (!updateInfo && !status && !checking && !downloading && !downloadedFile) {
+  if (!updateInfo && !status && !checking && !downloading && !downloadedFile && !installing) {
     return null
   }
 
-  const title = updateInfo
-    ? '发现新版本'
-    : checking
-      ? '正在检查更新'
-      : downloading
-        ? '正在下载更新'
-        : status?.tone === 'error'
-          ? '更新检查失败'
-          : '更新状态'
+  const title = installing
+    ? '正在安装更新'
+    : updateInfo
+      ? '发现新版本'
+      : checking
+        ? '正在检查更新'
+        : downloading
+          ? '正在下载更新'
+          : status?.tone === 'error'
+            ? '更新检查失败'
+            : '更新状态'
 
   return (
     <aside className="update-notification" aria-live="polite" aria-label={title}>
       <div className="update-header">
         <h3>
-          {checking ? <RefreshCw size={16} className="spin" /> : null}
+          {checking || installing ? <RefreshCw size={16} className="spin" /> : null}
           {title}
         </h3>
         <button type="button" onClick={close} className="close-btn" aria-label="关闭更新提示">
@@ -203,7 +238,13 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
           </>
         ) : (
           <p className={`update-status-text ${status?.tone || 'info'}`}>
-            {checking ? '正在连接发布服务...' : downloading ? '正在下载更新包...' : status?.message}
+            {checking
+              ? '正在连接发布服务...'
+              : downloading
+                ? '正在下载更新包...'
+                : installing
+                  ? '正在解压并准备重启更新...'
+                  : status?.message}
           </p>
         )}
 
@@ -244,11 +285,30 @@ export function UpdateNotification({ onClose }: UpdateNotificationProps) {
           </button>
         ) : downloadedFile ? (
           <>
-            <button type="button" onClick={handleOpenFile} className="btn-primary">
-              <ExternalLink size={16} />
-              显示文件
+            <button
+              type="button"
+              onClick={handleInstallAndRestart}
+              disabled={installing}
+              className="btn-primary"
+            >
+              <RefreshCw size={16} className={installing ? 'spin' : ''} />
+              {installing ? '正在重启安装...' : '立即重启并更新'}
             </button>
-            <button type="button" onClick={close} className="btn-secondary">
+            <button
+              type="button"
+              onClick={handleOpenFile}
+              disabled={installing}
+              className="btn-secondary"
+            >
+              <ExternalLink size={16} />
+              打开目录
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              disabled={installing}
+              className="btn-secondary"
+            >
               稍后
             </button>
           </>

@@ -467,6 +467,10 @@ export async function openUpdateFile(filePath: string): Promise<void> {
   return callApp("OpenUpdateFile", filePath);
 }
 
+export async function installUpdateAndRestart(filePath: string): Promise<void> {
+  return callApp("InstallUpdateAndRestart", filePath);
+}
+
 async function callRuntime<T>(
   method: string,
   fallbackValue: T,

@@ -161,6 +161,8 @@ func (a *App) DownloadUpdate(downloadURL string) error {
 			return
 		}
 
+		cleanOldUpdateFiles(downloadDir, filePath)
+
 		wailsRuntime.EventsEmit(a.ctx, "update:complete", map[string]string{
 			"filePath": filePath,
 		})
@@ -261,6 +263,59 @@ func openPathInFileManager(path string) error {
 		return fmt.Errorf("打开更新目录失败: %w", err)
 	}
 	return nil
+}
+
+// InstallUpdateAndRestart 解压、抹除隔离标记并在应用退出后替换应用并重启
+func (a *App) InstallUpdateAndRestart(filePath string) error {
+	if strings.TrimSpace(filePath) == "" {
+		return fmt.Errorf("更新文件路径为空")
+	}
+
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("解析更新文件路径失败: %w", err)
+	}
+
+	if _, err := os.Stat(absPath); err != nil {
+		return fmt.Errorf("更新文件不存在: %w", err)
+	}
+
+	wailsRuntime.EventsEmit(a.ctx, "update:installing", map[string]string{
+		"path": absPath,
+	})
+
+	if err := updater.ApplyUpdateAndRestart(absPath); err != nil {
+		return err
+	}
+
+	// 异步延迟退出，给前端足够时间展示状态并允许正常保存数据
+	go func() {
+		time.Sleep(600 * time.Millisecond)
+		if a.ctx != nil {
+			wailsRuntime.Quit(a.ctx)
+		} else {
+			os.Exit(0)
+		}
+	}()
+
+	return nil
+}
+
+func cleanOldUpdateFiles(downloadDir string, keepFile string) {
+	entries, err := os.ReadDir(downloadDir)
+	if err != nil {
+		return
+	}
+	keepName := filepath.Base(keepFile)
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == keepName || name == keepName+".sha256" {
+			continue
+		}
+		if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz") || strings.HasSuffix(name, ".sha256") || strings.HasPrefix(name, "staged_") {
+			_ = os.RemoveAll(filepath.Join(downloadDir, name))
+		}
+	}
 }
 
 // getUpdateDownloadDir 获取更新下载目录
