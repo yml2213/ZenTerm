@@ -171,7 +171,7 @@ export default function VaultWorkspace({
       <aside className="sidebar">
         <section className="sidebar-brand-card">
           <div className="sidebar-brand-icon" aria-hidden="true">
-            <img className="sidebar-brand-mark" src="/icon-mark.svg" alt="" />
+            <img className="sidebar-brand-mark" src="/icon-mark.png" alt="" />
           </div>
           <div className="sidebar-brand-copy">
             <strong>ZenTerm</strong>

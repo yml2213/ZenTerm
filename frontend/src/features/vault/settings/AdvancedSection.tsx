@@ -196,7 +196,7 @@ export default function AdvancedSettings() {
       <div className="about-brand-card">
         <div className="about-brand-header">
           <div className="about-brand-icon-box">
-            <img src="/icon-mark.svg" alt="ZenTerm Logo" className="about-brand-logo" />
+            <img src="/icon-mark.png" alt="ZenTerm Logo" className="about-brand-logo" />
           </div>
           <div className="about-brand-titles">
             <div className="about-brand-title-line">
