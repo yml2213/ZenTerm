@@ -85,25 +85,25 @@ npm run build
 
 ## GitHub 云端发布
 
-项目已配置 GitHub Actions Release workflow，当前版本为 `0.2.0`。推送 `v0.1.6` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
+项目已配置 GitHub Actions Release workflow，当前版本为 `0.2.1`。推送 `v0.1.6` 这样的 tag 后，GitHub 会在云端完成验证、三平台构建，并把产物发布到 GitHub Release。
 
 ### 发布步骤
 
 ```bash
 git push origin main
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
-也可以在 GitHub 的 Actions 页面手动运行 `Release` workflow，并填写版本号 `0.2.0`。
+也可以在 GitHub 的 Actions 页面手动运行 `Release` workflow，并填写版本号 `0.2.1`。
 
 ### 云端构建产物
 
-- `ZenTerm-0.2.0-macos-universal.zip`：macOS Universal，兼容 Intel 与 Apple Silicon。
-- `ZenTerm-0.2.0-macos-amd64.zip`：macOS Intel。
-- `ZenTerm-0.2.0-macos-arm64.zip`：macOS Apple Silicon。
-- `ZenTerm-0.2.0-windows-amd64.zip`：Windows x64。
-- `ZenTerm-0.2.0-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
+- `ZenTerm-0.2.1-macos-universal.zip`：macOS Universal，兼容 Intel 与 Apple Silicon。
+- `ZenTerm-0.2.1-macos-amd64.zip`：macOS Intel。
+- `ZenTerm-0.2.1-macos-arm64.zip`：macOS Apple Silicon。
+- `ZenTerm-0.2.1-windows-amd64.zip`：Windows x64。
+- `ZenTerm-0.2.1-linux-amd64.tar.gz`：Linux x64，需要系统安装 GTK3 与 WebKitGTK 运行库。
 - 每个包旁边都会生成 `.sha256` 校验文件。
 
 macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。Release workflow 会为所有产物生成 GitHub artifact provenance 与 SHA-256 校验文件。由于未内置商业签名证书，初次运行若遇到系统拦截，可参考 [`docs/RELEASE_SECURITY.md`](docs/RELEASE_SECURITY.md) 进行系统放行或自签运行。
@@ -121,6 +121,6 @@ WebDAV 同步会构建本地加密快照并上传到远端路径。推送和拉�
 ## 当前注意事项
 
 - `frontend/src/wailsjs/` 是 Wails 生成目录，不要手动编辑。
-- `frontend/dist/`、`build/`、`.snow/` 和本地构建产物 `zenterm` 不应提交。
+- `frontend/dist/`、`build/bin/`、`.snow/` 和本地构建产物 `zenterm` 不应提交。
 - 项目仍在前端 TypeScript 迁移和状态拆分过程中，新代码优先使用 `.ts` / `.tsx`。
 - 修改凭据、Vault、同步或会话日志时，要避免在错误信息和日志中暴露明文密码、私钥或解密后的记录内容。
