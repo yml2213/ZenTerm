@@ -77,6 +77,7 @@ func (s *Service) ImportLocalSSHConfigHosts(ids []string) ([]model.Host, error) 
 			Username:     entry.User,
 			Group:        "SSH Config",
 			CredentialID: entry.CredentialID,
+			JumpHost:     entry.ProxyJump,
 		}
 		if host.Port == 0 {
 			host.Port = defaultSSHPort
@@ -150,6 +151,10 @@ func parseLocalSSHConfig(path string) ([]model.LocalSSHConfigHost, error) {
 			if current != nil {
 				current.IdentityFile = expandSSHPath(value)
 			}
+		case "proxyjump":
+			if current != nil {
+				current.ProxyJump = firstProxyJump(value)
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -222,6 +227,20 @@ func expandSSHPath(value string) string {
 		return value
 	}
 	return filepath.Join(sshDir, value)
+}
+
+func firstProxyJump(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	})
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(fields[0])
 }
 
 func sanitizeHostID(value string) string {

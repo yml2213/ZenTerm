@@ -1,8 +1,9 @@
 import type { FormEvent } from 'react'
 import HostKeyModal from '@/features/hosts/components/HostKeyModal'
+import KeyboardInteractiveModal from '@/features/hosts/components/KeyboardInteractiveModal'
 import UnlockModal from '@/features/vault/components/UnlockModal'
 import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
-import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { HostKeyPrompt, KeyboardInteractivePrompt } from '@/features/sessions/sessionTypes'
 import type { VaultSetupForm } from '@/features/vault/vaultTypes'
 
 interface Host {
@@ -39,6 +40,10 @@ interface AppOverlaysProps {
   isAcceptingKey: boolean
   onAcceptHostKey: () => void
   onRejectHostKey: () => void
+  keyboardInteractivePrompt: KeyboardInteractivePrompt | null
+  isAnsweringKeyboardInteractive: boolean
+  onAnswerKeyboardInteractive: (answers: string[]) => void
+  onCancelKeyboardInteractive: () => void
 }
 
 export default function AppOverlays({
@@ -70,6 +75,10 @@ export default function AppOverlays({
   isAcceptingKey,
   onAcceptHostKey,
   onRejectHostKey,
+  keyboardInteractivePrompt,
+  isAnsweringKeyboardInteractive,
+  onAnswerKeyboardInteractive,
+  onCancelKeyboardInteractive,
 }: AppOverlaysProps) {
   return (
     <>
@@ -161,6 +170,12 @@ export default function AppOverlays({
         busy={isAcceptingKey}
         onAccept={onAcceptHostKey}
         onReject={onRejectHostKey}
+      />
+      <KeyboardInteractiveModal
+        prompt={keyboardInteractivePrompt}
+        busy={isAnsweringKeyboardInteractive}
+        onSubmit={onAnswerKeyboardInteractive}
+        onCancel={onCancelKeyboardInteractive}
       />
     </>
   )

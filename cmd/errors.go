@@ -63,6 +63,22 @@ func normalizeFrontendError(err error) error {
 		return service.ErrHostKeyMismatch
 	case errors.Is(err, service.ErrHostKeyConfirmationTimeout):
 		return service.ErrHostKeyConfirmationTimeout
+	case errors.Is(err, service.ErrKeyboardInteractivePending):
+		return service.ErrKeyboardInteractivePending
+	case errors.Is(err, service.ErrKeyboardInteractiveNotFound):
+		return service.ErrKeyboardInteractiveNotFound
+	case errors.Is(err, service.ErrKeyboardInteractiveTimeout):
+		return service.ErrKeyboardInteractiveTimeout
+	case errors.Is(err, service.ErrKeyboardInteractiveCanceled):
+		return service.ErrKeyboardInteractiveCanceled
+	case errors.Is(err, service.ErrSSHAgentUnavailable):
+		return service.ErrSSHAgentUnavailable
+	case errors.Is(err, service.ErrJumpHostNotFound):
+		return service.ErrJumpHostNotFound
+	case errors.Is(err, service.ErrJumpHostCycle):
+		return service.ErrJumpHostCycle
+	case errors.Is(err, service.ErrJumpHostSelf):
+		return service.ErrJumpHostSelf
 	case errors.Is(err, service.ErrTransferSourceRequired):
 		return service.ErrTransferSourceRequired
 	case errors.Is(err, service.ErrTransferTargetRequired):

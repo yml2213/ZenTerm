@@ -6,7 +6,7 @@ ZenTerm 是一个基于 Wails v2 的桌面 SSH 终端与 SFTP 客户端，后端
 
 ## 功能特性
 
-- **SSH 终端**：基于 xterm.js，支持多会话、多标签、终端尺寸同步和会话关闭状态追踪。
+- **SSH 终端**：基于 xterm.js，支持多会话、多标签、终端尺寸同步和会话关闭状态追踪。支持本机 SSH Agent、keyboard-interactive（OTP/2FA）以及 ProxyJump 跳板机。
 - **SFTP 文件浏览器**：支持本地与远端目录浏览、上传、下载、目录创建、重命名和删除。
 - **加密 Vault**：主密码通过 Argon2id 派生密钥，敏感数据使用 AES-GCM 加密保存。
 - **系统钥匙串**：可保存 Vault 主密码和 WebDAV 密码，用于自动解锁和同步认证。
@@ -107,6 +107,16 @@ git push origin v0.2.2
 - 每个包旁边都会生成 `.sha256` 校验文件。
 
 macOS Universal 是主包，macOS Intel / Apple Silicon 单独包是附加构建；附加构建失败不会阻塞 Release 发布。Release workflow 会为所有产物生成 GitHub artifact provenance 与 SHA-256 校验文件。由于未内置商业签名证书，初次运行若遇到系统拦截，可参考 [`docs/RELEASE_SECURITY.md`](docs/RELEASE_SECURITY.md) 进行系统放行或自签运行。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)，版权所有 © 2026 yml (yml2213)。
+
+## SSH 认证与跳板机
+
+- **SSH Agent**：主机可勾选「使用本机 SSH Agent」，或在未配置密码/私钥时自动尝试 `SSH_AUTH_SOCK`（Windows 还会尝试 OpenSSH 命名管道）。Vault 中已保存的密钥仍会优先使用。
+- **keyboard-interactive**：当服务器要求交互式口令或 OTP/2FA 时，ZenTerm 会弹出与主机指纹确认类似的对话框。挑战应答不会写入明文日志或会话记录。
+- **ProxyJump**：主机可指定另一台已保存的 ZenTerm 主机，或填写 `user@host:port` 作为跳板。每一跳都会走现有 TOFU/指纹确认流程。
 
 ## 数据与安全模型
 

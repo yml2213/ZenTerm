@@ -18,7 +18,11 @@ type Host struct {
 	SystemTypeSource string    `json:"system_type_source,omitempty"`
 	LastConnectedAt  time.Time `json:"last_connected_at,omitempty"`
 	KnownHosts       string    `json:"known_hosts,omitempty"`
-	CredentialID     string    `json:"credential_id,omitempty"` // 引用凭据中心的ID，为空则使用内联Identity
+	CredentialID     string    `json:"credential_id,omitempty"`    // 引用凭据中心的ID，为空则使用内联Identity
+	UseAgent         bool      `json:"use_agent,omitempty"`        // 使用本机 SSH Agent 认证 / authenticate via the local SSH agent.
+	JumpHostID       string    `json:"jump_host_id,omitempty"`     // 跳板机对应的 ZenTerm 主机 ID / ProxyJump via another saved host.
+	JumpHost         string    `json:"jump_host,omitempty"`        // 跳板机地址（user@host:port）或主机别名 / ProxyJump address or alias.
+	JumpKnownHosts   string    `json:"jump_known_hosts,omitempty"` // 地址型跳板机的 TOFU 指纹 / known keys for an address-only jump host.
 }
 
 // Identity 保存主机认证所需的敏感凭据（内联模式）/ contains the sensitive authentication material for a host (inline mode).
@@ -88,6 +92,7 @@ type LocalSSHConfigHost struct {
 	User         string `json:"user,omitempty"`
 	Port         int    `json:"port,omitempty"`
 	IdentityFile string `json:"identity_file,omitempty"`
+	ProxyJump    string `json:"proxy_jump,omitempty"`
 	CredentialID string `json:"credential_id,omitempty"`
 	Imported     bool   `json:"imported"`
 }

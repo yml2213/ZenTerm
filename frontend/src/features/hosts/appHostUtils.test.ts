@@ -6,6 +6,14 @@ function makeHost(source: Partial<cmd.Host> & { id: string; name: string }): cmd
   return new cmd.Host(source)
 }
 
+describe('hasConfiguredAuth', () => {
+  it('SSH Agent 视为已配置认证', async () => {
+    const { hasConfiguredAuth } = await import('./appHostUtils')
+    expect(hasConfiguredAuth({ authType: 'agent', useAgent: true })).toBe(true)
+    expect(hasConfiguredAuth({ authType: 'password' })).toBe(false)
+  })
+})
+
 describe('sortHosts', () => {
   it('连接时间变化不改变普通主机顺序', () => {
     const before = sortHosts([

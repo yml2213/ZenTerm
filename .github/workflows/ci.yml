@@ -76,7 +76,7 @@ jobs:
 
       - name: 安装 Wails CLI
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: 生成 Wails 绑定

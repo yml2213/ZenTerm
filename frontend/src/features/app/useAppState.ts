@@ -41,6 +41,10 @@ export function useAppState() {
     setHostKeyPrompt,
     isAcceptingKey,
     setIsAcceptingKey,
+    keyboardInteractivePrompt,
+    setKeyboardInteractivePrompt,
+    isAnsweringKeyboardInteractive,
+    setIsAnsweringKeyboardInteractive,
     connectingHostIds,
     setConnectingHostIds,
   } = sessionWorkspace
@@ -147,6 +151,7 @@ export function useAppState() {
     hostKeyPrompt,
     connectingHostIds,
     isAcceptingKey,
+    keyboardInteractivePrompt,
   }
   const sshConfigImportState = {
     sshConfigImportPrompt,
@@ -207,6 +212,8 @@ export function useAppState() {
       setHostKeyPrompt,
       setConnectingHostIds,
       setIsAcceptingKey,
+      setKeyboardInteractivePrompt,
+      setIsAnsweringKeyboardInteractive,
     },
   }
   const refs: {
@@ -284,6 +291,8 @@ export function useAppState() {
   const sessionViewState = {
     hostKeyPrompt,
     isAcceptingKey,
+    keyboardInteractivePrompt,
+    isAnsweringKeyboardInteractive,
     connectingHostIds,
   }
   const pageState = {

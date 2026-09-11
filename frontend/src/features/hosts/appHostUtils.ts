@@ -11,10 +11,13 @@ export interface HostForm {
   favorite: boolean
   systemType: string
   systemTypeSource: 'auto' | 'manual'
-  authType: 'password' | 'key' | 'credential'
+  authType: 'password' | 'key' | 'credential' | 'agent'
   password?: string
   privateKey?: string
   credentialId?: string
+  useAgent?: boolean
+  jumpHostId?: string
+  jumpHost?: string
 }
 
 export function buildHostPayload(form: HostForm): cmd.Host {
@@ -36,12 +39,21 @@ export function buildHostPayload(form: HostForm): cmd.Host {
   if (form.credentialId) {
     host.credential_id = form.credentialId
   }
+  if (form.useAgent || form.authType === 'agent') {
+    host.use_agent = true
+  }
+  if (form.jumpHostId) {
+    host.jump_host_id = form.jumpHostId
+  }
+  if (form.jumpHost) {
+    host.jump_host = form.jumpHost
+  }
 
   return host
 }
 
 export function buildIdentityPayload(form: HostForm): { password?: string; private_key?: string } {
-  if (form.credentialId) {
+  if (form.credentialId || form.authType === 'agent') {
     return {}
   }
 
@@ -55,7 +67,9 @@ export function hasConfiguredAuth(form: Partial<HostForm>): boolean {
   return Boolean(
     form?.credentialId
       || form?.password?.trim()
-      || form?.privateKey?.trim(),
+      || form?.privateKey?.trim()
+      || form?.useAgent
+      || form?.authType === 'agent',
   )
 }
 
@@ -66,7 +80,21 @@ export function toUserMessage(error: unknown): string {
     message === 'no supported ssh authentication method configured'
     || message === '未配置可用的 SSH 认证方式'
   ) {
-    return '当前主机未配置认证方式，请填写密码、私钥或选择一个凭据后再连接。'
+    return '当前主机未配置认证方式，请填写密码、私钥、选择凭据，或启用 SSH Agent 后再连接。'
+  }
+  if (
+    message === 'SSH agent is unavailable or has no keys'
+  ) {
+    return '本机 SSH Agent 不可用或没有可用密钥，请确认 ssh-agent 已启动后再连接。'
+  }
+  if (message === 'jump host was not found') {
+    return '指定的跳板机不存在，请选择已保存的主机或填写有效地址。'
+  }
+  if (message === 'jump host chain contains a cycle') {
+    return '跳板机链路存在循环引用，请检查 ProxyJump 配置。'
+  }
+  if (message === 'host cannot use itself as a jump host') {
+    return '主机不能把自身设为跳板机。'
   }
 
   return message

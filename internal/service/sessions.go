@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -50,11 +48,15 @@ func (s *Service) ConnectContext(parent context.Context, hostID string) (string,
 		return "", err
 	}
 
-	config, err := s.newClientConfigContext(ctx, host, identity)
+	config, cleanup, err := s.newClientConfigContext(ctx, host, identity)
 	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
 		s.markSessionLogFinished(logID, model.SessionLogStatusFailed, err.Error())
 		return "", err
 	}
+	defer cleanup()
 
 	client, remoteAddr, err := s.openSSHClientContext(ctx, host, config)
 	if err != nil {
@@ -256,6 +258,7 @@ func (s *Service) CloseAll() error {
 		pending = append(pending, confirmation)
 	}
 	s.hostKeyMu.Unlock()
+	s.cancelAllKeyboardInteractive()
 
 	var errs []error
 	if err := s.closeAllSFTPConnections(); err != nil {
@@ -306,30 +309,50 @@ func (m *managedSession) close() error {
 }
 
 func (s *Service) newClientConfig(host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
-	return s.newClientConfigContext(context.Background(), host, identity)
+	config, cleanup, err := s.newClientConfigContext(context.Background(), host, identity)
+	if cleanup != nil {
+		cleanup()
+	}
+	return config, err
 }
 
-func (s *Service) newClientConfigContext(ctx context.Context, host model.Host, identity model.Identity) (*ssh.ClientConfig, error) {
+func (s *Service) newClientConfigContext(ctx context.Context, host model.Host, identity model.Identity) (*ssh.ClientConfig, func(), error) {
+	cleanup := func() {}
 	if host.Address == "" {
-		return nil, ErrHostAddressRequired
+		return nil, cleanup, ErrHostAddressRequired
 	}
 	if host.Username == "" {
-		return nil, ErrHostUsernameRequired
+		return nil, cleanup, ErrHostUsernameRequired
 	}
 
-	authMethods := make([]ssh.AuthMethod, 0, 2)
-	if identity.PrivateKey != "" {
+	hasPrivateKey := identity.PrivateKey != ""
+	hasPassword := identity.Password != "" && identity.PrivateKey == ""
+	wantAgent := host.UseAgent || (!hasPrivateKey && !hasPassword)
+
+	authMethods := make([]ssh.AuthMethod, 0, 4)
+	if hasPrivateKey {
 		signer, err := parsePrivateKeySigner(identity.PrivateKey, identity.Password)
 		if err != nil {
-			return nil, ErrInvalidPrivateKey
+			return nil, cleanup, ErrInvalidPrivateKey
 		}
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
 	}
-	if identity.Password != "" && identity.PrivateKey == "" {
+	if wantAgent {
+		method, agentCleanup, err := s.tryAgentAuth()
+		if err == nil {
+			authMethods = append(authMethods, method)
+			cleanup = joinCleanups(cleanup, agentCleanup)
+		}
+	}
+	if hasPassword {
 		authMethods = append(authMethods, ssh.Password(identity.Password))
 	}
+	if len(authMethods) == 0 && !host.UseAgent {
+		return nil, cleanup, ErrNoIdentityAuth
+	}
+	authMethods = append(authMethods, ssh.KeyboardInteractive(s.keyboardInteractiveCallback(ctx, host, identity)))
 	if len(authMethods) == 0 {
-		return nil, ErrNoIdentityAuth
+		return nil, cleanup, ErrNoIdentityAuth
 	}
 
 	return &ssh.ClientConfig{
@@ -337,7 +360,7 @@ func (s *Service) newClientConfigContext(ctx context.Context, host model.Host, i
 		Auth:            authMethods,
 		HostKeyCallback: s.hostKeyCallbackContext(ctx, host),
 		Timeout:         10 * time.Second,
-	}, nil
+	}, cleanup, nil
 }
 
 func (s *Service) openSSHClient(host model.Host, config *ssh.ClientConfig) (sshClient, string, error) {
@@ -345,13 +368,64 @@ func (s *Service) openSSHClient(host model.Host, config *ssh.ClientConfig) (sshC
 }
 
 func (s *Service) openSSHClientContext(ctx context.Context, host model.Host, config *ssh.ClientConfig) (sshClient, string, error) {
-	remoteAddr := host.Address
-	port := host.Port
-	if port == 0 {
-		port = defaultSSHPort
+	hops, err := s.resolveJumpChain(host)
+	if err != nil {
+		return nil, "", err
 	}
 
-	fullAddr := net.JoinHostPort(remoteAddr, strconv.Itoa(port))
+	fullAddr := sshHostPort(host)
+	if len(hops) == 0 {
+		return s.dialDirect(ctx, host, config)
+	}
+
+	var jumpClients []sshClient
+	var current sshClient
+	closeOnErr := func() {
+		if current != nil {
+			_ = current.Close()
+		}
+		for i := len(jumpClients) - 1; i >= 0; i-- {
+			_ = jumpClients[i].Close()
+		}
+	}
+
+	for _, hop := range hops {
+		hopConfig, hopCleanup, hopErr := s.clientConfigForHop(ctx, hop)
+		if hopErr != nil {
+			if hopCleanup != nil {
+				hopCleanup()
+			}
+			closeOnErr()
+			return nil, fullAddr, hopErr
+		}
+		var next sshClient
+		if current == nil {
+			next, _, hopErr = s.dialDirect(ctx, hop.host, hopConfig)
+		} else {
+			next, hopErr = s.dialVia(ctx, current, hop.host, hopConfig)
+		}
+		hopCleanup()
+		if hopErr != nil {
+			closeOnErr()
+			return nil, fullAddr, hopErr
+		}
+		if current != nil {
+			jumpClients = append(jumpClients, current)
+		}
+		current = next
+	}
+
+	target, err := s.dialVia(ctx, current, host, config)
+	if err != nil {
+		closeOnErr()
+		return nil, fullAddr, err
+	}
+	jumpClients = append(jumpClients, current)
+	return &chainedSSHClient{sshClient: target, hops: jumpClients}, fullAddr, nil
+}
+
+func (s *Service) dialDirect(ctx context.Context, host model.Host, config *ssh.ClientConfig) (sshClient, string, error) {
+	fullAddr := sshHostPort(host)
 	if dialer, ok := s.dialer.(sshContextDialer); ok {
 		client, err := dialer.DialContext(ctx, "tcp", fullAddr, config)
 		if err != nil {

@@ -228,6 +228,18 @@ func TestAppAcceptHostKeyPropagatesPendingError(t *testing.T) {
 	}
 }
 
+func TestAppAnswerKeyboardInteractivePropagatesPendingError(t *testing.T) {
+	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	err = app.AnswerKeyboardInteractive("missing-host", "prompt-1", []string{"otp"})
+	if !errors.Is(err, service.ErrKeyboardInteractiveNotFound) {
+		t.Fatalf("AnswerKeyboardInteractive() error = %v, want %v", err, service.ErrKeyboardInteractiveNotFound)
+	}
+}
+
 func TestAppUpdateHostPreservesKnownErrorsForFrontend(t *testing.T) {
 	app, err := NewApp(filepath.Join(t.TempDir(), "config.zen"))
 	if err != nil {

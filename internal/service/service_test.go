@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	cryptorand "crypto/rand"
+	"errors"
 	"io"
+	"net"
 	"os"
 	pathpkg "path"
 	"strings"
@@ -73,6 +75,8 @@ type stubSSHClient struct {
 	newSFTPHits    int
 	newSessionHits int
 	systemOutput   string
+	dialConn       net.Conn
+	dialErr        error
 }
 
 func (c *stubSSHClient) NewSession() (sshSession, error) {
@@ -118,6 +122,18 @@ func (c *stubSSHClient) Close() error {
 
 func (c *stubSSHClient) SendKeepAlive() error {
 	return nil
+}
+
+func (c *stubSSHClient) Dial(network, addr string) (net.Conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.dialErr != nil {
+		return nil, c.dialErr
+	}
+	if c.dialConn != nil {
+		return c.dialConn, nil
+	}
+	return nil, errors.New("stub ssh client does not support Dial")
 }
 
 type stubSFTPClient struct {

@@ -18,6 +18,7 @@ import {
   Tags,
   Terminal,
   UserRound,
+  Waypoints,
   X,
 } from 'lucide-react'
 import { getCredentials, getHostSecret } from '@/lib/backend'
@@ -37,6 +38,7 @@ interface HostFormProps {
   onClose: () => void
   existingGroups?: string[]
   existingTags?: string[]
+  hosts?: Array<{ id: string; name?: string; address?: string }>
 }
 
 export default function HostForm({
@@ -49,6 +51,7 @@ export default function HostForm({
   onClose,
   existingGroups = [],
   existingTags = [],
+  hosts = [],
 }: HostFormProps) {
   const isEdit = mode === 'edit'
   const [credentials, setCredentials] = useState<Credential[]>([])
@@ -135,19 +138,12 @@ export default function HostForm({
     })
   }
 
-  function selectPasswordAuth() {
-    patch({
-      authType: 'password',
-      credentialId: '',
-      privateKey: '',
-    })
-  }
-
   function selectPrivateKeyAuth() {
     patch({
       authType: 'key',
       credentialId: '',
       password: '',
+      useAgent: false,
     })
   }
 
@@ -157,6 +153,26 @@ export default function HostForm({
       credentialId: credentials[0]?.id || '',
       password: '',
       privateKey: '',
+      useAgent: false,
+    })
+  }
+
+  function selectAgentAuth() {
+    patch({
+      authType: 'agent',
+      credentialId: '',
+      password: '',
+      privateKey: '',
+      useAgent: true,
+    })
+  }
+
+  function selectPasswordAuth() {
+    patch({
+      authType: 'password',
+      credentialId: '',
+      privateKey: '',
+      useAgent: false,
     })
   }
 
@@ -363,6 +379,14 @@ export default function HostForm({
               <ShieldCheck size={13} />
               <span>钥匙串凭据</span>
             </button>
+            <button
+              type="button"
+              className={`host-auth-tab${value.authType === 'agent' ? ' active' : ''}`}
+              onClick={selectAgentAuth}
+            >
+              <KeyRound size={13} />
+              <span>Agent</span>
+            </button>
           </div>
 
           {/* 密码输入区 */}
@@ -475,6 +499,25 @@ export default function HostForm({
             </div>
           )}
 
+          {value.authType === 'agent' && (
+            <div className="host-auth-content-box">
+              <p className="form-hint">
+                使用本机 SSH Agent（SSH_AUTH_SOCK，Windows 还会尝试 OpenSSH 命名管道）中的密钥登录。未配置密码或私钥时也会自动尝试 Agent。
+              </p>
+            </div>
+          )}
+
+          {value.authType !== 'agent' && (
+            <label className="host-agent-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(value.useAgent)}
+                onChange={(event) => update('useAgent', event.target.checked)}
+              />
+              <span>同时尝试本机 SSH Agent</span>
+            </label>
+          )}
+
           {/* 兼顾旧测试断言的占位/切换锚点 (视觉隐藏但不破坏 DOM 可达性) */}
           <div className="sr-only" aria-hidden="false">
             <button
@@ -493,7 +536,7 @@ export default function HostForm({
           <p className="form-hint">
             {isEdit
               ? '密码、私钥或凭据留空时，会保留原有的加密凭据。'
-              : '首次连接未知主机时，ZenTerm 将在首连界面确认指纹并自动加密写入。'}
+              : '首次连接未知主机时，ZenTerm 将在首连界面确认指纹并自动加密写入。可选用 SSH Agent 或 keyboard-interactive（OTP/2FA）。'}
           </p>
         </section>
 
@@ -607,13 +650,52 @@ export default function HostForm({
             aria-expanded={showAdvanced}
           >
             {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            <span>高级选项 (系统类型 / 主机 ID / 指纹说明)</span>
+            <span>高级选项 (跳板机 / 系统类型 / 主机 ID)</span>
           </button>
         </div>
 
         <section
           className={`host-form-section host-advanced-section${showAdvanced ? ' is-open' : ' is-collapsed'}`}
         >
+          <div className="host-field-group">
+            <span className="host-input-label-text">跳板机 / ProxyJump</span>
+            <div className="host-input-wrapper">
+              <span className="host-input-icon" aria-hidden="true">
+                <Waypoints size={14} />
+              </span>
+              <label className="w-full">
+                <span className="sr-only">跳板机</span>
+                <select
+                  aria-label="跳板机"
+                  value={value.jumpHostId}
+                  onChange={(event) => patch({ jumpHostId: event.target.value, jumpHost: event.target.value ? '' : value.jumpHost })}
+                  className="host-select-field"
+                >
+                  <option value="">不使用已保存的跳板机</option>
+                  {hosts
+                    .filter((host) => host.id && host.id !== value.id)
+                    .map((host) => (
+                      <option key={host.id} value={host.id}>
+                        {host.name || host.id} ({host.address})
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+            <label className="w-full">
+              <span className="sr-only">跳板机地址</span>
+              <input
+                aria-label="跳板机地址"
+                value={value.jumpHost}
+                onChange={(event) => patch({ jumpHost: event.target.value, jumpHostId: event.target.value ? '' : value.jumpHostId })}
+                placeholder="或填写 user@host:port"
+                className="host-input-field"
+                disabled={Boolean(value.jumpHostId)}
+              />
+            </label>
+            <p className="form-hint">连接时先登录跳板机，再转发到目标主机；每一跳都会确认主机指纹。</p>
+          </div>
+
           {/* 自定义 ID */}
           <div className="host-field-group">
             <span className="host-input-label-text">

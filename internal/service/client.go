@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -18,10 +19,15 @@ type sshContextDialer interface {
 	DialContext(ctx context.Context, network, addr string, config *ssh.ClientConfig) (sshClient, error)
 }
 
+type sshViaDialer interface {
+	DialVia(ctx context.Context, jump sshClient, network, addr string, config *ssh.ClientConfig) (sshClient, error)
+}
+
 type sshClient interface {
 	NewSession() (sshSession, error)
 	NewSFTPClient() (sftpClient, error)
 	SendKeepAlive() error
+	Dial(network, addr string) (net.Conn, error)
 	Close() error
 }
 
@@ -67,6 +73,10 @@ func (d realSSHDialer) DialContext(ctx context.Context, network, addr string, co
 	return &realSSHClient{client: ssh.NewClient(connection, channels, requests)}, nil
 }
 
+func (d realSSHDialer) DialVia(ctx context.Context, jump sshClient, network, addr string, config *ssh.ClientConfig) (sshClient, error) {
+	return dialSSHViaJump(ctx, jump, network, addr, config)
+}
+
 type realSSHClient struct {
 	client *ssh.Client
 }
@@ -91,6 +101,10 @@ func (c *realSSHClient) NewSFTPClient() (sftpClient, error) {
 
 func (c *realSSHClient) Close() error {
 	return c.client.Close()
+}
+
+func (c *realSSHClient) Dial(network, addr string) (net.Conn, error) {
+	return c.client.Dial(network, addr)
 }
 
 // SendKeepAlive 向远端发送一次 openssh keepalive 请求，用于保持空闲连接活跃 / sends an openssh keepalive request to keep idle connections alive.
@@ -193,4 +207,60 @@ func (s *realSSHSession) Wait() error {
 
 func (s *realSSHSession) Close() error {
 	return s.session.Close()
+}
+
+func dialSSHViaJump(ctx context.Context, jump sshClient, network, addr string, config *ssh.ClientConfig) (sshClient, error) {
+	conn, err := jump.Dial(network, addr)
+	if err != nil {
+		return nil, fmt.Errorf("dial via jump host: %w", err)
+	}
+
+	type result struct {
+		client sshClient
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		connection, channels, requests, err := ssh.NewClientConn(conn, addr, config)
+		if err != nil {
+			_ = conn.Close()
+			done <- result{err: err}
+			return
+		}
+		done <- result{client: &realSSHClient{client: ssh.NewClient(connection, channels, requests)}}
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = conn.Close()
+		return nil, ctx.Err()
+	case r := <-done:
+		return r.client, r.err
+	}
+}
+
+type chainedSSHClient struct {
+	sshClient
+	hops []sshClient
+}
+
+func (c *chainedSSHClient) Close() error {
+	var errs []error
+	if c.sshClient != nil {
+		if err := c.sshClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for i := len(c.hops) - 1; i >= 0; i-- {
+		if c.hops[i] == nil {
+			continue
+		}
+		if err := c.hops[i].Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs[0]
 }

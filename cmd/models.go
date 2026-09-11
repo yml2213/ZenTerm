@@ -23,6 +23,10 @@ type Host struct {
 	LastConnectedAt  string `json:"last_connected_at,omitempty"`
 	KnownHosts       string `json:"known_hosts,omitempty"`
 	CredentialID     string `json:"credential_id,omitempty"`
+	UseAgent         bool   `json:"use_agent,omitempty"`
+	JumpHostID       string `json:"jump_host_id,omitempty"`
+	JumpHost         string `json:"jump_host,omitempty"`
+	JumpKnownHosts   string `json:"jump_known_hosts,omitempty"`
 }
 
 type Credential struct {
@@ -48,7 +52,6 @@ type HostSecret struct {
 	PrivateKey   string `json:"private_key,omitempty"`
 	CredentialID string `json:"credential_id,omitempty"`
 }
-
 
 type FileEntry struct {
 	Name    string `json:"name"`
@@ -119,6 +122,10 @@ func hostFromModel(host model.Host) Host {
 		LastConnectedAt:  formatTime(host.LastConnectedAt),
 		KnownHosts:       host.KnownHosts,
 		CredentialID:     host.CredentialID,
+		UseAgent:         host.UseAgent,
+		JumpHostID:       host.JumpHostID,
+		JumpHost:         host.JumpHost,
+		JumpKnownHosts:   host.JumpKnownHosts,
 	}
 }
 
@@ -139,6 +146,10 @@ func (host Host) toModel() model.Host {
 		LastConnectedAt:  parseTime(host.LastConnectedAt),
 		KnownHosts:       host.KnownHosts,
 		CredentialID:     host.CredentialID,
+		UseAgent:         host.UseAgent,
+		JumpHostID:       host.JumpHostID,
+		JumpHost:         host.JumpHost,
+		JumpKnownHosts:   host.JumpKnownHosts,
 	}
 }
 

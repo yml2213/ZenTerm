@@ -36,11 +36,20 @@ func (s *Service) AcceptHostKey(hostID, key string) error {
 		return err
 	}
 
-	knownHosts := mergeKnownHosts(host.KnownHosts, pending.key)
+	base := host.KnownHosts
+	if pending.persistJump {
+		base = host.JumpKnownHosts
+	}
+	knownHosts := mergeKnownHosts(base, pending.key)
 	if pending.reason == hostKeyPromptReasonChanged {
 		knownHosts = replaceKnownHosts(pending.key)
 	}
-	if err := s.store.UpdateKnownHosts(hostID, knownHosts); err != nil {
+	if pending.persistJump {
+		if err := s.store.UpdateJumpKnownHosts(hostID, knownHosts); err != nil {
+			pending.respond(false)
+			return err
+		}
+	} else if err := s.store.UpdateKnownHosts(hostID, knownHosts); err != nil {
 		pending.respond(false)
 		return err
 	}
@@ -71,12 +80,20 @@ func (s *Service) hostKeyCallback(host model.Host) ssh.HostKeyCallback {
 }
 
 func (s *Service) hostKeyCallbackContext(ctx context.Context, host model.Host) ssh.HostKeyCallback {
+	return s.hostKeyCallbackFor(ctx, host, false)
+}
+
+func (s *Service) hostKeyCallbackFor(ctx context.Context, host model.Host, persistJump bool) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		if isKnownHostTrusted(host.KnownHosts, key) {
 			return nil
 		}
 
 		reason, previous := hostKeyPromptState(host.KnownHosts)
+		label := host.Name
+		if persistJump {
+			label = "跳板机 " + sshHostPort(host)
+		}
 		prompt := HostKeyPrompt{
 			HostID:         host.ID,
 			RemoteAddr:     remoteAddressString(remote, hostname),
@@ -86,9 +103,10 @@ func (s *Service) hostKeyCallbackContext(ctx context.Context, host model.Host) s
 			Reason:         reason,
 			PreviousSHA256: previous.sha256,
 			PreviousMD5:    previous.md5,
+			Label:          label,
 		}
 
-		pending, err := s.registerHostKeyConfirmation(prompt)
+		pending, err := s.registerHostKeyConfirmation(prompt, persistJump)
 		if err != nil {
 			return err
 		}
@@ -111,7 +129,7 @@ func (s *Service) hostKeyCallbackContext(ctx context.Context, host model.Host) s
 	}
 }
 
-func (s *Service) registerHostKeyConfirmation(prompt HostKeyPrompt) (*pendingHostKeyConfirmation, error) {
+func (s *Service) registerHostKeyConfirmation(prompt HostKeyPrompt, persistJump bool) (*pendingHostKeyConfirmation, error) {
 	s.hostKeyMu.Lock()
 	defer s.hostKeyMu.Unlock()
 
@@ -120,10 +138,11 @@ func (s *Service) registerHostKeyConfirmation(prompt HostKeyPrompt) (*pendingHos
 	}
 
 	pending := &pendingHostKeyConfirmation{
-		hostID: prompt.HostID,
-		key:    prompt.Key,
-		reason: prompt.Reason,
-		result: make(chan bool, 1),
+		hostID:      prompt.HostID,
+		key:         prompt.Key,
+		reason:      prompt.Reason,
+		persistJump: persistJump,
+		result:      make(chan bool, 1),
 	}
 	s.pendingHostKeys[prompt.HostID] = pending
 	return pending, nil

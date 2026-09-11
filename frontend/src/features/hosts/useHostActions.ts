@@ -148,7 +148,7 @@ export function useHostActions({
     event.preventDefault()
 
     if (hostDialogMode === 'create' && !hasConfiguredAuth(hostForm)) {
-      setError('请至少配置一种 SSH 认证方式：密码、私钥或凭据。')
+      setError('请至少配置一种 SSH 认证方式：密码、私钥、凭据或 SSH Agent。')
       return
     }
 
@@ -237,6 +237,9 @@ export function useHostActions({
       last_connected_at: host.last_connected_at,
       known_hosts: host.known_hosts,
       credential_id: host.credential_id,
+      use_agent: host.use_agent,
+      jump_host_id: host.jump_host_id,
+      jump_host: host.jump_host,
     })
 
     updateHost(nextHost, {})

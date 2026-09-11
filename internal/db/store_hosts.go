@@ -186,6 +186,28 @@ func (s *Store) UpdateKnownHosts(hostID, knownHosts string) error {
 	return ErrHostNotFound
 }
 
+// UpdateJumpKnownHosts 更新地址型跳板机的可信 Host Key 列表 / updates known keys stored for an address-only jump host.
+func (s *Store) UpdateJumpKnownHosts(hostID, knownHosts string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	for i := range data.Hosts {
+		if data.Hosts[i].Host.ID != hostID {
+			continue
+		}
+
+		data.Hosts[i].Host.JumpKnownHosts = knownHosts
+		return s.saveLocked(data)
+	}
+
+	return ErrHostNotFound
+}
+
 // UpdateLastConnectedAt 记录主机最近成功连接时间 / records the most recent successful connection time for a host.
 func (s *Store) UpdateLastConnectedAt(hostID string, connectedAt time.Time) error {
 	s.mu.Lock()

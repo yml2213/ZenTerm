@@ -393,6 +393,21 @@ export async function rejectHostKey(hostID: string): Promise<void> {
   return callApp("RejectHostKey", hostID);
 }
 
+export async function answerKeyboardInteractive(
+  hostID: string,
+  promptID: string,
+  answers: string[]
+): Promise<void> {
+  return callApp("AnswerKeyboardInteractive", hostID, promptID, answers);
+}
+
+export async function cancelKeyboardInteractive(
+  hostID: string,
+  promptID: string
+): Promise<void> {
+  return callApp("CancelKeyboardInteractive", hostID, promptID);
+}
+
 export async function sendInput(
   sessionID: string,
   data: string
