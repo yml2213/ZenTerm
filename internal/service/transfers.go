@@ -475,10 +475,14 @@ func (s *Service) dialSFTPConnection(ctx context.Context, hostID string) (*manag
 		return nil, err
 	}
 
-	config, err := s.newClientConfigContext(ctx, host, identity)
+	config, cleanup, err := s.newClientConfigContext(ctx, host, identity)
 	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
 		return nil, err
 	}
+	defer cleanup()
 
 	client, remoteAddr, err := s.openSSHClientContext(ctx, host, config)
 	if err != nil {
@@ -878,5 +882,3 @@ func ensureRemoteDirAll(client sftpClient, targetPath string) error {
 	}
 	return nil
 }
-
-

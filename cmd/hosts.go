@@ -39,7 +39,6 @@ func (a *App) GetHostSecret(hostID string) (HostSecret, error) {
 	}, nil
 }
 
-
 // UpdateHostPinned 更新主机置顶状态 / updates whether a host is pinned in the host list.
 func (a *App) UpdateHostPinned(hostID string, pinned bool) error {
 	if err := a.service.UpdateHostPinned(hostID, pinned); err != nil {
@@ -97,6 +96,22 @@ func (a *App) RejectHostKey(hostID string) error {
 		return normalizeFrontendError(err)
 	}
 
+	return nil
+}
+
+// AnswerKeyboardInteractive 提交 keyboard-interactive 挑战应答 / submits answers for a keyboard-interactive challenge.
+func (a *App) AnswerKeyboardInteractive(hostID, promptID string, answers []string) error {
+	if err := a.service.AnswerKeyboardInteractive(hostID, promptID, answers); err != nil {
+		return normalizeFrontendError(err)
+	}
+	return nil
+}
+
+// CancelKeyboardInteractive 取消 keyboard-interactive 挑战 / cancels a pending keyboard-interactive challenge.
+func (a *App) CancelKeyboardInteractive(hostID, promptID string) error {
+	if err := a.service.CancelKeyboardInteractive(hostID, promptID); err != nil {
+		return normalizeFrontendError(err)
+	}
 	return nil
 }
 

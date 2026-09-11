@@ -82,8 +82,8 @@ func TestConnectCreatesManagedSession(t *testing.T) {
 	if dialer.config.User != "zen" {
 		t.Fatalf("Dial() user = %q, want %q", dialer.config.User, "zen")
 	}
-	if len(dialer.config.Auth) != 1 {
-		t.Fatalf("len(Dial() auth) = %d, want 1", len(dialer.config.Auth))
+	if len(dialer.config.Auth) != 2 {
+		t.Fatalf("len(Dial() auth) = %d, want 2", len(dialer.config.Auth))
 	}
 	if !dialer.client.session.shellStarted {
 		t.Fatal("Connect() did not start remote shell")
@@ -860,6 +860,9 @@ func TestConnectFailsWhenIdentityHasNoAuthMethod(t *testing.T) {
 	svc, err := newWithDialer(store, vault, &stubDialer{client: &stubSSHClient{}})
 	if err != nil {
 		t.Fatalf("newWithDialer() error = %v", err)
+	}
+	svc.agentAuth = func() (ssh.AuthMethod, func(), error) {
+		return nil, nil, errAgentUnavailable
 	}
 
 	_, err = svc.Connect(host.ID)

@@ -26,6 +26,7 @@ export function useResetAppState({ setters, refs }: ResetAppStateProps) {
       setters.hosts.setHostDialogMode(null)
       setters.hosts.setDeleteCandidate(null)
       setters.sessions.setHostKeyPrompt(null)
+      setters.sessions.setKeyboardInteractivePrompt(null)
       setters.workspace.setSessionTabs([])
       setters.workspace.setActiveSessionId(null)
       refs.newTabCounterRef.current = 0

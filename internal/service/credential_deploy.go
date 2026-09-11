@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -34,10 +35,14 @@ func (s *Service) UploadCredentialToHost(hostID, credentialID string, bind bool)
 	if err != nil {
 		return model.CredentialUploadResult{}, err
 	}
-	config, err := s.newClientConfig(host, identity)
+	config, cleanup, err := s.newClientConfigContext(context.Background(), host, identity)
 	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
 		return model.CredentialUploadResult{}, err
 	}
+	defer cleanup()
 
 	client, _, err := s.openSSHClient(host, config)
 	if err != nil {
@@ -121,13 +126,17 @@ func (s *Service) TestCredentialForHost(hostID, credentialID string) error {
 		return err
 	}
 
-	config, err := s.newClientConfig(host, model.Identity{
+	config, cleanup, err := s.newClientConfigContext(context.Background(), host, model.Identity{
 		Password:   passphrase,
 		PrivateKey: privateKey,
 	})
 	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
 		return err
 	}
+	defer cleanup()
 
 	client, _, err := s.openSSHClient(host, config)
 	if err != nil {

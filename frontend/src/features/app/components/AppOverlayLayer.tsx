@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import AppOverlays from './AppOverlays'
 import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
-import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { HostKeyPrompt, KeyboardInteractivePrompt } from '@/features/sessions/sessionTypes'
 import type { VaultSetupForm } from '@/features/vault/vaultTypes'
 import { cmd } from '@/lib/backendModels'
 
@@ -20,6 +20,8 @@ export interface AppOverlayActions {
   onClearError: () => void
   onAcceptHostKey: () => void
   onRejectHostKey: () => void
+  onAnswerKeyboardInteractive: (answers: string[]) => void
+  onCancelKeyboardInteractive: () => void
 }
 
 interface AppOverlayLayerProps {
@@ -42,6 +44,8 @@ interface AppOverlayLayerProps {
   sessions: {
     hostKeyPrompt: HostKeyPrompt | null
     isAcceptingKey: boolean
+    keyboardInteractivePrompt: KeyboardInteractivePrompt | null
+    isAnsweringKeyboardInteractive: boolean
   }
   labels: {
     errorTitle: string
@@ -88,6 +92,10 @@ export default function AppOverlayLayer({
       isAcceptingKey={sessions.isAcceptingKey}
       onAcceptHostKey={actions.onAcceptHostKey}
       onRejectHostKey={actions.onRejectHostKey}
+      keyboardInteractivePrompt={sessions.keyboardInteractivePrompt}
+      isAnsweringKeyboardInteractive={sessions.isAnsweringKeyboardInteractive}
+      onAnswerKeyboardInteractive={actions.onAnswerKeyboardInteractive}
+      onCancelKeyboardInteractive={actions.onCancelKeyboardInteractive}
     />
   )
 }

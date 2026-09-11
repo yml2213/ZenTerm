@@ -2,7 +2,9 @@ import { startTransition } from 'react'
 import { buildOptimisticSessionTab, buildSessionTabs } from '@/lib/appSessionUtils'
 import {
   acceptHostKey,
+  answerKeyboardInteractive,
   cancelConnect,
+  cancelKeyboardInteractive,
   connect,
   disconnect,
   listHosts,
@@ -13,7 +15,7 @@ import {
 } from '@/lib/backend'
 import { isDemoHost, toUserMessage, withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '@/lib/backendModels'
-import type { HostKeyPrompt } from './sessionTypes'
+import type { HostKeyPrompt, KeyboardInteractivePrompt } from './sessionTypes'
 import type { SessionTab, WorkspaceTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface SessionActionHandlersProps {
@@ -22,6 +24,7 @@ interface SessionActionHandlersProps {
     activeWorkspace: WorkspaceType
     activeNewTabId: string | null
     hostKeyPrompt: HostKeyPrompt | null
+    keyboardInteractivePrompt: KeyboardInteractivePrompt | null
   }
   setters: {
     app: {
@@ -41,6 +44,8 @@ interface SessionActionHandlersProps {
       setConnectingHostIds: (updater: string[] | ((current: string[]) => string[])) => void
       setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
       setIsAcceptingKey: (isAccepting: boolean) => void
+      setKeyboardInteractivePrompt: (prompt: KeyboardInteractivePrompt | null) => void
+      setIsAnsweringKeyboardInteractive: (busy: boolean) => void
     }
   }
   refs: {
@@ -62,6 +67,7 @@ export function useSessionActions({
     activeWorkspace,
     activeNewTabId,
     hostKeyPrompt,
+    keyboardInteractivePrompt,
   } = state
   const {
     setError,
@@ -80,6 +86,8 @@ export function useSessionActions({
     setConnectingHostIds,
     setHostKeyPrompt,
     setIsAcceptingKey,
+    setKeyboardInteractivePrompt,
+    setIsAnsweringKeyboardInteractive,
   } = setters.sessions
   const { rejectedHostIdsRef } = refs
   const { removeSessionTab } = helpers
@@ -206,6 +214,37 @@ export function useSessionActions({
       .catch((err) => setError(err.message || String(err)))
   }
 
+  function handleAnswerKeyboardInteractive(answers: string[]) {
+    if (!keyboardInteractivePrompt) {
+      return
+    }
+
+    setIsAnsweringKeyboardInteractive(true)
+    answerKeyboardInteractive(
+      keyboardInteractivePrompt.hostID,
+      keyboardInteractivePrompt.promptID,
+      answers,
+    )
+      .then(() => {
+        setKeyboardInteractivePrompt(null)
+      })
+      .catch((err) => setError(err.message || String(err)))
+      .finally(() => setIsAnsweringKeyboardInteractive(false))
+  }
+
+  function handleCancelKeyboardInteractive() {
+    if (!keyboardInteractivePrompt) {
+      return
+    }
+
+    rejectedHostIdsRef.current.add(keyboardInteractivePrompt.hostID)
+    cancelKeyboardInteractive(keyboardInteractivePrompt.hostID, keyboardInteractivePrompt.promptID)
+      .then(() => {
+        setKeyboardInteractivePrompt(null)
+      })
+      .catch((err) => setError(err.message || String(err)))
+  }
+
   return {
     syncHostsSessions,
     handleConnect,
@@ -216,5 +255,7 @@ export function useSessionActions({
     handleResizeTerminal,
     handleAcceptHostKey,
     handleRejectHostKey,
+    handleAnswerKeyboardInteractive,
+    handleCancelKeyboardInteractive,
   }
 }

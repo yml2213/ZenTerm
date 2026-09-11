@@ -13,10 +13,13 @@ export interface HostFormModel {
   favorite: boolean
   systemType: string
   systemTypeSource: 'auto' | 'manual'
-  authType: 'password' | 'key' | 'credential'
+  authType: 'password' | 'key' | 'credential' | 'agent'
   password?: string
   privateKey?: string
   credentialId?: string
+  useAgent?: boolean
+  jumpHostId?: string
+  jumpHost?: string
 }
 
 const initialState: HostFormModel = {
@@ -34,6 +37,9 @@ const initialState: HostFormModel = {
   password: '',
   privateKey: '',
   credentialId: '',
+  useAgent: false,
+  jumpHostId: '',
+  jumpHost: '',
 }
 
 export function createInitialHostForm(): HostFormModel {
@@ -53,9 +59,16 @@ export function createHostFormFromHost(host: Host | null | undefined): HostFormM
     favorite: Boolean(host?.favorite),
     systemType: host?.system_type || '',
     systemTypeSource: (systemTypeSource === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
-    authType: host?.credential_id ? 'credential' : 'password',
+    authType: host?.credential_id
+      ? 'credential'
+      : host?.use_agent
+        ? 'agent'
+        : 'password',
     password: '',
     privateKey: '',
     credentialId: host?.credential_id || '',
+    useAgent: Boolean(host?.use_agent),
+    jumpHostId: host?.jump_host_id || '',
+    jumpHost: host?.jump_host || '',
   }
 }

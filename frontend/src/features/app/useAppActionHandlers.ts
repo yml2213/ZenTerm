@@ -5,7 +5,7 @@ import { useVaultActions } from '@/features/vault/useVaultActions'
 import { cmd } from '@/lib/backendModels'
 import type { HostFormModel } from '@/features/hosts/hostFormModel'
 import type { SSHConfigImportPrompt } from '@/features/hosts/sshConfigImportTypes'
-import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { HostKeyPrompt, KeyboardInteractivePrompt } from '@/features/sessions/sessionTypes'
 import type { ChangeMasterForm, VaultSetupForm } from '@/features/vault/vaultTypes'
 import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 import type { AppStateRefs, AppStateSetters } from './useAppState'
@@ -35,6 +35,7 @@ interface AppActionHandlersProps {
     hostKeyPrompt: HostKeyPrompt | null
     connectingHostIds: string[]
     isAcceptingKey: boolean
+    keyboardInteractivePrompt: KeyboardInteractivePrompt | null
   }
   sshConfigImportState: {
     sshConfigImportPrompt: SSHConfigImportPrompt | null

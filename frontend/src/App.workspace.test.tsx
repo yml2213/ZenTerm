@@ -11,7 +11,9 @@ import {
 } from './test/appTestHarness'
 import {
   acceptHostKey,
+  answerKeyboardInteractive,
   connect,
+  disconnect,
   disconnect,
   listHosts,
   listSessions,
@@ -203,7 +205,7 @@ describe('App workspace flows', () => {
     await continueWithMasterPassword(user)
     await user.click(screen.getAllByRole('button', { name: '连接' })[0])
 
-    expect(await screen.findByText('当前主机未配置认证方式，请填写密码、私钥或选择一个凭据后再连接。')).toBeInTheDocument()
+    expect(await screen.findByText('当前主机未配置认证方式，请填写密码、私钥、选择凭据，或启用 SSH Agent 后再连接。')).toBeInTheDocument()
   })
 
   it('终端面板会跟随活跃会话并把输入与尺寸同步到后端', async () => {
@@ -280,6 +282,35 @@ describe('App workspace flows', () => {
 
     pendingConnect.resolve('session-key')
     await waitFor(() => expect(screen.getByRole('button', { name: /Alpha 10.0.0.1:22/ })).toBeInTheDocument())
+  })
+
+  it('连接过程中可以回答 keyboard-interactive 挑战', async () => {
+    const user = userEvent.setup()
+    const pendingConnect = createDeferred()
+    connect.mockReturnValueOnce(pendingConnect.promise)
+
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: '保险箱' }))
+    await user.click(screen.getAllByRole('button', { name: '连接' })[0])
+
+    runtimeHandlers.get('ssh:keyboard-interactive:prompt')?.({
+      promptID: 'prompt-1',
+      hostID: 'host-1',
+      instruction: 'Enter token',
+      questions: [{ prompt: 'OTP:', echo: true }],
+    })
+
+    expect(await screen.findByText('服务器请求 keyboard-interactive 认证')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('OTP:'), '123456')
+    await user.click(screen.getByRole('button', { name: '继续连接' }))
+
+    await waitFor(() => {
+      expect(answerKeyboardInteractive).toHaveBeenCalledWith('host-1', 'prompt-1', ['123456'])
+    })
+
+    pendingConnect.resolve('session-otp')
   })
 
   it('双击顶部空白区域时切换窗口最大化', async () => {

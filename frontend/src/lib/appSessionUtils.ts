@@ -54,6 +54,7 @@ interface HostKeyPromptInput {
   reason?: string
   previousSHA256?: string
   previousMD5?: string
+  label?: string
 }
 
 
@@ -165,5 +166,40 @@ export function normalizeHostKeyPrompt(prompt: unknown): HostKeyPrompt | null {
     reason,
     previousSHA256: value.previousSHA256 ? String(value.previousSHA256) : undefined,
     previousMD5: value.previousMD5 ? String(value.previousMD5) : undefined,
+    label: value.label ? String(value.label) : undefined,
+  }
+}
+
+interface KeyboardInteractivePromptInput {
+  promptID?: string
+  hostID?: string
+  name?: string
+  instruction?: string
+  questions?: Array<{ prompt?: string; echo?: boolean }>
+}
+
+export function normalizeKeyboardInteractivePrompt(prompt: unknown): import('@/features/sessions/sessionTypes').KeyboardInteractivePrompt | null {
+  if (!prompt || typeof prompt !== 'object') {
+    return null
+  }
+
+  const value = prompt as KeyboardInteractivePromptInput
+  const questions = Array.isArray(value.questions)
+    ? value.questions.map((question) => ({
+        prompt: String(question?.prompt || ''),
+        echo: Boolean(question?.echo),
+      }))
+    : []
+
+  if (!value.promptID || !value.hostID || questions.length === 0) {
+    return null
+  }
+
+  return {
+    promptID: String(value.promptID),
+    hostID: String(value.hostID || ''),
+    name: value.name ? String(value.name) : undefined,
+    instruction: value.instruction ? String(value.instruction) : undefined,
+    questions,
   }
 }

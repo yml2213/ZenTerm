@@ -90,6 +90,7 @@ export default function App() {
     setVaultReady: vaultSetters.setVaultReady,
     setError: appSetters.setError,
     setHostKeyPrompt: sessionSetters.setHostKeyPrompt,
+    setKeyboardInteractivePrompt: sessionSetters.setKeyboardInteractivePrompt,
   })
 
   useWindowStatePersistence(appSetters.setError)

@@ -7,6 +7,8 @@ import (
 
 	"zenterm/internal/db"
 	"zenterm/internal/security"
+
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -34,6 +36,9 @@ type Service struct {
 	sftpGeneration  uint64
 	hostKeyMu       sync.Mutex
 	pendingHostKeys map[string]*pendingHostKeyConfirmation
+	kbdIntMu        sync.Mutex
+	pendingKbdInt   map[string]*pendingKeyboardInteractive
+	agentAuth       func() (ssh.AuthMethod, func(), error)
 	connectMu       sync.Mutex
 	connectCancels  map[string]context.CancelFunc
 }
@@ -66,6 +71,7 @@ func newWithDialer(store *db.Store, vault *security.Vault, dialer sshDialer) (*S
 		sftpConnections: make(map[string]*managedSFTPConnection),
 		sftpInFlight:    make(map[string]*sftpDialCall),
 		pendingHostKeys: make(map[string]*pendingHostKeyConfirmation),
+		pendingKbdInt:   make(map[string]*pendingKeyboardInteractive),
 		connectCancels:  make(map[string]context.CancelFunc),
 	}, nil
 }

@@ -26,6 +26,14 @@ var (
 	ErrHostKeyConfirmationNotFound = errors.New("host key confirmation not found")
 	ErrHostKeyMismatch             = errors.New("host key does not match the pending confirmation")
 	ErrHostKeyConfirmationTimeout  = errors.New("host key confirmation timed out")
+	ErrKeyboardInteractivePending  = errors.New("keyboard-interactive confirmation already pending")
+	ErrKeyboardInteractiveNotFound = errors.New("keyboard-interactive confirmation not found")
+	ErrKeyboardInteractiveTimeout  = errors.New("keyboard-interactive confirmation timed out")
+	ErrKeyboardInteractiveCanceled = errors.New("keyboard-interactive authentication was canceled")
+	ErrSSHAgentUnavailable         = errors.New("SSH agent is unavailable or has no keys")
+	ErrJumpHostNotFound            = errors.New("jump host was not found")
+	ErrJumpHostCycle               = errors.New("jump host chain contains a cycle")
+	ErrJumpHostSelf                = errors.New("host cannot use itself as a jump host")
 	ErrConnectionInProgress        = errors.New("connection is already in progress for this host")
 	ErrCredentialIDRequired        = errors.New("credential id is required")
 	ErrCredentialLabelRequired     = errors.New("credential label is required")
@@ -56,6 +64,7 @@ const (
 	defaultRows           = 24
 	defaultCols           = 80
 	hostKeyConfirmTimeout = 2 * time.Minute
+	maxJumpHops           = 5
 )
 
 const (
@@ -76,6 +85,22 @@ type HostKeyPrompt struct {
 	Reason         string `json:"reason"`
 	PreviousSHA256 string `json:"previousSHA256,omitempty"`
 	PreviousMD5    string `json:"previousMD5,omitempty"`
+	Label          string `json:"label,omitempty"`
+}
+
+// KeyboardInteractiveQuestion 是一次 keyboard-interactive 挑战中的单个提示 / is one prompt in a keyboard-interactive challenge.
+type KeyboardInteractiveQuestion struct {
+	Prompt string `json:"prompt"`
+	Echo   bool   `json:"echo"`
+}
+
+// KeyboardInteractivePrompt 表示发送给前端的 keyboard-interactive 挑战 / represents a keyboard-interactive challenge emitted to the frontend.
+type KeyboardInteractivePrompt struct {
+	PromptID    string                        `json:"promptID"`
+	HostID      string                        `json:"hostID"`
+	Name        string                        `json:"name,omitempty"`
+	Instruction string                        `json:"instruction,omitempty"`
+	Questions   []KeyboardInteractiveQuestion `json:"questions"`
 }
 
 // Session 表示一个活跃的 SSH 连接会话 / represents an active SSH connection session.
@@ -119,6 +144,8 @@ type ZenService interface {
 	Connect(hostID string) (string, error)
 	AcceptHostKey(hostID, key string) error
 	RejectHostKey(hostID string) error
+	AnswerKeyboardInteractive(hostID, promptID string, answers []string) error
+	CancelKeyboardInteractive(hostID, promptID string) error
 	ListSessionLogs(limit int) ([]model.SessionLog, error)
 	GetSessionTranscript(logID string) (model.SessionTranscript, error)
 	ToggleSessionLogFavorite(logID string, favorite bool) error
@@ -166,11 +193,24 @@ type managedSFTPConnection struct {
 }
 
 type pendingHostKeyConfirmation struct {
-	hostID string
-	key    string
-	reason string
-	result chan bool
-	once   sync.Once
+	hostID      string
+	key         string
+	reason      string
+	persistJump bool
+	result      chan bool
+	once        sync.Once
+}
+
+type pendingKeyboardInteractive struct {
+	promptID string
+	hostID   string
+	result   chan keyboardInteractiveResult
+	once     sync.Once
+}
+
+type keyboardInteractiveResult struct {
+	answers []string
+	cancel  bool
 }
 
 type sftpClient interface {

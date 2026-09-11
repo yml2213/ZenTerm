@@ -199,8 +199,9 @@ export default function AppWorkspaces({
       disabled={!vaultUnlocked}
       busy={isSavingHost}
       onClose={actions.onCloseHostDialog}
-      existingGroups={hostView.hostGroups}
-      existingTags={hostView.hostTags}
+      existingGroups={hostGroups}
+      existingTags={hostTags}
+      hosts={hosts}
     />
   ) : null
 

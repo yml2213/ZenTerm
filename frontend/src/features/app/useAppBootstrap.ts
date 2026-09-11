@@ -6,10 +6,10 @@ import {
   onRuntimeEvent,
   tryAutoUnlock,
 } from '@/lib/backend'
-import { buildSessionTabs, normalizeHostKeyPrompt } from '@/lib/appSessionUtils'
+import { buildSessionTabs, normalizeHostKeyPrompt, normalizeKeyboardInteractivePrompt } from '@/lib/appSessionUtils'
 import { withDemoHosts } from '@/features/hosts/appHostUtils'
 import { cmd } from '@/lib/backendModels'
-import type { HostKeyPrompt } from '@/features/sessions/sessionTypes'
+import type { HostKeyPrompt, KeyboardInteractivePrompt } from '@/features/sessions/sessionTypes'
 import type { SessionTab, WorkspaceType } from '@/features/workspace/workspaceTypes'
 
 interface AppBootstrapProps {
@@ -23,6 +23,7 @@ interface AppBootstrapProps {
   setVaultReady: (ready: boolean) => void
   setError: (error: string | null) => void
   setHostKeyPrompt: (prompt: HostKeyPrompt | null) => void
+  setKeyboardInteractivePrompt: (prompt: KeyboardInteractivePrompt | null) => void
 }
 
 export function useAppBootstrap({
@@ -36,6 +37,7 @@ export function useAppBootstrap({
   setVaultReady,
   setError,
   setHostKeyPrompt,
+  setKeyboardInteractivePrompt,
 }: AppBootstrapProps) {
   useEffect(() => {
     let disposed = false
@@ -93,16 +95,21 @@ export function useAppBootstrap({
     const offHostKey = onRuntimeEvent('ssh:host-key:confirm', (prompt: unknown) => {
       setHostKeyPrompt(normalizeHostKeyPrompt(prompt))
     })
+    const offKeyboardInteractive = onRuntimeEvent('ssh:keyboard-interactive:prompt', (prompt: unknown) => {
+      setKeyboardInteractivePrompt(normalizeKeyboardInteractivePrompt(prompt))
+    })
 
     return () => {
       disposed = true
       offHostKey()
+      offKeyboardInteractive()
     }
   }, [
     setActiveSessionId,
     setActiveWorkspace,
     setError,
     setHostKeyPrompt,
+    setKeyboardInteractivePrompt,
     setHosts,
     setSelectedHostId,
     setSessionTabs,

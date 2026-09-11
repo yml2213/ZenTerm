@@ -67,6 +67,8 @@ export function createAppViewActions({
       onClearError: () => setters.app.setError(null),
       onAcceptHostKey: appActions.handleAcceptHostKey,
       onRejectHostKey: appActions.handleRejectHostKey,
+      onAnswerKeyboardInteractive: appActions.handleAnswerKeyboardInteractive,
+      onCancelKeyboardInteractive: appActions.handleCancelKeyboardInteractive,
     },
   }
 }

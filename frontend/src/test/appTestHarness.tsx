@@ -7,6 +7,7 @@ import App from '../App'
 import {
   acceptHostKey,
   addHost,
+  answerKeyboardInteractive,
   browserOpenURL,
   changeMasterPassword,
   checkForUpdates,
@@ -61,6 +62,7 @@ import {
   updateHost,
   updateHostPinned,
   uploadFile,
+  cancelKeyboardInteractive,
   windowSetBackgroundColour,
   windowSetDarkTheme,
   windowSetLightTheme,
@@ -109,8 +111,10 @@ vi.mock('../lib/backend', () => ({
   listSessionLogs: vi.fn(),
   listSessions: vi.fn(),
   acceptHostKey: vi.fn(),
+  answerKeyboardInteractive: vi.fn(),
   browserOpenURL: vi.fn(),
   rejectHostKey: vi.fn(),
+  cancelKeyboardInteractive: vi.fn(),
   renameLocalEntry: vi.fn(),
   renameRemoteEntry: vi.fn(),
   reorderHosts: vi.fn(),
@@ -448,6 +452,8 @@ export function registerAppHarness() {
     ])
     toggleSessionLogFavorite.mockResolvedValue(undefined)
     acceptHostKey.mockResolvedValue(undefined)
+    answerKeyboardInteractive.mockResolvedValue(undefined)
+    cancelKeyboardInteractive.mockResolvedValue(undefined)
     browserOpenURL.mockResolvedValue(undefined)
     onRuntimeEvent.mockImplementation((eventName, handler) => {
       const handlers = runtimeHandlerLists.get(eventName) || new Set()
@@ -476,6 +482,7 @@ export function registerAppHarness() {
 export {
   acceptHostKey,
   addHost,
+  answerKeyboardInteractive,
   browserOpenURL,
   changeMasterPassword,
   checkForUpdates,
@@ -530,6 +537,7 @@ export {
   updateHost,
   updateHostPinned,
   uploadFile,
+  cancelKeyboardInteractive,
   windowSetBackgroundColour,
   windowSetDarkTheme,
   windowSetLightTheme,

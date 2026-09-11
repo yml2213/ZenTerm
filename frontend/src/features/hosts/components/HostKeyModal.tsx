@@ -41,7 +41,7 @@ export default function HostKeyModal({
         <div className="hostkey-meta">
           <div>
             <span className="panel-kicker">Host</span>
-            <strong>{prompt.hostID}</strong>
+            <strong>{prompt.label || prompt.hostID}</strong>
             <small>{prompt.remoteAddr}</small>
           </div>
         </div>

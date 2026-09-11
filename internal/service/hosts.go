@@ -14,7 +14,6 @@ func (s *Service) GetHost(hostID string) (model.Host, error) {
 	return s.store.GetHost(hostID)
 }
 
-
 // AddHost 使用已解锁的 Vault 加密并持久化主机身份信息 / encrypts and persists a host identity using the unlocked vault.
 func (s *Service) AddHost(host model.Host, identity model.Identity) error {
 	return s.store.AddHost(host, identity, s.vault)
@@ -40,6 +39,11 @@ func (s *Service) UpdateHost(host model.Host, identity model.Identity) error {
 	}
 	if host.KnownHosts == "" {
 		host.KnownHosts = existingHost.KnownHosts
+	}
+	if jumpTargetChanged(existingHost, host) {
+		host.JumpKnownHosts = ""
+	} else if host.JumpKnownHosts == "" {
+		host.JumpKnownHosts = existingHost.JumpKnownHosts
 	}
 	if host.LastConnectedAt.IsZero() {
 		host.LastConnectedAt = existingHost.LastConnectedAt

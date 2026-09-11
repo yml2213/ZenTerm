@@ -228,7 +228,7 @@ describe('App host management', () => {
 
     await waitFor(() => {
       expect(addHost).toHaveBeenCalledWith(
-        {
+        expect.objectContaining({
           id: 'host-3',
           name: 'Gamma',
           address: '10.0.0.3',
@@ -238,7 +238,7 @@ describe('App host management', () => {
           tags: 'Linux, Dev',
           favorite: true,
           system_type_source: 'auto',
-        },
+        }),
         {
           password: 'secret-pass',
           private_key: '',
@@ -260,7 +260,7 @@ describe('App host management', () => {
     await user.type(screen.getByLabelText('用户名'), 'root')
     await user.click(screen.getByRole('button', { name: '加密保存' }))
 
-    expect(await screen.findByText('请至少配置一种 SSH 认证方式：密码、私钥或凭据。')).toBeInTheDocument()
+    expect(await screen.findByText('请至少配置一种 SSH 认证方式：密码、私钥、凭据或 SSH Agent。')).toBeInTheDocument()
     expect(addHost).not.toHaveBeenCalled()
   })
 
@@ -295,6 +295,33 @@ describe('App host management', () => {
           password: '',
           private_key: 'PRIVATE KEY',
         },
+      )
+    })
+  })
+
+  it('新增主机支持 SSH Agent 认证', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await continueWithMasterPassword(user)
+    await user.click(screen.getByRole('button', { name: /New Host|新建主机/ }))
+    await user.clear(screen.getByLabelText('主机 ID'))
+    await user.type(screen.getByLabelText('主机 ID'), 'host-agent')
+    await user.type(screen.getByLabelText('地址'), '10.0.0.12')
+    await user.clear(screen.getByLabelText('用户名'))
+    await user.type(screen.getByLabelText('用户名'), 'ops')
+    await user.click(screen.getByRole('button', { name: 'Agent' }))
+    await user.click(screen.getByRole('button', { name: '加密保存' }))
+
+    await waitFor(() => {
+      expect(addHost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'host-agent',
+          address: '10.0.0.12',
+          username: 'ops',
+          use_agent: true,
+        }),
+        {},
       )
     })
   })
